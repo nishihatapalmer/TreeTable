@@ -11,10 +11,14 @@ import java.awt.event.MouseEvent;
 public class JTreeTable extends JTable {
 
     public JTreeTable() {
+        setShowVerticalLines(false);
+        setRowHeight(24);
     }
 
     public JTreeTable(TreeTableModel treeTableModel) {
         super(treeTableModel);
+        setShowVerticalLines(false);
+        setRowHeight(24);
     }
 
 }

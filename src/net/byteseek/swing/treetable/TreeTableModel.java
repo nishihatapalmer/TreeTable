@@ -53,8 +53,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
-        table.setShowVerticalLines(false);
-        table.setRowHeight(24);
         registerMouseListener(table);
     }
 
