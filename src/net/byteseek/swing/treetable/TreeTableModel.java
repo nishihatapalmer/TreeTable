@@ -12,6 +12,7 @@ import java.util.List;
 public abstract class TreeTableModel extends AbstractTableModel {
 
     private final TreeTableNode rootNode;
+    private TableColumnModel columnModel;
     private final int numColumns;
     private boolean showRoot;
 
@@ -49,6 +50,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
     public void initializeTable(JTable table) {
+        table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
         table.setShowVerticalLines(false);
@@ -77,12 +79,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
     protected boolean expandOrCollapseEvent(MouseEvent evt, int row, int col) {
-        TableCellRenderer renderer =  getTableColumn(col).getCellRenderer();
+        TableCellRenderer renderer = getTableColumnModel().getColumn(col).getCellRenderer();
         if (renderer instanceof TreeTableCellRenderer) {
             TreeTableNode node = getNodeAtRow(row);
+
             if (node != null && node.getAllowsChildren()) {
-                int indentWidth = ((TreeTableCellRenderer) renderer).getNodeIndent(node);
-                if (evt.getPoint().x < indentWidth) {
+                final int columnStart = calculateWidthToLeft(col);
+                final int indentWidth = ((TreeTableCellRenderer) renderer).getNodeIndent(node);
+                final int mouseX = evt.getPoint().x;
+                if (mouseX > columnStart && mouseX < columnStart + indentWidth) {
                     node.toggleExpanded();
 
                     //TODO: Should only rebuild if anything changes.
@@ -94,12 +99,23 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return true; // TODO: should only return true if something changed.
     }
 
-    protected TableColumnModel getTableColumnModel() {
-        TableColumnModel model = new DefaultTableColumnModel();
-        for (int column = 0; column < getColumnCount(); column++) {
-            model.addColumn(getTableColumn(column));
+    private int calculateWidthToLeft(int colIndex) {
+        TableColumnModel model = getTableColumnModel();
+        int width = 0;
+        for (int col = colIndex - 1; col >= 0; col--) {
+            width += model.getColumn(col).getWidth();
         }
-        return model;
+        return width;
+    }
+
+    protected TableColumnModel getTableColumnModel() {
+        if (columnModel == null) {
+            columnModel = new DefaultTableColumnModel();
+            for (int column = 0; column < getColumnCount(); column++) {
+                columnModel.addColumn(getTableColumn(column));
+            }
+        }
+        return columnModel;
     }
 
     protected TableColumn createColumn(String headerValue, int modelIndex, TableCellRenderer renderer) {
