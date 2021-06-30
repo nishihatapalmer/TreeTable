@@ -14,7 +14,9 @@ public class TreeTableNode extends DefaultMutableTreeNode {
     }
 
     public void setExpanded(final boolean expanded) {
-        this.expanded = expanded;
+        if (this.expanded != expanded) {
+            toggleExpanded();
+        }
     }
 
     public boolean isExpanded() {
@@ -23,6 +25,9 @@ public class TreeTableNode extends DefaultMutableTreeNode {
 
     public void toggleExpanded() {
         expanded = !expanded;
+
+        //TODO: should recalculate and send update notification to all parent nodes?
+        visibleNodeCount = expanded ? -1 : 1;
     }
 
     public int getVisibleNodeCount() {
