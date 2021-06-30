@@ -1,24 +1,27 @@
 package net.byteseek.swing.treetable;
 
-import javax.swing.table.AbstractTableModel;
-import javax.swing.table.DefaultTableColumnModel;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
-import javax.swing.tree.DefaultMutableTreeNode;
-import java.util.ArrayList;
+import javax.swing.*;
+import javax.swing.event.TreeWillExpandListener;
+import javax.swing.table.*;
+import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.*;
 import java.util.List;
 
 public abstract class TreeTableModel extends AbstractTableModel {
 
-    private final DefaultMutableTreeNode rootNode;
+    private final TreeTableNode rootNode;
+    private final int numColumns;
     private boolean showRoot;
 
-    private List<DefaultMutableTreeNode> displayedNodes = new ArrayList<>();
+    private List<TreeTableNode> displayedNodes = new ArrayList<>(); // needs updating every time we expand / collapse.
 
-    public TreeTableModel(final DefaultMutableTreeNode rootNode, boolean showRoot) {
+    public TreeTableModel(final TreeTableNode rootNode, final int numColumns, final boolean showRoot) {
         this.rootNode = rootNode;
         this.showRoot = showRoot;
-        addInitialNodes();
+        this.numColumns = numColumns;
+        buildVisibleNodes();
     }
 
     @Override
@@ -27,36 +30,93 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
     @Override
-    public Object getValueAt(int row, int column) {
-        return getObjectColumnValue(displayedNodes.get(row).getUserObject(), column);
+    public int getColumnCount() {
+        return numColumns;
     }
 
-    protected abstract Object getObjectColumnValue(Object o, int column);
+    @Override
+    public Object getValueAt(final int row, final int column) {
+        return getColumnValue(getNodeAtRow(row).getUserObject(), column);
+    }
 
-    protected abstract String getHeaderName(int column);
+    public boolean getShowRoot() {
+        return showRoot;
+    }
+
+    public void setShowRoot(boolean showRoot) {
+        this.showRoot = showRoot;
+        //TODO: invalidate model if different.
+    }
+
+    public void initializeTable(JTable table) {
+        table.setModel(this);
+        table.setColumnModel(getTableColumnModel());
+        table.setShowVerticalLines(false);
+        table.setRowHeight(24);
+        registerMouseListener(table);
+    }
+
+    protected void registerMouseListener(final JTable table) {
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                Point point = e.getPoint();
+                if (expandOrCollapseEvent(e, table.rowAtPoint(point), table.columnAtPoint(point))) {
+                    table.repaint(); // Should use tree expanded messages, etc?
+                }
+            }
+        });
+    }
+
+    protected abstract Object getColumnValue(Object o, int column);
+
+    protected abstract TableColumn getTableColumn(int column);
+
+    protected TreeTableNode getNodeAtRow(final int row) {
+        return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
+    }
+
+    protected boolean expandOrCollapseEvent(MouseEvent evt, int row, int col) {
+        TableCellRenderer renderer =  getTableColumn(col).getCellRenderer();
+        if (renderer instanceof TreeTableCellRenderer) {
+            TreeTableNode node = getNodeAtRow(row);
+            if (node != null && node.getAllowsChildren()) {
+                int indentWidth = ((TreeTableCellRenderer) renderer).getNodeIndent(node);
+                if (evt.getPoint().x < indentWidth) {
+                    node.toggleExpanded();
+
+                    //TODO: Should only rebuild if anything changes.
+                    //TODO: should either add nodes required, or remove nodes required, not rebuild entirely.
+                    buildVisibleNodes();
+                }
+            }
+        }
+        return true; // TODO: should only return true if something changed.
+    }
 
     protected TableColumnModel getTableColumnModel() {
         TableColumnModel model = new DefaultTableColumnModel();
         for (int column = 0; column < getColumnCount(); column++) {
-            TableColumn aColumn = new TableColumn(column);
-            aColumn.setHeaderValue(getHeaderName(column));
-            model.addColumn(aColumn);
+            model.addColumn(getTableColumn(column));
         }
         return model;
     }
 
-    private void addInitialNodes() {
-        if (showRoot) {
-            displayedNodes.add(rootNode);
-        } else {
-            addChildNodes(rootNode, 0);
+    protected TableColumn createColumn(String headerValue, int modelIndex, TableCellRenderer renderer) {
+        TableColumn tableColumn = new TableColumn(modelIndex);
+        tableColumn.setHeaderValue(headerValue);
+        if (renderer != null) {
+            tableColumn.setCellRenderer(renderer);
         }
+        return tableColumn;
     }
 
-    private void addChildNodes(DefaultMutableTreeNode parent, int insertIndex) {
-        for (int childIndex = 0; childIndex < parent.getChildCount(); childIndex++) {
-            displayedNodes.add(insertIndex + childIndex, (DefaultMutableTreeNode) parent.getChildAt(childIndex));
+    private void buildVisibleNodes() {
+        displayedNodes.clear();
+        if (showRoot) {
+            displayedNodes.add(rootNode);
         }
+        rootNode.addVisibleChildren(displayedNodes);
     }
 
 }
