@@ -1,5 +1,6 @@
 package net.byteseek.swing.treetable;
 
+import javax.swing.event.TreeWillExpandListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.util.List;
 
