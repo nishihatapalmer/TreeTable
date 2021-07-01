@@ -14,8 +14,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
     private TableColumnModel columnModel;
     private final int numColumns;
     private boolean showRoot;
-
-    //private List<TreeTableNode> displayedNodes = new ArrayList<>(); // needs updating every time we expand / collapse.
     private NodeDisplayList displayedNodes = new NodeDisplayList();
 
     public TreeTableModel(final TreeTableNode rootNode, final int numColumns, final boolean showRoot) {
@@ -53,9 +51,18 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
-        // table.setAutoCreateRowSorter(true);
         registerMouseListener(table);
     }
+
+    protected TreeTableNode getNodeAtRow(final int row) {
+        return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
+    }
+
+    protected abstract Object getColumnValue(Object o, int column);
+
+    protected abstract TableColumn getTableColumn(int column);
+
+
 
     protected void registerMouseListener(final JTable table) {
         table.addMouseListener(new MouseAdapter() {
@@ -69,33 +76,37 @@ public abstract class TreeTableModel extends AbstractTableModel {
         });
     }
 
-    protected abstract Object getColumnValue(Object o, int column);
-
-    protected abstract TableColumn getTableColumn(int column);
-
-    protected TreeTableNode getNodeAtRow(final int row) {
-        return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
-    }
-
     protected boolean expandOrCollapseEvent(MouseEvent evt, int row, int col) {
         TreeTableNode node = getNodeAtRow(row);
         if (clickOnExpand(node, col, evt)) {
+            boolean nodesRemoved = false, nodesAdded = false;
             if (node.isExpanded()) {
-                removeDisplayedChildren(node, row);
+                nodesRemoved = removeDisplayedChildren(node, row);
             }
             node.toggleExpanded();
-            if (node.isExpanded() && node.getChildCount() > 0) {
-                addChildrenToDisplay(node, row);
+            if (node.isExpanded()) {
+                nodesAdded = addChildrenToDisplay(node, row);
             }
-            //TODO: Should only rebuild if anything changes.
-            //TODO: should either add nodes required, or remove nodes required, not rebuild entirely.
-           // buildVisibleNodes();
-            return true; // TODO: should only return true if something changed.
+            return nodesRemoved || nodesAdded;
         }
         return false;
     }
 
-    private void addChildrenToDisplay(TreeTableNode node, int row) {
+    private boolean removeDisplayedChildren(TreeTableNode node, int row) {
+        final int childCount = node.getChildCount();
+        if (childCount > 0) {
+            final int numToRemove = node.getVisibleNodeCount() - 1;
+            if (numToRemove == 1) {
+                displayedNodes.remove(row + 1);
+            } else {
+                displayedNodes.remove(row + 1, row + numToRemove + 1);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean addChildrenToDisplay(TreeTableNode node, int row) {
         final int childCount = node.getChildCount();
         if (childCount > 0) {
             List<TreeTableNode> newVisibleNodes = new ArrayList<>();
@@ -105,17 +116,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
             } else {
                 displayedNodes.insert(newVisibleNodes, row + 1);
             }
+            return true;
         }
-    }
-
-    private void removeDisplayedChildren(TreeTableNode node, int row) {
-        final int childCount = node.getChildCount();
-        if (childCount == 1) {
-            displayedNodes.remove(row + 1);
-        } else if (childCount > 1) {
-            final int numToRemove = node.getVisibleNodeCount() - 1;
-            displayedNodes.remove(row + 1, row + numToRemove + 1);
-        }
+        return false;
     }
 
     private boolean clickOnExpand(TreeTableNode node, int column, MouseEvent evt) {
@@ -167,122 +170,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
             displayedNodes.add(rootNode);
         }
         rootNode.addVisibleChildren(displayedNodes);
-    }
-
-    private static class NodeDisplayList extends AbstractList<TreeTableNode> {
-
-        private TreeTableNode[] displayedNodes = new TreeTableNode[128];
-        private int size;
-
-        public int size() {
-            return size;
-        }
-
-        public TreeTableNode get(int index) {
-            checkIndex(index);
-            return displayedNodes[index];
-        }
-
-        public boolean add(final TreeTableNode node) {
-            checkResize(1);
-            displayedNodes[size++] = node;
-            return true;
-        }
-
-        public boolean add(List<TreeTableNode> nodes) {
-            final int numToAdd = nodes.size();
-            checkResize(numToAdd);
-            for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {
-                displayedNodes[size++] = nodes.get(nodeIndex);
-            }
-            return true;
-        }
-
-        public void insert(TreeTableNode node, int index) {
-            if (index == size) {
-                add(node);
-            } else {
-                checkIndex(index);
-                checkResize(1);
-                // Shift the others along one:
-                for (int position = size - 1; position >= index; position--) {
-                    displayedNodes[position + 1] = displayedNodes[position];
-                }
-                // insert the new node:
-                displayedNodes[index] = node;
-                size++;
-            }
-        }
-
-        public void insert(List<TreeTableNode> nodes, int index) {
-            if (index == size) {
-                add(nodes);
-            } else {
-                checkIndex(index);
-                final int numToAdd = nodes.size();
-                checkResize(numToAdd);
-                // Shift the others along one by the number of nodes:
-                for (int position = size - 1; position >= index; position--) {
-                    displayedNodes[position + numToAdd] = displayedNodes[position];
-                }
-                // insert the new nodes:
-                for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {
-                    displayedNodes[size + nodeIndex] = nodes.get(nodeIndex);
-                }
-                size += numToAdd;
-            }
-        }
-
-        public TreeTableNode remove(int index) {
-            checkIndex(index);
-            TreeTableNode nodeToRemove = displayedNodes[index];
-            for (int position = index; position < size - 1; position++) {
-                displayedNodes[position] = displayedNodes[position + 1];
-            }
-            size--;
-            return nodeToRemove;
-        }
-
-        public void remove(int from, int to) {
-            checkIndex(from);
-            if (to <= from) {
-                throw new IllegalArgumentException("to:" + to + " must be greater than from:" + from);
-            }
-            if (to >= size) { // If we're removing everything up to or past the end, just set the size down.
-                size = from;
-            } else { // got some stuff at the end we have to move over to cover the gap:
-                final int numToRemove = to - from;
-                final int remainingLength = size - to;
-                for (int position = 0; position < remainingLength; position++) {
-                    displayedNodes[from + position] = displayedNodes[to + position];
-                }
-                size -= numToRemove;
-            }
-        }
-
-        public void clear() {
-            Arrays.fill(displayedNodes, null); // clear all references to any nodes.
-            size = 0;
-        }
-
-        private void checkIndex(int index) {
-            if (index >= size || index < 0) {
-                throw new IndexOutOfBoundsException("Index = " + index + " size = " + size);
-            }
-        }
-
-        private void checkResize(int numToAdd) {
-            if (size + numToAdd >= displayedNodes.length) {
-                resizeArray();
-            }
-        }
-
-        private void resizeArray() {
-            TreeTableNode[] newArray = new TreeTableNode[displayedNodes.length + 128];
-            System.arraycopy(displayedNodes, 0,newArray, 0, displayedNodes.length);
-            displayedNodes = newArray;
-        }
-
     }
 
 }

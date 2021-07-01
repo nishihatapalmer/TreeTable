@@ -33,6 +33,7 @@ public class TestForm {
         subchildrenNode.add(new TreeTableNode(new TestClass("First sub child!", 9999, true), false));
         subchildrenNode.add(new TreeTableNode(new TestClass("Second sub child!!", 1111, false), false));
         rootNode.add(subchildrenNode);
+        rootNode.add(new TreeTableNode(new TestClass("Fourth child test class", 32, false), false));
 
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, true);
         treeTableModel.initializeTable(JTreeTable1);
