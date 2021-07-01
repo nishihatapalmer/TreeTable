@@ -129,8 +129,8 @@ class NodeDisplayList extends AbstractList<TreeTableNode> {
         // numbers of nodes are being added), but to grow proportionally a bit slower once we're getting quite big
         // (or we will waste a lot of space on average).
         long newSize = displayedNodes.length * growMultiplierPercent / 100;
-        if (growMultiplierPercent > 100) {
-            growMultiplierPercent -= 20; // the next time we grow, it will be by a smaller proportion (more absolute).
+        if (growMultiplierPercent > 120) {
+            growMultiplierPercent -= 17; // the next time we grow, it will be by a smaller proportion (more absolute).
         }
         if (newSize > Integer.MAX_VALUE) {
             newSize = Integer.MAX_VALUE;
