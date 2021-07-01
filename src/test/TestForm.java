@@ -1,6 +1,7 @@
 package test;
 
 import net.byteseek.swing.treetable.JTreeTable;
+import net.byteseek.swing.treetable.TreeTableEvent;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeTableNode;
 
@@ -37,5 +38,17 @@ public class TestForm {
 
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, true);
         treeTableModel.initializeTable(JTreeTable1);
+
+        treeTableModel.addListener(new TreeTableEvent.Listener() {
+            @Override
+            public boolean acceptTreeEvent(TreeTableEvent event) {
+                return true;
+            }
+
+            @Override
+            public void actionTreeEvent(TreeTableEvent event) {
+                System.out.println("Logging event: " + event);
+            }
+        });
     }
 }
