@@ -16,7 +16,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     private TableColumnModel columnModel;
     private final int numColumns;
     private boolean showRoot;
-    private NodeDisplayList displayedNodes = new NodeDisplayList();
+    private TreeTableNodeList displayedNodes = new TreeTableNodeList();
     private List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2);
 
     public TreeTableModel(final TreeTableNode rootNode, final int numColumns, final boolean showRoot) {

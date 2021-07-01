@@ -3,7 +3,7 @@ package net.byteseek.swing.treetable;
 import java.util.AbstractList;
 import java.util.List;
 
-class NodeDisplayList extends AbstractList<TreeTableNode> {
+class TreeTableNodeList extends AbstractList<TreeTableNode> {
 
     private static final int DEFAULT_CAPACITY = 256;
     
