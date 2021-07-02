@@ -5,6 +5,7 @@ import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeTableNode;
 
 import javax.swing.table.TableColumn;
+import java.util.Comparator;
 
 public class TestTreeTableModel extends TreeTableModel {
 
@@ -33,6 +34,11 @@ public class TestTreeTableModel extends TreeTableModel {
     @Override
     protected TableColumn getTableColumn(int column) {
         return TABLE_COLUMNS[column];
+    }
+
+    @Override
+    protected Comparator<?> getColumnComparator(int column) {
+        return null; //TODO: return comparator for column values to enable sorting.
     }
 
     private void buildColumns() {

@@ -1,12 +1,13 @@
 package test;
 
-import net.byteseek.swing.treetable.JTreeTable;
-import net.byteseek.swing.treetable.TreeTableEvent;
-import net.byteseek.swing.treetable.TreeTableModel;
-import net.byteseek.swing.treetable.TreeTableNode;
+import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
+import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
 import javax.swing.tree.DefaultMutableTreeNode;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class TestForm {
 
@@ -15,6 +16,17 @@ public class TestForm {
     private JLabel topLabel;
     private JScrollPane scrollPane;
     private JTreeTable JTreeTable1;
+    private JButton addNodes;
+    private TreeTableNode rootNode;
+
+    public TestForm() {
+        addNodes.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                rootNode.toggleExpanded();
+            }
+        });
+    }
 
     public static void main(String[] args) {
         JFrame frame = new JFrame("Test");
@@ -27,7 +39,8 @@ public class TestForm {
     private void createUIComponents() {
         JTreeTable1 = new JTreeTable();
 
-        TreeTableNode rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
+
+        rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
         rootNode.add(new TreeTableNode(new TestClass("First child test class", 256, true), false));
         rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), true));
         TreeTableNode subchildrenNode = new TreeTableNode(new TestClass("Third child with children", 16, false), true);
@@ -38,6 +51,8 @@ public class TestForm {
 
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, true);
         treeTableModel.initializeTable(JTreeTable1);
+
+        JTreeTable1.setRowSorter(new TreeTableRowSorter(treeTableModel));
 
         treeTableModel.addListener(new TreeTableEvent.Listener() {
             @Override

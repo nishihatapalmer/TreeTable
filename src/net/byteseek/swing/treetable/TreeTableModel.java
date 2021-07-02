@@ -10,11 +10,10 @@ import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 
-//TODO: dynamically adjust visibleNodeCount through notifications to parent nodes when expand collapse happens above.
-
-//TODO: Tree doesn't always re-point after update.  Calling repaint() not enough..?  Need Table Model Changed event?
-
 //TODO: sorting (up / down / off).  multi column sort?
+//TODO: tool tips
+//TODO: copy paste
+//TODO: key bindings (only have mouse click for expand/collapse)
 
 //TODO: test dynamic expand remove nodes
 
@@ -23,6 +22,8 @@ import java.util.List;
 //TODO: test setting different icons.
 
 //TODO: show plus sign on nodes that we haven't dynamically expanded (if they support having children).
+//TODO: Should allow expand on a node with no children?
+//TODO: Should show expand handle for node with no children (what about dynamically adding nodes?)
 
 public abstract class TreeTableModel extends AbstractTableModel {
 
@@ -80,7 +81,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
         registerMouseListener(table);
-        registerTableDataListener(table);
     }
 
     protected TreeTableNode getNodeAtRow(final int row) {
@@ -90,6 +90,8 @@ public abstract class TreeTableModel extends AbstractTableModel {
     protected abstract Object getColumnValue(TreeTableNode node, int column);
 
     protected abstract TableColumn getTableColumn(int column);
+
+    protected abstract Comparator<?> getColumnComparator(int column);
 
     protected TableColumnModel getTableColumnModel() {
         if (columnModel == null) {
@@ -117,15 +119,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
             Point point = e.getPoint();
             checkExpandOrCollapse(e, table.rowAtPoint(point), table.columnAtPoint(point));
                 //table.repaint(); //TODO: Should use table model changed messages (repaint doesn't always work).
-            }
-        });
-    }
-
-    protected void registerTableDataListener(final JTable table) {
-        addTableModelListener(new TableModelListener() {
-            @Override
-            public void tableChanged(TableModelEvent e) {
-                table.tableChanged(e);
             }
         });
     }
