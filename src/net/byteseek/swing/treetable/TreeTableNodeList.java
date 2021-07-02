@@ -59,9 +59,10 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
             final int numToAdd = nodes.size();
             checkResize(numToAdd);
             final int numToShift = size - index;
-            // Shift the others along by the number of nodes:
+            final int newPosition = size - 1 + numToAdd;
+            // Shift the others along by numToAdd to leave room.
             for (int position = 0; position < numToShift; position++) {
-                displayedNodes[size + position] = displayedNodes[index + position];
+                displayedNodes[newPosition + position] = displayedNodes[index + position];
             }
             // insert the new nodes:
             for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {

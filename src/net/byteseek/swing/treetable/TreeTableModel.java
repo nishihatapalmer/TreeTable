@@ -1,6 +1,8 @@
 package net.byteseek.swing.treetable;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -8,14 +10,27 @@ import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 
+//TODO: dynamically adjust visibleNodeCount through notifications to parent nodes when expand collapse happens above.
+
 //TODO: Tree doesn't always re-point after update.  Calling repaint() not enough..?  Need Table Model Changed event?
+
+//TODO: sorting (up / down / off).  multi column sort?
+
+//TODO: test dynamic expand remove nodes
+
+//TODO: customise visual appearance - all just on the JTable?
+
+//TODO: test setting different icons.
+
+//TODO: show plus sign on nodes that we haven't dynamically expanded (if they support having children).
 
 public abstract class TreeTableModel extends AbstractTableModel {
 
-    private final TreeTableNode rootNode;
-    private TableColumnModel columnModel;
     private final int numColumns;
     private boolean showRoot;
+
+    private final TreeTableNode rootNode;
+    private TableColumnModel columnModel;
     private TreeTableNodeList displayedNodes = new TreeTableNodeList();
     private List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2);
 
@@ -48,7 +63,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     @Override
     public Object getValueAt(final int row, final int column) {
-        return getColumnValue(getNodeAtRow(row).getUserObject(), column);
+        return getColumnValue(getNodeAtRow(row), column);
     }
 
     public boolean getShowRoot() {
@@ -65,13 +80,14 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
         registerMouseListener(table);
+        registerTableDataListener(table);
     }
 
     protected TreeTableNode getNodeAtRow(final int row) {
         return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
     }
 
-    protected abstract Object getColumnValue(Object o, int column);
+    protected abstract Object getColumnValue(TreeTableNode node, int column);
 
     protected abstract TableColumn getTableColumn(int column);
 
@@ -98,35 +114,45 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                Point point = e.getPoint();
-                if (expandOrCollapseEvent(e, table.rowAtPoint(point), table.columnAtPoint(point))) {
-                    table.repaint(); //TODO: Should use table model changed messages (repaint doesn't always work).
-                }
+            Point point = e.getPoint();
+            checkExpandOrCollapse(e, table.rowAtPoint(point), table.columnAtPoint(point));
+                //table.repaint(); //TODO: Should use table model changed messages (repaint doesn't always work).
             }
         });
     }
 
-    protected boolean expandOrCollapseEvent(MouseEvent evt, int row, int col) {
+    protected void registerTableDataListener(final JTable table) {
+        addTableModelListener(new TableModelListener() {
+            @Override
+            public void tableChanged(TableModelEvent e) {
+                table.tableChanged(e);
+            }
+        });
+    }
+
+    protected void checkExpandOrCollapse(MouseEvent evt, int row, int col) {
         TreeTableNode node = getNodeAtRow(row);
-        if (clickOnExpand(node, col, evt) && listenersApprove(node)) {
-            boolean nodesRemoved = false, nodesAdded = false;
-            if (node.isExpanded()) {
-                nodesRemoved = removeDisplayedChildren(node, row);
+        if (clickOnExpand(node, col, evt)) {
+            // listeners may change the node structure (e.g. dynamically add, remove or change nodes).
+            // So can't rely on what was there before.  Get the number of *currently* visible children:
+            final int numVisibleChildren = node.getChildVisibleNodeCount();
+            if (listenersApprove(node)) {
+                if (node.isExpanded()) {
+                    removeDisplayedChildren(row, numVisibleChildren);
+                }
+                node.toggleExpanded();
+                if (node.isExpanded()) {
+                    addChildrenToDisplay(row, node);
+                }
             }
-            node.toggleExpanded();
-            if (node.isExpanded()) {
-                nodesAdded = addChildrenToDisplay(node, row);
-            }
-            return nodesRemoved || nodesAdded;
         }
-        return false;
     }
 
     private boolean listenersApprove(TreeTableNode node) {
         final TreeTableEvent event = node.isExpanded() ?
                 new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.COLLAPSING) :
                 new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.EXPANDING);
-        return listenersApprovedAndActionedEvent(event);
+        return listenersApprovedEvent(event);
     }
 
     private boolean clickOnExpand(TreeTableNode node, int column, MouseEvent evt) {
@@ -144,7 +170,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return false;
     }
 
-    private int calculateWidthToLeft(int colIndex) {
+    private int calculateWidthToLeft(final int colIndex) {
         TableColumnModel model = getTableColumnModel();
         int width = 0;
         for (int col = colIndex - 1; col >= 0; col--) {
@@ -153,30 +179,32 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return width;
     }
 
-    private boolean removeDisplayedChildren(TreeTableNode node, int row) {
-        final int childCount = node.getChildCount();
-        if (childCount > 0) {
-            final int numToRemove = node.getVisibleNodeCount() - 1;
-            if (numToRemove == 1) {
-                displayedNodes.remove(row + 1);
+    private boolean removeDisplayedChildren(final int row, final int numberToRemove) {
+        if (numberToRemove > 0) {
+            final int firstChildRow = row + 1;
+            if (numberToRemove == 1) {
+                displayedNodes.remove(firstChildRow);
             } else {
-                displayedNodes.remove(row + 1, row + numToRemove + 1);
+                displayedNodes.remove(firstChildRow, firstChildRow + numberToRemove);
             }
+            fireTableRowsDeleted(firstChildRow, firstChildRow + numberToRemove - 1);
             return true;
         }
         return false;
     }
 
-    private boolean addChildrenToDisplay(TreeTableNode node, int row) {
+    private boolean addChildrenToDisplay(final int row, final TreeTableNode node) {
         final int childCount = node.getChildCount();
         if (childCount > 0) {
+            final int firstChildRow = row + 1;
             List<TreeTableNode> newVisibleNodes = new ArrayList<>();
             node.addVisibleChildren(newVisibleNodes);
             if (newVisibleNodes.size() == 1) {
-                displayedNodes.insert(newVisibleNodes.get(0), row + 1);
+                displayedNodes.insert(newVisibleNodes.get(0), firstChildRow);
             } else {
-                displayedNodes.insert(newVisibleNodes, row + 1);
+                displayedNodes.insert(newVisibleNodes, firstChildRow);
             }
+            fireTableRowsInserted(firstChildRow, firstChildRow + newVisibleNodes.size() - 1);
             return true;
         }
         return false;
@@ -190,18 +218,11 @@ public abstract class TreeTableModel extends AbstractTableModel {
         rootNode.addVisibleChildren(displayedNodes);
     }
 
-    private boolean listenersApprovedAndActionedEvent(TreeTableEvent event) {
-        // First ask listeners if they're OK to proceed with event.
-        // We ask them all first, in case later ones reject but the intial
-        // ones have already made changes.
+    private boolean listenersApprovedEvent(final TreeTableEvent event) {
         for (TreeTableEvent.Listener listener : eventListeners) {
-            if (!listener.acceptTreeEvent(event)) {
+            if (!listener.actionTreeEvent(event)) {
                 return false;
             }
-        }
-        // No refusals, so we proceed to action the event for the listeners.
-        for (TreeTableEvent.Listener listener : eventListeners) {
-            listener.actionTreeEvent(event);
         }
         return true;
     }

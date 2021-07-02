@@ -29,7 +29,7 @@ public class TestForm {
 
         TreeTableNode rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
         rootNode.add(new TreeTableNode(new TestClass("First child test class", 256, true), false));
-        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), false));
+        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), true));
         TreeTableNode subchildrenNode = new TreeTableNode(new TestClass("Third child with children", 16, false), true);
         subchildrenNode.add(new TreeTableNode(new TestClass("First sub child!", 9999, true), false));
         subchildrenNode.add(new TreeTableNode(new TestClass("Second sub child!!", 1111, false), false));
@@ -41,13 +41,9 @@ public class TestForm {
 
         treeTableModel.addListener(new TreeTableEvent.Listener() {
             @Override
-            public boolean acceptTreeEvent(TreeTableEvent event) {
-                return true;
-            }
-
-            @Override
-            public void actionTreeEvent(TreeTableEvent event) {
+            public boolean actionTreeEvent(TreeTableEvent event) {
                 System.out.println("Logging event: " + event);
+                return true;
             }
         });
     }

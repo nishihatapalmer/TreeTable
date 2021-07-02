@@ -4,13 +4,7 @@ import net.byteseek.swing.treetable.TreeTableCellRenderer;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeTableNode;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import javax.swing.tree.DefaultTreeCellRenderer;
-import javax.swing.tree.TreeCellRenderer;
-import java.awt.*;
 
 public class TestTreeTableModel extends TreeTableModel {
 
@@ -23,7 +17,8 @@ public class TestTreeTableModel extends TreeTableModel {
         buildColumns();
     }
 
-    protected Object getColumnValue(final Object o, final int column) {
+    protected Object getColumnValue(final TreeTableNode node, final int column) {
+        Object o = node.getUserObject();
         if (o instanceof TestClass) {
             TestClass obj = (TestClass) o;
             switch (column) {

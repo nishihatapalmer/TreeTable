@@ -3,10 +3,7 @@ package net.byteseek.swing.treetable;
 public class TreeTableEvent {
 
     public interface Listener {
-
-        boolean acceptTreeEvent(TreeTableEvent event);
-
-        void actionTreeEvent(TreeTableEvent event);
+        boolean actionTreeEvent(TreeTableEvent event);
     }
 
     public enum TreeTableEventType {
