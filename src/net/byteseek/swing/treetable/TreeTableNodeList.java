@@ -11,15 +11,18 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
     private TreeTableNode[] displayedNodes = new TreeTableNode[DEFAULT_CAPACITY];
     private int size;
 
+    @Override
     public int size() {
         return size;
     }
-    
+
+    @Override
     public TreeTableNode get(int index) {
         checkIndex(index);
         return displayedNodes[index];
     }
 
+    @Override
     public boolean add(final TreeTableNode node) {
         checkResize(1);
         displayedNodes[size++] = node;
@@ -72,6 +75,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         }
     }
 
+    @Override
     public TreeTableNode remove(int index) {
         checkIndex(index);
         TreeTableNode nodeToRemove = displayedNodes[index];
@@ -99,6 +103,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         }
     }
 
+    @Override
     public void clear() {
         size = 0;
     }

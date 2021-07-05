@@ -103,6 +103,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return columnModel;
     }
 
+
     protected TableColumn createColumn(String headerValue, int modelIndex, TableCellRenderer renderer) {
         TableColumn tableColumn = new TableColumn(modelIndex);
         tableColumn.setHeaderValue(headerValue);

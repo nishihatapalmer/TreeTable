@@ -17,15 +17,8 @@ public class TestForm {
     private JScrollPane scrollPane;
     private JTreeTable JTreeTable1;
     private JButton addNodes;
-    private TreeTableNode rootNode;
 
     public TestForm() {
-        addNodes.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                rootNode.toggleExpanded();
-            }
-        });
     }
 
     public static void main(String[] args) {
@@ -38,22 +31,12 @@ public class TestForm {
 
     private void createUIComponents() {
         JTreeTable1 = new JTreeTable();
-
-
-        rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
-        rootNode.add(new TreeTableNode(new TestClass("First child test class", 256, true), false));
-        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), true));
-        TreeTableNode subchildrenNode = new TreeTableNode(new TestClass("Third child with children", 16, false), true);
-        subchildrenNode.add(new TreeTableNode(new TestClass("First sub child!", 9999, true), false));
-        subchildrenNode.add(new TreeTableNode(new TestClass("Second sub child!!", 1111, false), false));
-        rootNode.add(subchildrenNode);
-        rootNode.add(new TreeTableNode(new TestClass("Fourth child test class", 32, false), false));
-
+        TreeTableNode rootNode = buildTree();
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, true);
         treeTableModel.initializeTable(JTreeTable1);
-
-        JTreeTable1.setRowSorter(new TreeTableRowSorter(treeTableModel));
-
+        RowSorter<TreeTableModel> rowSorter = new TreeTableRowSorter(treeTableModel);
+        JTreeTable1.setRowSorter(rowSorter);
+        /*
         treeTableModel.addListener(new TreeTableEvent.Listener() {
             @Override
             public boolean actionTreeEvent(TreeTableEvent event) {
@@ -61,5 +44,22 @@ public class TestForm {
                 return true;
             }
         });
+         */
+    }
+
+    private TreeTableNode buildTree() {
+        TreeTableNode rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
+
+        rootNode.add(new TreeTableNode(new TestClass("First child test class", 256, true), false));
+        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), true));
+
+        TreeTableNode subchildrenNode = new TreeTableNode(new TestClass("Third child with children", 16, false), true);
+
+        subchildrenNode.add(new TreeTableNode(new TestClass("First sub child!", 9999, true), false));
+        subchildrenNode.add(new TreeTableNode(new TestClass("Second sub child!!", 1111, false), false));
+        rootNode.add(subchildrenNode);
+
+        rootNode.add(new TreeTableNode(new TestClass("Fourth child test class", 32, false), false));
+        return rootNode;
     }
 }
