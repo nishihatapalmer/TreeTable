@@ -1,7 +1,6 @@
 package net.byteseek.swing.treetable;
 
 import javax.swing.*;
-import java.text.Collator;
 import java.util.*;
 
 //TODO: are some columns not sortable?
@@ -14,8 +13,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     protected List<SortKey> sortKeys; // cannot be null - must be an empty list at minimum (or at least, via getSortKeys)
     protected int maximumSortKeys = MAX_DEFAULT_SORT_KEYS;
 
-    protected SortRow[] viewToModelIndexes;
-    protected int[] modelToViewIndexes;
+    protected SortRow[] viewToModelIndex;
+    protected int[] modelToViewIndex;
 
     public TreeTableRowSorter(final TreeTableModel model) {
         if (model == null) {
@@ -68,12 +67,14 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public int convertRowIndexToModel(final int index) {
-        return viewToModelIndexes == null? index : viewToModelIndexes[index].rowIndex;
+        return viewToModelIndex == null? index
+                : viewToModelIndex[index].modelIndex;
     }
 
     @Override
     public int convertRowIndexToView(final int index) {
-        return modelToViewIndexes == null? index : modelToViewIndexes[index];
+        return modelToViewIndex == null? index
+                : modelToViewIndex[index];
     }
 
     @Override
@@ -103,32 +104,32 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void modelStructureChanged() {
-
+        //buildSortIndexes();
     }
 
     @Override
     public void allRowsChanged() {
-
+        //buildSortIndexes();
     }
 
     @Override
     public void rowsInserted(final int firstRow, final int endRow) {
-
+       // buildSortIndexes();
     }
 
     @Override
     public void rowsDeleted(final int firstRow, final int endRow) {
-
+        //buildSortIndexes();
     }
 
     @Override
     public void rowsUpdated(final int firstRow, final int endRow) {
-
+        //buildSortIndexes();
     }
 
     @Override
     public void rowsUpdated(final int firstRow, final int endRow, final int column) {
-
+        //buildSortIndexes();
     }
 
     protected int compare(final int modelRowIndex1, final int modelRowIndex2) {
@@ -138,15 +139,13 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         // If the nodes don't already share a parent, we have to find two comparable parent nodes that do.
         if (firstNode.getParent() != secondNode.getParent()) {
 
-            // Are the nodes at the same level as each other already?
-            int firstLevel = firstNode.getLevel();
-            int secondLevel = secondNode.getLevel();
-
-            // If the nodes are at different depths, walk one of them back so they are at the same level as each other.
+            // If the nodes are at different levels, walk one of them back so they are at the same level as each other.
+            final int firstLevel = firstNode.getLevel();
+            final int secondLevel = secondNode.getLevel();
             if (firstLevel < secondLevel) {
-                secondNode = getParentDown(secondNode, secondLevel - firstLevel);
+                secondNode = getAncestor(secondNode, secondLevel - firstLevel);
             } else if (secondLevel < firstLevel) {
-                firstNode =  getParentDown(firstNode, firstLevel - secondLevel);
+                firstNode =  getAncestor(firstNode, firstLevel - secondLevel);
             }
 
             // They are now both at the same level - find the nodes that share a common parent:
@@ -155,7 +154,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
                 secondNode = (TreeTableNode) secondNode.getParent();
             }
         }
-        // Nodes now share a common parent, even if it is the root of the tree - compare values of nodes with same parent:
+
+        // Nodes share a common parent - compare values:
         return compare(firstNode, secondNode, modelRowIndex1 - modelRowIndex2);
     }
 
@@ -172,9 +172,10 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
             final Object value1 = localModel.getColumnValue(firstNode, column);
             final Object value2 = localModel.getColumnValue(secondNode, column);
             final int result = compareNodeValues(value1, value2, column);
-            if (result != 0) {  // if not equal, return result (adjusted for ascending/descending).  If equal, sort on next sort key (if any).
-                return order == SortOrder.DESCENDING? result * -1 : result;
+            if (result != 0) {  // if not equal, we have a result - return it.
+                return order == SortOrder.ASCENDING? result: result * -1; // invert the result if not ascending
             }
+            // result is equal - sort on next sort key (if any).
         }
         //TODO: If all comparisons are equal, should we just return equal?  Why give an order to them at all?  Giving a definite order might help some sort algorithms I guess.
         return unsortedCompare; // If we got through all sort keys and everything is still equal, use the unsorted order to break the tie.
@@ -186,7 +187,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         if (comparator != null)  {
             result = comparator.compare(value1, value2);                     // Use the provided comparator:
         } else {
-            if (value1 instanceof Comparable<?>) {                           // Compare directly:
+            if (value1 instanceof Comparable<?>) {                           // Compare directly if Comparable<>
                 result = ((Comparable<Object>) value1).compareTo(value2);
             } else {                                                         // Compare on string values:
                 result = value1.toString().compareTo(value2.toString());
@@ -195,7 +196,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return result;
     }
 
-    protected void buildSortIndexes() {
+    private void buildSortIndexes() {
         if (sortKeys.size() == 0) {
             clearSortIndexes();
         } else {
@@ -203,35 +204,38 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
-    protected void clearSortIndexes() {
-        viewToModelIndexes = null;
-        modelToViewIndexes = null;
+    private void clearSortIndexes() {
+        viewToModelIndex = null;
+        modelToViewIndex = null;
     }
 
-    protected void createSortIndexes() {
-        buildViewToModelIndexes();
-        buildModelToViewIndexes();
+    private void createSortIndexes() {
+        buildViewToModelIndex();
+        buildModelToViewIndex();
     }
 
-    protected void buildViewToModelIndexes() {
-        viewToModelIndexes = createModelOrderRows(this, model.getRowCount());
-        Arrays.sort(viewToModelIndexes);
+    private void buildViewToModelIndex() {
+        viewToModelIndex = createModelOrderRows(model.getRowCount());
+        Arrays.sort(viewToModelIndex);
     }
 
-    private void buildModelToViewIndexes() {
-        modelToViewIndexes = new int[model.getRowCount()];
-        //TODO: build 'em
+    private void buildModelToViewIndex() {
+        final int numRows = model.getRowCount();
+        modelToViewIndex = new int[numRows];
+        for (int viewIndex = 0; viewIndex < numRows; viewIndex++) {
+            modelToViewIndex[viewToModelIndex[viewIndex].modelIndex] = viewIndex;
+        }
     }
 
-    protected SortOrder nextOrder(final SortOrder sortOrder) {
+    private SortOrder nextOrder(final SortOrder sortOrder) {
         final int keyState = sortOrder.ordinal();
         final SortOrder[] values = SortOrder.values();
         final int nextKeyState = (keyState + 1) % values.length;
         return values[nextKeyState];
     }
 
-    protected int findKeyColumn(final int column) {
-        final List<SortKey> localKeys = sortKeys; // local reference to avoid repeated get field calls.
+    private int findKeyColumn(final int column) {
+        final List<SortKey> localKeys = sortKeys;
         if (localKeys != null) {
             for (int keyIndex = 0; keyIndex < localKeys.size(); keyIndex++) {
                 if (localKeys.get(keyIndex).getColumn() == column) {
@@ -242,15 +246,15 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return -1;
     }
 
-    protected SortRow[] createModelOrderRows(final TreeTableRowSorter sorter, final int numRows) {
+    private SortRow[] createModelOrderRows(final int numRows) {
         final SortRow[] newRows = new SortRow[numRows];
         for (int index = 0; index < numRows; index++) {
-            newRows[index] = new SortRow(sorter, index);
+            newRows[index] = new SortRow(this, index);
         }
         return newRows;
     }
 
-    protected TreeTableNode getParentDown(final TreeTableNode node, final int levelsDown) {
+    private TreeTableNode getAncestor(final TreeTableNode node, final int levelsDown) {
         TreeTableNode result = node;
         for (int num = 0; num < levelsDown; num++) {
             result = (TreeTableNode) result.getParent();
@@ -258,25 +262,25 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return result;
     }
 
-    protected void checkColumnIndex(int column) {
+    private void checkColumnIndex(int column) {
         if (column < 0 || column >= model.getColumnCount()) {
             throw new IndexOutOfBoundsException("Column " + column + " must be less than " + model.getColumnCount() + " and zero or greater.");
         }
     }
 
-    protected static class SortRow implements Comparable<SortRow> {
+    private static class SortRow implements Comparable<SortRow> {
 
         private final TreeTableRowSorter rowSorter;
-        private int rowIndex;
+        private int modelIndex;
 
-        public SortRow(TreeTableRowSorter rowSorter, int rowIndex) {
-            this.rowSorter = rowSorter;
-            this.rowIndex = rowIndex;
+        public SortRow(TreeTableRowSorter sorter, int modelIndex) {
+            this.rowSorter = sorter;
+            this.modelIndex = modelIndex;
         }
 
         @Override
         public int compareTo(SortRow o) {
-            return rowSorter.compare(rowIndex, o.rowIndex);
+            return rowSorter.compare(modelIndex, o.modelIndex);
         }
     }
 }

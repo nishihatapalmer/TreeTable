@@ -3,6 +3,7 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableModel;
 import java.awt.*;
 
 public class TreeTableCellRenderer extends DefaultTableCellRenderer {
@@ -30,7 +31,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
         setBackground(isSelected? table.getSelectionBackground() : table.getBackground());
         setValue(value);
-        setNode(getNodeAtRow(row));
+        setNode(getNodeAtRow(table, row)); // row here is in terms of model.
         return this;
     }
 
@@ -44,8 +45,8 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         setMaxIconWidth();
     }
 
-    protected TreeTableNode getNodeAtRow(final int row) {
-        return treeTableModel.getNodeAtRow(row);
+    protected TreeTableNode getNodeAtRow(final JTable table, final int row) {
+        return treeTableModel.getNodeAtTableRow(table, row);
     }
 
     protected int getNodeIndent(TreeTableNode node) {

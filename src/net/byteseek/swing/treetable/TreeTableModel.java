@@ -38,17 +38,20 @@ public abstract class TreeTableModel extends AbstractTableModel {
     public TreeTableModel(final TreeTableNode rootNode, final int numColumns, final boolean showRoot) {
         this.rootNode = rootNode;
         this.showRoot = showRoot;
+        if (!showRoot) {
+            rootNode.setExpanded(true);
+        }
         this.numColumns = numColumns;
         buildVisibleNodes();
     }
 
-    public void addListener(TreeTableEvent.Listener listener) {
+    public void addListener(final TreeTableEvent.Listener listener) {
         if (!eventListeners.contains(listener)) {
             eventListeners.add(listener);
         }
     }
 
-    public void removeListener(TreeTableEvent.Listener listener) {
+    public void removeListener(final TreeTableEvent.Listener listener) {
         eventListeners.remove(listener);
     }
 
@@ -76,7 +79,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         //TODO: invalidate model if different.
     }
 
-    public void initializeTable(JTable table) {
+    public void initializeTable(final JTable table) {
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
@@ -85,6 +88,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     protected TreeTableNode getNodeAtRow(final int row) {
         return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
+    }
+
+    protected TreeTableNode getNodeAtTableRow(final JTable table, final int tableRow) {
+        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+        final int displayIndex = rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
+        return displayedNodes.get(displayIndex);
     }
 
     protected abstract Object getColumnValue(TreeTableNode node, int column);
@@ -104,7 +113,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
 
-    protected TableColumn createColumn(String headerValue, int modelIndex, TableCellRenderer renderer) {
+    protected TableColumn createColumn(final String headerValue, final int modelIndex, final TableCellRenderer renderer) {
         TableColumn tableColumn = new TableColumn(modelIndex);
         tableColumn.setHeaderValue(headerValue);
         if (renderer != null) {
@@ -117,15 +126,16 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-            Point point = e.getPoint();
-            checkExpandOrCollapse(e, table.rowAtPoint(point), table.columnAtPoint(point));
-                //table.repaint(); //TODO: Should use table model changed messages (repaint doesn't always work).
+                checkExpandOrCollapse(table, e);
             }
         });
     }
 
-    protected void checkExpandOrCollapse(MouseEvent evt, int row, int col) {
-        TreeTableNode node = getNodeAtRow(row);
+    protected void checkExpandOrCollapse(final JTable table, final MouseEvent evt) {
+        final Point point = evt.getPoint();
+        final int row = table.rowAtPoint(point);
+        final int col = table.columnAtPoint(point);
+        final TreeTableNode node = getNodeAtTableRow(table, row);
         if (clickOnExpand(node, col, evt)) {
             // listeners may change the node structure (e.g. dynamically add, remove or change nodes).
             // So can't rely on what was there before.  Get the number of *currently* visible children:
@@ -142,15 +152,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
         }
     }
 
-    private boolean listenersApprove(TreeTableNode node) {
+    private boolean listenersApprove(final TreeTableNode node) {
         final TreeTableEvent event = node.isExpanded() ?
                 new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.COLLAPSING) :
                 new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.EXPANDING);
         return listenersApprovedEvent(event);
     }
 
-    private boolean clickOnExpand(TreeTableNode node, int column, MouseEvent evt) {
-        TableCellRenderer renderer = getTableColumnModel().getColumn(column).getCellRenderer();
+    private boolean clickOnExpand(final TreeTableNode node, final int column, final MouseEvent evt) {
+        final TableCellRenderer renderer = getTableColumnModel().getColumn(column).getCellRenderer();
         if (renderer instanceof TreeTableCellRenderer) {
             if (node != null && node.getAllowsChildren()) {
                 final int columnStart = calculateWidthToLeft(column);

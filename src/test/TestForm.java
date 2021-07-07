@@ -32,7 +32,8 @@ public class TestForm {
     private void createUIComponents() {
         JTreeTable1 = new JTreeTable();
         TreeTableNode rootNode = buildTree();
-        TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, true);
+        //TODO: BUG - shows no children is showRoot = false.
+        TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, false);
         treeTableModel.initializeTable(JTreeTable1);
         RowSorter<TreeTableModel> rowSorter = new TreeTableRowSorter(treeTableModel);
         JTreeTable1.setRowSorter(rowSorter);
@@ -51,7 +52,7 @@ public class TestForm {
         TreeTableNode rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
 
         rootNode.add(new TreeTableNode(new TestClass("First child test class", 256, true), false));
-        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), true));
+        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), false));
 
         TreeTableNode subchildrenNode = new TreeTableNode(new TestClass("Third child with children", 16, false), true);
 

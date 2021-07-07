@@ -28,7 +28,7 @@ public class TreeTableEvent {
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "(Node: " + node + ", eventType: " + eventType.toString();
+        return getClass().getSimpleName() + "(node: " + node + ", eventType: " + eventType.toString() + ')';
     }
 
 }
