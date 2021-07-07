@@ -67,14 +67,12 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public int convertRowIndexToModel(final int index) {
-        return viewToModelIndex == null? index
-                : viewToModelIndex[index].modelIndex;
+        return isSorting() ? viewToModelIndex[index].modelIndex : index;
     }
 
     @Override
     public int convertRowIndexToView(final int index) {
-        return modelToViewIndex == null? index
-                : modelToViewIndex[index];
+        return isSorting() ? modelToViewIndex[index] : index;
     }
 
     @Override
@@ -104,32 +102,46 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void modelStructureChanged() {
-        //buildSortIndexes();
+        buildSortIndexes();
+        fireSortOrderChanged();
     }
 
     @Override
     public void allRowsChanged() {
-        //buildSortIndexes();
+        buildSortIndexes();
+        fireSortOrderChanged();
     }
 
     @Override
     public void rowsInserted(final int firstRow, final int endRow) {
-       // buildSortIndexes();
+       if (isSorting()) {
+           buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
+           fireRowSorterChanged(null);
+       }
     }
 
     @Override
     public void rowsDeleted(final int firstRow, final int endRow) {
-        //buildSortIndexes();
+        if (isSorting()) {
+            buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
+            fireRowSorterChanged(null);
+        }
     }
 
     @Override
     public void rowsUpdated(final int firstRow, final int endRow) {
-        //buildSortIndexes();
+        if (isSorting()) {
+            buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
+            fireRowSorterChanged(null);
+        }
     }
 
     @Override
     public void rowsUpdated(final int firstRow, final int endRow, final int column) {
-        //buildSortIndexes();
+        if (isSorting()) {
+            buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
+            fireRowSorterChanged(null);
+        }
     }
 
     protected int compare(final int modelRowIndex1, final int modelRowIndex2) {
@@ -148,7 +160,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
                 firstNode =  getAncestor(firstNode, firstLevel - secondLevel);
             }
 
-            // They are now both at the same level - find the nodes that share a common parent:
+            // They are now both at the same level - find the nodes that share a common parent (root will be common to all).
             while (firstNode.getParent() != secondNode.getParent()) {
                 firstNode = (TreeTableNode) firstNode.getParent();
                 secondNode = (TreeTableNode) secondNode.getParent();
@@ -209,19 +221,31 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         modelToViewIndex = null;
     }
 
+    private boolean isSorting() {
+        return viewToModelIndex != null;
+    }
+
     private void createSortIndexes() {
         buildViewToModelIndex();
         buildModelToViewIndex();
     }
 
     private void buildViewToModelIndex() {
-        viewToModelIndex = createModelOrderRows(model.getRowCount());
+        final int newRowCount = model.getRowCount();
+        // If we don't have an index, or the index isn't exactly the size we need, create a new one.
+        if (viewToModelIndex == null || viewToModelIndex.length != newRowCount) {
+            viewToModelIndex = new SortRow[newRowCount];
+        }
+        createModelOrderRows(model.getRowCount());
         Arrays.sort(viewToModelIndex);
     }
 
     private void buildModelToViewIndex() {
         final int numRows = model.getRowCount();
-        modelToViewIndex = new int[numRows];
+        // if we don't have an index, or the the existing array is less than the size we need, create a new one.
+        if (modelToViewIndex == null || modelToViewIndex.length < numRows) {
+            modelToViewIndex = new int[numRows];
+        }
         for (int viewIndex = 0; viewIndex < numRows; viewIndex++) {
             modelToViewIndex[viewToModelIndex[viewIndex].modelIndex] = viewIndex;
         }
@@ -246,12 +270,11 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return -1;
     }
 
-    private SortRow[] createModelOrderRows(final int numRows) {
-        final SortRow[] newRows = new SortRow[numRows];
+    private void createModelOrderRows(final int numRows) {
+        final SortRow[] sortRows = viewToModelIndex;
         for (int index = 0; index < numRows; index++) {
-            newRows[index] = new SortRow(this, index);
+            sortRows[index] = new SortRow(this, index);
         }
-        return newRows;
     }
 
     private TreeTableNode getAncestor(final TreeTableNode node, final int levelsDown) {

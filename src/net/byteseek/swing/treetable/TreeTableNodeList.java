@@ -17,7 +17,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
     }
 
     @Override
-    public TreeTableNode get(int index) {
+    public TreeTableNode get(final int index) {
         checkIndex(index);
         return displayedNodes[index];
     }
@@ -29,7 +29,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         return true;
     }
 
-    public boolean add(List<TreeTableNode> nodes) {
+    public boolean add(final List<TreeTableNode> nodes) {
         final int numToAdd = nodes.size();
         checkResize(numToAdd);
         for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {
@@ -38,7 +38,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         return true;
     }
 
-    public void insert(TreeTableNode node, int index) {
+    public void insert(final TreeTableNode node, final int index) {
         if (index == size) {
             add(node);
         } else {
@@ -54,7 +54,8 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         }
     }
 
-    public void insert(List<TreeTableNode> nodes, int index) {
+    //TODO: Insert is called on view index, not model index when sorted.
+    public void insert(final List<TreeTableNode> nodes, final int index) {
         if (index == size) {
             add(nodes);
         } else {
@@ -62,7 +63,8 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
             final int numToAdd = nodes.size();
             checkResize(numToAdd);
             final int numToShift = size - index;
-            final int newPosition = size - 1 + numToAdd;
+            final int newPosition = index + numToAdd;
+            //TODO: bug - if list is one, will overwrite data,  Should still run this in reverse.
             // Shift the others along by numToAdd to leave room.
             for (int position = 0; position < numToShift; position++) {
                 displayedNodes[newPosition + position] = displayedNodes[index + position];
@@ -76,7 +78,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
     }
 
     @Override
-    public TreeTableNode remove(int index) {
+    public TreeTableNode remove(final int index) {
         checkIndex(index);
         TreeTableNode nodeToRemove = displayedNodes[index];
         for (int position = index; position < size - 1; position++) {
@@ -86,18 +88,19 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         return nodeToRemove;
     }
 
-    public void remove(int from, int to) {
+    public void remove(final int from, final int to) {
         checkIndex(from);
-        if (to <= from) {
+        if (to < from) {
             throw new IllegalArgumentException("to:" + to + " must be greater than from:" + from);
         }
         if (to >= size) { // If we're removing everything up to or past the end, just set the size down.
             size = from;
         } else { // got some stuff at the end we have to move over to cover the gap:
-            final int numToRemove = to - from;
-            final int remainingLength = size - to;
-            for (int position = 0; position < remainingLength; position++) {
-                displayedNodes[from + position] = displayedNodes[to + position];
+            final int rowAfterRemoved = to + 1;
+            final int numToRemove = rowAfterRemoved - from;
+            final int numToMove = size - rowAfterRemoved;
+            for (int position = 0; position < numToMove; position++) {
+                displayedNodes[from + position] = displayedNodes[rowAfterRemoved + position];
             }
             size -= numToRemove;
         }
@@ -108,13 +111,13 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
         size = 0;
     }
 
-    private void checkIndex(int index) {
+    private void checkIndex(final int index) {
         if (index >= size || index < 0) {
             throw new IndexOutOfBoundsException("Index = " + index + " size = " + size);
         }
     }
 
-    private void checkResize(int numToAdd) {
+    private void checkResize(final int numToAdd) {
         if (size + numToAdd >= displayedNodes.length) {
             growArray();
         }

@@ -90,10 +90,13 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
     }
 
-    protected TreeTableNode getNodeAtTableRow(final JTable table, final int tableRow) {
+    protected int getIndexAtTableRow(final JTable table, final int tableRow) {
         final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-        final int displayIndex = rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
-        return displayedNodes.get(displayIndex);
+        return rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
+    }
+
+    protected TreeTableNode getNodeAtTableRow(final JTable table, final int tableRow) {
+        return displayedNodes.get(getIndexAtTableRow(table, tableRow));
     }
 
     protected abstract Object getColumnValue(TreeTableNode node, int column);
@@ -133,20 +136,21 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     protected void checkExpandOrCollapse(final JTable table, final MouseEvent evt) {
         final Point point = evt.getPoint();
-        final int row = table.rowAtPoint(point);
-        final int col = table.columnAtPoint(point);
-        final TreeTableNode node = getNodeAtTableRow(table, row);
+        final int tableRow = table.rowAtPoint(point);
+        final int col = table.columnAtPoint(point); // does this change if columns are re-ordered?
+        final int modelRow = getIndexAtTableRow(table, tableRow);
+        final TreeTableNode node = displayedNodes.get(modelRow);
         if (clickOnExpand(node, col, evt)) {
             // listeners may change the node structure (e.g. dynamically add, remove or change nodes).
             // So can't rely on what was there before.  Get the number of *currently* visible children:
             final int numVisibleChildren = node.getChildVisibleNodeCount();
             if (listenersApprove(node)) {
                 if (node.isExpanded()) {
-                    removeDisplayedChildren(row, numVisibleChildren);
+                    removeDisplayedChildren(modelRow, numVisibleChildren);
                 }
                 node.toggleExpanded();
                 if (node.isExpanded()) {
-                    addChildrenToDisplay(row, node);
+                    addChildrenToDisplay(modelRow, node);
                 }
             }
         }
@@ -186,12 +190,13 @@ public abstract class TreeTableModel extends AbstractTableModel {
     private boolean removeDisplayedChildren(final int row, final int numberToRemove) {
         if (numberToRemove > 0) {
             final int firstChildRow = row + 1;
+            final int lastChildRow = firstChildRow + numberToRemove - 1;
             if (numberToRemove == 1) {
                 displayedNodes.remove(firstChildRow);
             } else {
-                displayedNodes.remove(firstChildRow, firstChildRow + numberToRemove);
+                displayedNodes.remove(firstChildRow, lastChildRow);
             }
-            fireTableRowsDeleted(firstChildRow, firstChildRow + numberToRemove - 1);
+            fireTableRowsDeleted(firstChildRow, lastChildRow);
             return true;
         }
         return false;
@@ -201,14 +206,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
         final int childCount = node.getChildCount();
         if (childCount > 0) {
             final int firstChildRow = row + 1;
-            List<TreeTableNode> newVisibleNodes = new ArrayList<>();
+            final List<TreeTableNode> newVisibleNodes = new ArrayList<>();
             node.addVisibleChildren(newVisibleNodes);
             if (newVisibleNodes.size() == 1) {
                 displayedNodes.insert(newVisibleNodes.get(0), firstChildRow);
             } else {
                 displayedNodes.insert(newVisibleNodes, firstChildRow);
             }
-            fireTableRowsInserted(firstChildRow, firstChildRow + newVisibleNodes.size() - 1);
+            final int lastChildRow = firstChildRow + newVisibleNodes.size() - 1;
+            fireTableRowsInserted(firstChildRow, lastChildRow);
             return true;
         }
         return false;

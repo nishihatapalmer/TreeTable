@@ -27,6 +27,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         setBorder(new ExpandHandleBorder());
     }
 
+    //TODO: not sure we're setting everything here, fonts, forground colors, etc. from table.
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
         setBackground(isSelected? table.getSelectionBackground() : table.getBackground());
