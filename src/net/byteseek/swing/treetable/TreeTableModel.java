@@ -7,23 +7,17 @@ import java.awt.event.*;
 import java.util.*;
 import java.util.List;
 
-//TODO: tool tips - some display, some don't.  Investigate what we want to do here and if it meet's DROID requirements.
+//TODO: tests:
+// * test dynamic expand remove nodes
+// * test customise visual appearance - all just on the JTable? Check we set all table settings in TreeTableCellRenderer.
+// * test setting different icons.
 
-//TODO: key bindings (only have mouse click for expand/collapse)
-
-
-
-//TODO: test dynamic expand remove nodes
-
-//TODO: customise visual appearance - all just on the JTable? Check we set all table settings in TreeTableCellRenderer.
-//TODO: test setting different icons.
-//TODO: table header - change display of sorted columns (bold, multi-column).
-
-//TODO: sorting multi column sort header and behaviour?
-
-//TODO: show plus sign on nodes that we haven't dynamically expanded (if they support having children).
-//TODO: Should allow expand on a node with no children?
-//TODO: Should show expand handle for node with no children (what about dynamically adding nodes?)
+//TODO: functionality
+// * sorting header behaviour?
+// * table header - change display of sorted columns (bold, multi-column).
+// * show plus sign on nodes that we haven't dynamically expanded (if they support having children).
+// * Should allow expand on a node with no children?
+// * Should show expand handle for node with no children (what about dynamically adding nodes?)
 
 /**
  * A tree table model which implements the binding to a JTable as a TableModel given a root tree node.
