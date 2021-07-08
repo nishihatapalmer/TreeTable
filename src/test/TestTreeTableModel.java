@@ -18,7 +18,7 @@ public class TestTreeTableModel extends TreeTableModel {
         buildColumns();
     }
 
-    protected Object getColumnValue(final TreeTableNode node, final int column) {
+    public Object getColumnValue(final TreeTableNode node, final int column) {
         Object o = node.getUserObject();
         if (o instanceof TestClass) {
             TestClass obj = (TestClass) o;
@@ -32,17 +32,17 @@ public class TestTreeTableModel extends TreeTableModel {
     }
 
     @Override
-    protected TableColumn getTableColumn(int column) {
+    public TableColumn getTableColumn(int column) {
         return TABLE_COLUMNS[column];
     }
 
     @Override
-    protected Comparator<?> getColumnComparator(int column) {
+    public Comparator<?> getColumnComparator(int column) {
         return null; //TODO: return comparator for column values to enable sorting.
     }
 
     @Override
-    protected Comparator<TreeTableNode> getNodeComparator() {
+    public Comparator<TreeTableNode> getNodeComparator() {
         return null; //TODO: return node comparator to enable node-property related sorting for all columns.
     }
 

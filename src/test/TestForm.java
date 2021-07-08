@@ -35,10 +35,9 @@ public class TestForm {
         random = new Random(0);
         readWordList();
         JTreeTable1 = new JTreeTable();
-
         TreeTableNode rootNode = buildRandomTree();
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, false);
-        treeTableModel.initializeTable(JTreeTable1);
+        treeTableModel.bindTable(JTreeTable1);
     }
 
     private TreeTableNode buildTree() {
