@@ -21,7 +21,7 @@ public class TestForm {
     private List<String> wordList;
 
     public TestForm() {
-        createUIComponents();
+        createTreeTable();
     }
 
     public static void main(String[] args) {
@@ -32,7 +32,7 @@ public class TestForm {
         frame.setVisible(true);
     }
 
-    private void createUIComponents() {
+    private void createTreeTable() {
         random = new Random(0);
         readWordList();
         TreeTableNode rootNode = buildRandomTree();
