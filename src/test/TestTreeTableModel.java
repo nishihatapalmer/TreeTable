@@ -41,6 +41,11 @@ public class TestTreeTableModel extends TreeTableModel {
         return null; //TODO: return comparator for column values to enable sorting.
     }
 
+    @Override
+    protected Comparator<TreeTableNode> getNodeComparator() {
+        return null; //TODO: return node comparator to enable node-property related sorting for all columns.
+    }
+
     private void buildColumns() {
         TABLE_COLUMNS[0] = createColumn("description", 0, new TreeTableCellRenderer(this));
         TABLE_COLUMNS[1] = createColumn("size", 1, null);

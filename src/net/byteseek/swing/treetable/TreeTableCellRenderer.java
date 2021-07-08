@@ -3,11 +3,11 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableModel;
 import java.awt.*;
 
 public class TreeTableCellRenderer extends DefaultTableCellRenderer {
 
+    //TODO: should indent be defined in terms of pixels (HDPi screens will make this very small...)
     private static final int PIXELS_PER_LEVEL = 16;
 
     private final TreeTableModel treeTableModel;
@@ -16,32 +16,35 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
     private Icon collapsedIcon;
     private int maxIconWidth;
 
+    //TODO: validate constants set here.
     private final Insets insets = new Insets(0, 24, 0, 0);
 
     private TreeTableNode currentNode;
 
-    public TreeTableCellRenderer(TreeTableModel treeTableModel) {
+    public TreeTableCellRenderer(final TreeTableModel treeTableModel) {
         this.treeTableModel = treeTableModel;
         setExpandedIcon(UIManager.getIcon("Tree.expandedIcon"));
         setCollapsedIcon(UIManager.getIcon("Tree.collapsedIcon"));
         setBorder(new ExpandHandleBorder());
     }
 
-    //TODO: not sure we're setting everything here, fonts, forground colors, etc. from table.
     @Override
-    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+    public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
+                                                   final boolean hasFocus, final int row, final int column) {
+        setForeground(isSelected? table.getSelectionForeground() : table.getForeground());
         setBackground(isSelected? table.getSelectionBackground() : table.getBackground());
+        setFont(table.getFont());
         setValue(value);
-        setNode(getNodeAtRow(table, row)); // row here is in terms of model.
+        setNode(getNodeAtRow(table, row));
         return this;
     }
 
-    public void setExpandedIcon(Icon expandedIcon) {
+    public void setExpandedIcon(final Icon expandedIcon) {
         this.expandedIcon = expandedIcon;
         setMaxIconWidth();
     }
 
-    public void setCollapsedIcon(Icon expandedIcon) {
+    public void setCollapsedIcon(final Icon expandedIcon) {
         this.collapsedIcon = expandedIcon;
         setMaxIconWidth();
     }
@@ -50,12 +53,12 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         return treeTableModel.getNodeAtTableRow(table, row);
     }
 
-    protected int getNodeIndent(TreeTableNode node) {
+    protected int getNodeIndent(final TreeTableNode node) {
         final int adjustShowRoot = treeTableModel.getShowRoot()? 0 : 1;
         return maxIconWidth + ((node.getLevel() - adjustShowRoot) * PIXELS_PER_LEVEL);
     }
 
-    private void setNode(TreeTableNode node) {
+    private void setNode(final TreeTableNode node) {
         insets.left = getNodeIndent(node);
         currentNode = node;
     }
@@ -66,10 +69,14 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         maxIconWidth = Math.max(expandedWidth, collapsedWidth);
     }
 
+    /**
+     * A class which provides an expanded border to render the tree expand/collapse handle icon, indented by insets.left.
+     */
     private class ExpandHandleBorder implements Border {
 
         @Override
-        public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
+        public void paintBorder(final Component c, final Graphics g, final int x, final int y,
+                                final int width, final int height) {
             if (currentNode.getAllowsChildren()) {
                 Icon iconToPaint = currentNode.isExpanded() ? expandedIcon : collapsedIcon;
                 iconToPaint.paintIcon(c, g, insets.left - iconToPaint.getIconWidth(), 0);
@@ -77,7 +84,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         }
 
         @Override
-        public Insets getBorderInsets(Component c) {
+        public Insets getBorderInsets(final Component c) {
             return insets;
         }
 

@@ -3,6 +3,12 @@ package net.byteseek.swing.treetable;
 import java.util.AbstractList;
 import java.util.List;
 
+/**
+ * A List which provides efficient block operations for insert and remove, backed by an array.
+ * It is almost identical to ArrayList, except the block operations don't have to call insert() or remove()
+ * individually for each row inserted or removed (which causes an ArrayList to shift all the other values up or
+ * down one each time).  So for block insert and remove, ArrayList is O(nm), whereas TreeTableNodeList is O(n+m).
+ */
 class TreeTableNodeList extends AbstractList<TreeTableNode> {
 
     private static final int DEFAULT_CAPACITY = 256;
@@ -64,12 +70,12 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
             checkResize(numToAdd);
             final int numToShift = size - index;
             final int newPosition = index + numToAdd;
-            //TODO: bug - if list is one, will overwrite data,  Should still run this in reverse.
-            // Shift the others along by numToAdd to leave room.
-            for (int position = 0; position < numToShift; position++) {
+            // move the existing nodes up to create a gap
+            for (int position = numToShift - 1; position >= 0; position--) {
                 displayedNodes[newPosition + position] = displayedNodes[index + position];
             }
-            // insert the new nodes:
+
+            // insert the new nodes in the gap.
             for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {
                 displayedNodes[index + nodeIndex] = nodes.get(nodeIndex);
             }
@@ -91,7 +97,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
     public void remove(final int from, final int to) {
         checkIndex(from);
         if (to < from) {
-            throw new IllegalArgumentException("to:" + to + " must be greater than from:" + from);
+            throw new IllegalArgumentException("to:" + to + " cannot be less than from:" + from);
         }
         if (to >= size) { // If we're removing everything up to or past the end, just set the size down.
             size = from;

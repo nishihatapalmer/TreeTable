@@ -1,8 +1,6 @@
 package net.byteseek.swing.treetable;
 
 import javax.swing.*;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -10,16 +8,14 @@ import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 
-//TODO: sorting (up / down / off).  multi column sort?
 //TODO: tool tips
-//TODO: copy paste
 //TODO: key bindings (only have mouse click for expand/collapse)
-
 //TODO: test dynamic expand remove nodes
 
-//TODO: customise visual appearance - all just on the JTable?
-
+//TODO: customise visual appearance - all just on the JTable? Check we set all table settings in TreeTableCellRenderer.
 //TODO: test setting different icons.
+
+//TODO: sorting multi column sort header and behaviour?
 
 //TODO: show plus sign on nodes that we haven't dynamically expanded (if they support having children).
 //TODO: Should allow expand on a node with no children?
@@ -83,6 +79,8 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
+        final RowSorter<TreeTableModel> rowSorter = new TreeTableRowSorter(this);
+        table.setRowSorter(rowSorter);
         registerMouseListener(table);
     }
 
@@ -104,6 +102,8 @@ public abstract class TreeTableModel extends AbstractTableModel {
     protected abstract TableColumn getTableColumn(int column);
 
     protected abstract Comparator<?> getColumnComparator(int column);
+
+    protected abstract Comparator<TreeTableNode> getNodeComparator();
 
     protected TableColumnModel getTableColumnModel() {
         if (columnModel == null) {

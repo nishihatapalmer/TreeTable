@@ -3,11 +3,11 @@ package test;
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
-import javax.swing.table.TableModel;
-import javax.swing.table.TableRowSorter;
-import javax.swing.tree.DefaultMutableTreeNode;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+import java.util.Random;
 
 public class TestForm {
 
@@ -17,6 +17,8 @@ public class TestForm {
     private JScrollPane scrollPane;
     private JTreeTable JTreeTable1;
     private JButton addNodes;
+    private Random random;
+    private List<String> wordList;
 
     public TestForm() {
     }
@@ -30,22 +32,13 @@ public class TestForm {
     }
 
     private void createUIComponents() {
+        random = new Random(0);
+        readWordList();
         JTreeTable1 = new JTreeTable();
-        TreeTableNode rootNode = buildTree();
-        //TODO: BUG - shows no children is showRoot = false.
+
+        TreeTableNode rootNode = buildRandomTree();
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, false);
         treeTableModel.initializeTable(JTreeTable1);
-        RowSorter<TreeTableModel> rowSorter = new TreeTableRowSorter(treeTableModel);
-        JTreeTable1.setRowSorter(rowSorter);
-        /*
-        treeTableModel.addListener(new TreeTableEvent.Listener() {
-            @Override
-            public boolean actionTreeEvent(TreeTableEvent event) {
-                System.out.println("Logging event: " + event);
-                return true;
-            }
-        });
-         */
     }
 
     private TreeTableNode buildTree() {
@@ -62,5 +55,40 @@ public class TestForm {
 
         rootNode.add(new TreeTableNode(new TestClass("Fourth child test class", 32, false), false));
         return rootNode;
+    }
+
+    private TreeTableNode buildRandomTree() {
+        TreeTableNode rootNode = randomTestNode(true);
+        buildRandomChildren(rootNode);
+        return rootNode;
+    }
+
+    private void buildRandomChildren(TreeTableNode parentNode) {
+        boolean allowsChildren = parentNode.getAllowsChildren() && parentNode.getLevel() < 6;
+        if (allowsChildren) {
+            int numChildren = random.nextInt(50);
+            for (int child = 0; child < numChildren; child++) {
+                TreeTableNode newChild = randomTestNode(random.nextInt(10) > 5 && allowsChildren);
+                parentNode.add(newChild);
+                buildRandomChildren(newChild);
+            }
+        }
+    }
+
+    private void readWordList() {
+        try {
+            wordList = Files.readAllLines(Paths.get("/home/matt/english2.txt"));
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+
+    private TreeTableNode randomTestNode(boolean allowsChildren) {
+        TestClass randomClass = new TestClass(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
+        return new TreeTableNode(randomClass, allowsChildren);
+    }
+
+    private String getRandomDescription() {
+        return wordList.get(random.nextInt(wordList.size())) + ' ' + wordList.get(random.nextInt(wordList.size()));
     }
 }

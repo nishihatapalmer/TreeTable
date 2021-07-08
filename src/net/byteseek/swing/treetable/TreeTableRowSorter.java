@@ -3,8 +3,13 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import java.util.*;
 
-//TODO: are some columns not sortable?
+//TODO: do we need some columns to be not sortable?
 
+/**
+ * A class which sorts a TreeTableModel, given the sort keys to sort on.
+ * It provides an index of the view to model, and the model to view.
+ * It can be provided to a JTable to sort the rows.
+ */
 public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     protected static final int MAX_DEFAULT_SORT_KEYS = 3;
@@ -103,44 +108,44 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     @Override
     public void modelStructureChanged() {
         buildSortIndexes();
-        fireSortOrderChanged();
+        fireSortOrderChanged(); //TODO: check we're sending correct message here.
     }
 
     @Override
     public void allRowsChanged() {
         buildSortIndexes();
-        fireSortOrderChanged();
+        fireSortOrderChanged(); //TODO: check we're sending correct message here.
     }
 
     @Override
     public void rowsInserted(final int firstRow, final int endRow) {
        if (isSorting()) {
-           buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
-           fireRowSorterChanged(null);
+           buildSortIndexes();
+           fireRowSorterChanged(null); //TODO: check we're sending correct message here.
        }
     }
 
     @Override
     public void rowsDeleted(final int firstRow, final int endRow) {
         if (isSorting()) {
-            buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
-            fireRowSorterChanged(null);
+            buildSortIndexes();
+            fireRowSorterChanged(null); //TODO: check we're sending correct message here.
         }
     }
 
     @Override
     public void rowsUpdated(final int firstRow, final int endRow) {
         if (isSorting()) {
-            buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
-            fireRowSorterChanged(null);
+            buildSortIndexes();
+            fireRowSorterChanged(null); //TODO: check we're sending correct message here.
         }
     }
 
     @Override
     public void rowsUpdated(final int firstRow, final int endRow, final int column) {
         if (isSorting()) {
-            buildSortIndexes(); //TODO: unclear whether any optimisation better than just rebuilding the sort indexes.
-            fireRowSorterChanged(null);
+            buildSortIndexes();
+            fireRowSorterChanged(null); //TODO: check we're sending correct message here.
         }
     }
 
@@ -173,36 +178,42 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     protected int compare(final TreeTableNode firstNode, final TreeTableNode secondNode, final int unsortedCompare) {
         final List<SortKey> localKeys = sortKeys;
-        final TreeTableModel localModel = model;
+        // Go through all the sort keys to find something less than or bigger than.  If equal, try the next sort key.
         for (int sortIndex = 0; sortIndex < localKeys.size(); sortIndex++) {
             final SortKey key = localKeys.get(sortIndex);
             final SortOrder order = key.getSortOrder();
             if (order == SortOrder.UNSORTED) {
                 return unsortedCompare;
             }
-            final int column = key.getColumn();
-            final Object value1 = localModel.getColumnValue(firstNode, column);
-            final Object value2 = localModel.getColumnValue(secondNode, column);
-            final int result = compareNodeValues(value1, value2, column);
-            if (result != 0) {  // if not equal, we have a result - return it.
+            final int result = compareNodes(firstNode, secondNode, key.getColumn());
+            if (result != 0) {  // if not equal, we have a definite unequal result - return it.
                 return order == SortOrder.ASCENDING? result: result * -1; // invert the result if not ascending
             }
-            // result is equal - sort on next sort key (if any).
         }
         //TODO: If all comparisons are equal, should we just return equal?  Why give an order to them at all?  Giving a definite order might help some sort algorithms I guess.
-        return unsortedCompare; // If we got through all sort keys and everything is still equal, use the unsorted order to break the tie.
+        return unsortedCompare;
     }
 
-    protected int compareNodeValues(final Object value1, final Object value2, final int column) {
-        final Comparator<Object> comparator = (Comparator<Object>) model.getColumnComparator(column);
-        final int result;
-        if (comparator != null)  {
-            result = comparator.compare(value1, value2);                     // Use the provided comparator:
-        } else {
-            if (value1 instanceof Comparable<?>) {                           // Compare directly if Comparable<>
-                result = ((Comparable<Object>) value1).compareTo(value2);
-            } else {                                                         // Compare on string values:
-                result = value1.toString().compareTo(value2.toString());
+    protected int compareNodes(final TreeTableNode firstNode, final TreeTableNode secondNode, final int column) {
+        final TreeTableModel localModel = model;
+
+        // Compare on node values, if a node comparator is defined:
+        final Comparator<TreeTableNode> nodeComparator = localModel.getNodeComparator();
+        int result = nodeComparator == null ? 0 : nodeComparator.compare(firstNode, secondNode); // Compare with node comparator.
+
+        // If we don't have a node comparator, or the comparison is equal, compare on column values:
+        if (result == 0) {
+            final Object value1 = localModel.getColumnValue(firstNode, column);
+            final Object value2 = localModel.getColumnValue(secondNode, column);
+            final Comparator<Object> columnComparator = (Comparator<Object>) localModel.getColumnComparator(column);
+            if (columnComparator != null) {
+                result = columnComparator.compare(value1, value2);            // Compare with provided comparator.
+            } else {
+                if (value1 instanceof Comparable<?>) {
+                    result = ((Comparable<Object>) value1).compareTo(value2); // Compare directly if Comparable<>
+                } else {
+                    result = value1.toString().compareTo(value2.toString());  // Compare on string values:
+                }
             }
         }
         return result;
