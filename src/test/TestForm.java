@@ -15,12 +15,13 @@ public class TestForm {
     private JPanel rootPanel;
     private JLabel topLabel;
     private JScrollPane scrollPane;
-    private JTreeTable JTreeTable1;
     private JButton addNodes;
+    private JTable table1;
     private Random random;
     private List<String> wordList;
 
     public TestForm() {
+        createUIComponents();
     }
 
     public static void main(String[] args) {
@@ -34,10 +35,9 @@ public class TestForm {
     private void createUIComponents() {
         random = new Random(0);
         readWordList();
-        JTreeTable1 = new JTreeTable();
         TreeTableNode rootNode = buildRandomTree();
         TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, false);
-        treeTableModel.bindTable(JTreeTable1);
+        treeTableModel.bindTable(table1);
     }
 
     private TreeTableNode buildTree() {

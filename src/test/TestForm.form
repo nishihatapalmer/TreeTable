@@ -34,7 +34,7 @@
             <properties/>
             <border type="none"/>
             <children>
-              <component id="ac38f" class="net.byteseek.swing.treetable.JTreeTable" binding="JTreeTable1" custom-create="true" default-binding="true">
+              <component id="391db" class="javax.swing.JTable" binding="table1" default-binding="true">
                 <constraints/>
                 <properties/>
               </component>
