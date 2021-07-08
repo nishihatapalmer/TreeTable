@@ -35,6 +35,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         setBackground(isSelected? table.getSelectionBackground() : table.getBackground());
         setFont(table.getFont());
         setValue(value);
+        setToolTipText(value.toString());
         setNode(getNodeAtRow(table, row));
         return this;
     }
