@@ -23,20 +23,53 @@ import java.util.List;
  * A tree table model which implements the binding to a JTable as a TableModel given a root tree node.
  * It is abstract, as the implementor must customise (1) how many columns exist (2) what the columns are
  * and (3) whether any custom comparators or cell renderers will be supplied.
- *
- * To use it, instantiate a TreeTableModel with a root node, then bind it to a JTable.
+ * <p><b>Usage</b></p>
+ * To use it, instantiate a subclassed TreeTableModel with a root node, then bind it to a JTable.
  */
 public abstract class TreeTableModel extends AbstractTableModel {
 
-    private final int numColumns;
-    private final TreeTableNode rootNode;
+    /******************************************************************************************************************
+     *                                         Constants
+     */
 
+    private static final char PLUS = '+';  // default node expand key char
+    private static final char MINUS = '-'; // default node collapse key char
+
+    /*
+     * Immutable on construction
+     */
+    protected final int numColumns;
+    protected final TreeTableNode rootNode;
+
+
+    /******************************************************************************************************************
+     *                                         Variables
+     */
+
+    /*
+     * User modifiable properties of the model:
+     */
     private boolean showRoot;
+    private char expandChar = PLUS;
+    private char collapseChar = MINUS;
+
+    /*
+     * Cached/calculated properties of the model:
+     */
     private TableColumnModel columnModel;
     private TreeTableNodeList displayedNodes = new TreeTableNodeList();
-    private List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2);
+
+    /*
+     * Keyboard, mouse and tree events
+     */
     private TreeKeyboardListener treeKeyboardListener;
     private Map<JTable, MouseListener> tableMouseListeners = new HashMap<>();
+    private List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2);
+
+
+    /******************************************************************************************************************
+     *                                         Constructors
+     */
 
     /**
      * Constructs a TreeTableModel given the root node, the number of columns required and whether to show the root
@@ -49,7 +82,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     public TreeTableModel(final TreeTableNode rootNode, final int numColumns, final boolean showRoot) {
         this.rootNode = rootNode;
         this.showRoot = showRoot;
-        if (!showRoot) {
+        if (!showRoot) { // ensure there is something to see if we aren't showing the root but it isn't currently expanded...
             rootNode.setExpanded(true);
         }
         this.numColumns = numColumns;
@@ -57,9 +90,13 @@ public abstract class TreeTableModel extends AbstractTableModel {
         buildVisibleNodes();
     }
 
+    /******************************************************************************************************************
+     *                        Methods to bind and unbind this model to and from a JTable
+     */
+
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
-     * react to mouse and keybaord events.
+     * react to mouse and keyboard events.
      *
      * @param table The JTable to bind to this TreeTableModel.
      */
@@ -67,16 +104,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
-        final RowSorter<TreeTableModel> rowSorter = new TreeTableRowSorter(this);
-        table.setRowSorter(rowSorter);
+        table.setRowSorter(new TreeTableRowSorter(this));
         table.addKeyListener(treeKeyboardListener);
         addMouseListener(table);
     }
 
     /**
-     * Unbinds a JTable from this model, and removes listeners, sorters and columns, replacing all with a
-     * default table model and a default column model.  Will do nothing if this object is not set to the table model
-     * of the JTable.
+     * Unbinds a JTable from this model, and removes listeners and sorters.
+     * It replaces the table and column model with a default one with no data.
+     * Will do nothing if this object is not set to the table model of the JTable.
      *
      * @param table The JTable to unbind this model from.
      */
@@ -89,6 +125,11 @@ public abstract class TreeTableModel extends AbstractTableModel {
             table.setModel(new DefaultTableModel());
         }
     }
+
+
+    /******************************************************************************************************************
+     *                              Abstract methods for subclasses to implement
+     */
 
     /**
      * Returns the value of a node for a given column.
@@ -130,6 +171,103 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
     public abstract Comparator<TreeTableNode> getNodeComparator();
 
+
+    /******************************************************************************************************************
+     *                                    TableModel interface methods.
+     */
+
+    @Override
+    public int getRowCount() {
+        return displayedNodes.size();
+    }
+
+    @Override
+    public int getColumnCount() {
+        return numColumns;
+    }
+
+    @Override
+    public Object getValueAt(final int row, final int column) {
+        return getColumnValue(getNodeAtRow(row), column);
+    }
+
+
+    /******************************************************************************************************************
+     *                                          Node getters
+     */
+
+    /**
+     * Gets the node at the model row.
+     *
+     * @param modelIndex The row in the display model to get the node for.
+     * @return The node for the row in the (unsorted) model index.
+     */
+    public TreeTableNode getNodeAtRow(final int modelIndex) {
+        return modelIndex >= 0 && modelIndex < displayedNodes.size() ? displayedNodes.get(modelIndex) : null;
+    }
+
+    /**
+     * Gets the node in a bound JTable given a table row index.
+     * The view row index can differ from the rows in this underlying model if the table is sorted or filtered.
+     *
+     * @param table The JTable to get the node from at the row in the table.
+     * @param tableIndex The row in the table to get the node from.
+     * @return The node at the tableRow position in the JTable.
+     */
+    public TreeTableNode getNodeAtTableRow(final JTable table, final int tableIndex) {
+        return getNodeAtRow(getModelIndex(table, tableIndex));
+    }
+
+    /**
+     * Gets the index in the model of a row in a bound table.
+     * If the table is unsorted, the model and table indexes will be identical.
+     * If the table is sorted, then the row sorter can provide a mapping from the row in the visible table
+     * to the row in this underlying model.
+     *
+     * @param table The JTable to get the model index for.
+     * @param tableIndex The row in the JTable to get the model index for.
+     * @return the model index of a row in a bound JTable.
+     */
+    public int getModelIndex(final JTable table, final int tableIndex) {
+        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+        return rowSorter == null? tableIndex : rowSorter.convertRowIndexToModel(tableIndex);
+    }
+
+
+    /******************************************************************************************************************
+     *                                          Root node visibility
+     */
+
+    /**
+     * @return true if the root node will be displayed, false if not.
+     */
+    public boolean getShowRoot() {
+        return showRoot;
+    }
+
+    /**
+     * Sets whether the root node should be displayed or not, and updates the display model if the state changes.
+     *
+     * @param showRoot whether the root node should be displayed or not.
+     */
+    public void setShowRoot(final boolean showRoot) {
+        if (this.showRoot != showRoot) {
+            this.showRoot = showRoot;
+            if (showRoot) {
+                displayedNodes.insert(rootNode, 0);
+                fireTableRowsInserted(0, 0);
+            } else {
+                displayedNodes.remove(0);
+                fireTableRowsDeleted(0, 0);
+            }
+        }
+    }
+
+
+    /******************************************************************************************************************
+     *                                           Event listeners
+     */
+
     /**
      * Adds a listener to TreeTableEvents, which inform the listener when a node is about to expand or collapse.
      *
@@ -150,52 +288,10 @@ public abstract class TreeTableModel extends AbstractTableModel {
         eventListeners.remove(listener);
     }
 
-    @Override
-    public int getRowCount() {
-        return displayedNodes.size();
-    }
 
-    @Override
-    public int getColumnCount() {
-        return numColumns;
-    }
-
-    @Override
-    public Object getValueAt(final int row, final int column) {
-        return getColumnValue(getNodeAtRow(row), column);
-    }
-
-    /**
-     * @return true if the root node will be displayed, false if not.
+    /******************************************************************************************************************
+     *                                          Column utility methods
      */
-    public boolean getShowRoot() {
-        return showRoot;
-    }
-
-    /**
-     * Sets whether the root node should be displayed or not.
-     *
-     * @param showRoot whether the root node should be displayed or not.
-     */
-    public void setShowRoot(boolean showRoot) {
-        if (this.showRoot != showRoot) {
-            this.showRoot = showRoot;
-            fireTableDataChanged();
-        }
-    }
-
-    public TreeTableNode getNodeAtRow(final int row) {
-        return row >= 0 && row < displayedNodes.size() ? displayedNodes.get(row) : null;
-    }
-
-    public int getIndexAtTableRow(final JTable table, final int tableRow) {
-        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-        return rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
-    }
-
-    public TreeTableNode getNodeAtTableRow(final JTable table, final int tableRow) {
-        return displayedNodes.get(getIndexAtTableRow(table, tableRow));
-    }
 
     public TableColumnModel getTableColumnModel() {
         if (columnModel == null) {
@@ -207,7 +303,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return columnModel;
     }
 
-    protected TableColumn createColumn(final String headerValue, final int modelIndex, final TableCellRenderer renderer) {
+    public TableColumn createColumn(final String headerValue, final int modelIndex, final TableCellRenderer renderer) {
         TableColumn tableColumn = new TableColumn(modelIndex);
         tableColumn.setHeaderValue(headerValue);
         if (renderer != null) {
@@ -215,6 +311,43 @@ public abstract class TreeTableModel extends AbstractTableModel {
         }
         return tableColumn;
     }
+
+    /******************************************************************************************************************
+     *                                    Key bindings for expand and collapse.
+     */
+
+    /**
+     * @return The char which if pressed will expand a node.
+     */
+    public char getExpandChar() {
+        return expandChar;
+    }
+
+    /**
+     * @return The char which if pressed will collapse a node.
+     */
+    public char getCollapseChar() {
+        return collapseChar;
+    }
+
+    /**
+     * @param expandChar Sets the char which if pressed will expand a node.
+     */
+    public void setExpandChar(char expandChar) {
+        this.expandChar = expandChar;
+    }
+
+    /**
+     * @param collapseChar Sets the char which if presssed will collapse a node.
+     */
+    public void setCollapseChar(char collapseChar) {
+        this.collapseChar = collapseChar;
+    }
+
+
+    /******************************************************************************************************************
+     *                                     Node expansion and collapse
+     */
 
     protected void toggleExpansion(TreeTableNode node, int modelRow) {
         // Listeners may change the node structure (e.g. dynamically add, remove or change nodes).
@@ -246,7 +379,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         final Point point = evt.getPoint();
         final int tableRow = table.rowAtPoint(point);
         final int col = table.columnAtPoint(point); // does this change if columns are re-ordered?
-        final int modelRow = getIndexAtTableRow(table, tableRow);
+        final int modelRow = getModelIndex(table, tableRow);
         final TreeTableNode node = displayedNodes.get(modelRow);
         if (clickOnExpand(node, col, evt)) {
             toggleExpansion(node, modelRow);
@@ -268,25 +401,20 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return false;
     }
 
-    private boolean listenersApprove(final TreeTableNode node) {
-        final TreeTableEvent event = node.isExpanded() ?
-                new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.COLLAPSING) :
-                new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.EXPANDING);
-        return listenersApprovedEvent(event);
-    }
 
+    /******************************************************************************************************************
+     *                                         Visible node management.
+     */
 
-
-    private int calculateWidthToLeft(final int colIndex) {
-        TableColumnModel model = getTableColumnModel();
-        int width = 0;
-        for (int col = colIndex - 1; col >= 0; col--) {
-            width += model.getColumn(col).getWidth();
+    protected void buildVisibleNodes() {
+        displayedNodes.clear();
+        if (showRoot) {
+            displayedNodes.add(rootNode);
         }
-        return width;
+        rootNode.addVisibleChildren(displayedNodes);
     }
 
-    private boolean removeDisplayedChildren(final int row, final int numberToRemove) {
+    protected boolean removeDisplayedChildren(final int row, final int numberToRemove) {
         if (numberToRemove > 0) {
             final int firstChildRow = row + 1;
             final int lastChildRow = firstChildRow + numberToRemove - 1;
@@ -301,7 +429,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return false;
     }
 
-    private boolean addChildrenToDisplay(final int row, final TreeTableNode node) {
+    protected boolean addChildrenToDisplay(final int row, final TreeTableNode node) {
         final int childCount = node.getChildCount();
         if (childCount > 0) {
             final int firstChildRow = row + 1;
@@ -319,12 +447,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return false;
     }
 
-    private void buildVisibleNodes() {
-        displayedNodes.clear();
-        if (showRoot) {
-            displayedNodes.add(rootNode);
-        }
-        rootNode.addVisibleChildren(displayedNodes);
+    /******************************************************************************************************************
+     *                                            Listener management
+     */
+
+    private boolean listenersApprove(final TreeTableNode node) {
+        final TreeTableEvent event = node.isExpanded() ?
+                new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.COLLAPSING) :
+                new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.EXPANDING);
+        return listenersApprovedEvent(event);
     }
 
     private boolean listenersApprovedEvent(final TreeTableEvent event) {
@@ -363,18 +494,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
     private class TreeKeyboardListener implements KeyListener {
 
-        private static final char PLUS = '+';
-        private static final char MINUS = '-';
-
         @Override
         public void keyPressed(final KeyEvent e) {
-            final char keyChar = e.getKeyChar();
             final Component component = e.getComponent();
-            if ((keyChar == PLUS || keyChar == MINUS) && component instanceof JTable) {
+            final char keyChar = e.getKeyChar();
+            if ((keyChar == expandChar || keyChar == collapseChar) && component instanceof JTable) {
                 final JTable table = (JTable) component;
                 final int selectedRow = table.getSelectedRow();
                 final TreeTableNode node = getNodeAtTableRow(table, selectedRow);
-                if (node.getAllowsChildren()) {
+                if (node.getAllowsChildren() && node.isExpanded() ? keyChar == collapseChar : keyChar == expandChar) {
                     toggleExpansion(node, selectedRow);
                 }
             }
@@ -387,6 +515,19 @@ public abstract class TreeTableModel extends AbstractTableModel {
         @Override
         public void keyTyped(KeyEvent e) {
         }
+    }
+
+    /******************************************************************************************************************
+     *                                              Miscellaneous
+     */
+
+    private int calculateWidthToLeft(final int colIndex) {
+        TableColumnModel model = getTableColumnModel();
+        int width = 0;
+        for (int col = colIndex - 1; col >= 0; col--) {
+            width += model.getColumn(col).getWidth();
+        }
+        return width;
     }
 
 }
