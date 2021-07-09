@@ -49,6 +49,7 @@ public class TestForm {
         TreeTableNode rootNode = buildRandomTree();
         treeTableModel = new TestTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
+        table1.getTableHeader().setDefaultRenderer(new TreeTableHeaderRenderer());
     }
 
     private TreeTableNode buildTree() {
