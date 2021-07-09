@@ -20,11 +20,40 @@ import java.util.List;
 // * Should show expand handle for node with no children (what about dynamically adding nodes?)
 
 /**
- * A tree table model which implements the binding to a JTable as a TableModel given a root tree node.
- * It is abstract, as the implementor must customise (1) how many columns exist (2) what the columns are
- * and (3) whether any custom comparators or cell renderers will be supplied.
+ * A tree table model which binds to a JTable as a TableModel given a root tree node.
+ * It is abstract, as the implementor must customise
+ * <ul>
+ *     <li>how many columns exist</li>
+ *     <li>what the column definitions are</li>
+ *     <li>whether any custom comparators or cell renderers will be supplied</li>
+ * </ul>
+ *
  * <p><b>Usage</b></p>
  * To use it, instantiate a subclassed TreeTableModel with a root node, then bind it to a JTable.
+ * <p><b>Sorting</b>
+ * If sorting using the {@link TreeTableRowSorter}, comparisons are performed like this:
+ * <p>
+ * <ol>
+ *     <li>If you have defined a node comparator in your subclass, this will run first.
+ *     <ul>
+ *         <li>If the result is not equal, it's returned.  If it's equal we go to step 2.</li>
+ *         <li>This lets you sort all children on a general characteristic first,
+ *             e.g. are the nodes files or folders, before they are further sorted on column value.</li>
+ *     </ul>
+ *     </li>
+ *     <li> For each of the SortKeys defined - try each comparator in turn:
+ *     <ul>
+ *         <li>Returning if the result is not equal.</li>
+ *         <li>If a SortKey is set to UNSORTED, then the unsorted model ordering is returned.</li>
+ *     </ul>
+ *     <ol>
+ *         <li>If you have defined a column comparator for the node values, this will be used.</li>
+ *         <li>If no customer comparator, if the node values themselves are {@link Comparable}, they will be compared directly.</li>
+ *         <li>If all else fails, compare on the string value of the objects.</li>
+ *     </ol>
+ *     </li>
+ *     <li>If all comparisons were equal, it returns the unsorted model ordering.</li>
+ * </ol>
  */
 public abstract class TreeTableModel extends AbstractTableModel {
 
