@@ -3,6 +3,8 @@ package test;
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -19,9 +21,18 @@ public class TestForm {
     private JTable table1;
     private Random random;
     private List<String> wordList;
+    TreeTableModel treeTableModel;
+    boolean showRoot;
 
     public TestForm() {
         createTreeTable();
+        addNodes.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showRoot = !showRoot;
+                treeTableModel.setShowRoot(showRoot);
+            }
+        });
     }
 
     public static void main(String[] args) {
@@ -36,7 +47,7 @@ public class TestForm {
         random = new Random(0);
         readWordList();
         TreeTableNode rootNode = buildRandomTree();
-        TreeTableModel treeTableModel = new TestTreeTableModel(rootNode, false);
+        treeTableModel = new TestTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
     }
 
