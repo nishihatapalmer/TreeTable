@@ -50,6 +50,7 @@ public class TestForm {
         treeTableModel = new TestTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
         table1.getTableHeader().setDefaultRenderer(new TreeTableHeaderRenderer());
+        table1.setRowHeight(24);
     }
 
     private TreeTableNode buildTree() {
