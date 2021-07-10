@@ -7,23 +7,25 @@ import java.awt.event.*;
 import java.util.*;
 import java.util.List;
 
+//TOOO: bugs?
+// * selection jumps when sorting - are events in right order?
+
 //TODO: tests:
 // * test dynamic expand remove nodes
 // * test customise visual appearance - all just on the JTable? Check we set all table settings in TreeTableCellRenderer.
 // * test setting different icons.
+// * test setting different keys for expand / collapse.
+
 
 //TODO: functionality
-// * sorting header behaviour?
-// * table header - change display of sorted columns (bold, multi-column).
 // * show plus sign on nodes that we haven't dynamically expanded (if they support having children).
 // * Should allow expand on a node with no children?
 // * Should show expand handle for node with no children (what about dynamically adding nodes?)
 
 /**
  * A tree table model which binds to a JTable as a TableModel given a root tree node.
- * It is abstract, as the implementor must customise
+ * It is abstract, as the implementor must provide a subclass providing the following:
  * <ul>
- *     <li>how many columns exist</li>
  *     <li>what the column definitions are</li>
  *     <li>whether any custom comparators or cell renderers will be supplied</li>
  * </ul>
@@ -317,6 +319,40 @@ public abstract class TreeTableModel extends AbstractTableModel {
         eventListeners.remove(listener);
     }
 
+    /**
+     * Adds a mouse listener for expand / collapse events to a JTable
+     * and registers the listener in a map of JTable to MouseListeners.
+     *
+     * @param table The JTable to add the listener to.
+     */
+    public void addMouseListener(JTable table) {
+        MouseListener listener = tableMouseListeners.get(table);
+        if (listener == null) {
+            listener = new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    toggleExpansion(table, e);
+                }
+            };
+            tableMouseListeners.put(table, listener);
+            table.addMouseListener(listener);
+        }
+    }
+
+    /**
+     * Removes a mouse listener for expand / collapse events
+     * from a JTable previously registered by a call to addMouseListener().
+     *
+     * @param table The JTable to remove registered listeners from.
+     */
+    public void removeMouseListener(JTable table) {
+        MouseListener listener = tableMouseListeners.get(table);
+        if (listener != null) {
+            table.removeMouseListener(listener);
+            tableMouseListeners.remove(table);
+        }
+    }
+
 
     /******************************************************************************************************************
      *                                          Column utility methods
@@ -494,28 +530,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
             }
         }
         return true;
-    }
-
-    private void addMouseListener(JTable table) {
-        MouseListener listener = tableMouseListeners.get(table);
-        if (listener == null) {
-            listener = new MouseAdapter() {
-                @Override
-                public void mouseClicked(MouseEvent e) {
-                    toggleExpansion(table, e);
-                }
-            };
-            tableMouseListeners.put(table, listener);
-            table.addMouseListener(listener);
-        }
-    }
-
-    private void removeMouseListener(JTable table) {
-        MouseListener listener = tableMouseListeners.get(table);
-        if (listener != null) {
-            table.removeMouseListener(listener);
-            tableMouseListeners.remove(table);
-        }
     }
 
     /**

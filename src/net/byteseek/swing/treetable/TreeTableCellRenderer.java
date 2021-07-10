@@ -7,16 +7,19 @@ import java.awt.*;
 
 public class TreeTableCellRenderer extends DefaultTableCellRenderer {
 
-    private static final int PIXELS_PER_LEVEL = 16;
+    private static final int PADDING = 4;
+    private static final int PIXELS_PER_LEVEL = 18;
 
     private final TreeTableModel treeTableModel;
+    private final Insets insets = new Insets(0, 0, 0, 0);
 
-    private Icon expandedIcon;
-    private Icon collapsedIcon;
-    private int maxIconWidth;
+    private Icon expandedIcon;         // expand icon, dependent on the look and feel theme.
+    private Icon collapsedIcon;        // collapse icon, dependent on the look and feel theme.
+    private JLabel expandedIconLabel;  // For some reason, GTK icons don't paint directly, but they do inside a JLabel...
+    private JLabel collapsedIconLabel; // For some reason, GTK icons don't paint directly, but they do inside a JLabel...
+    private int pixelsPerLevel = PIXELS_PER_LEVEL;
 
-    //TODO: validate constants set here.
-    private final Insets insets = new Insets(0, 24, 0, 0);
+    private int maxIconWidth;          // Calculated max icon width of the expand and collapse icons.
 
     private TreeTableNode currentNode;
 
@@ -39,12 +42,32 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         return this;
     }
 
+    public int getPixelsPerLevel() {
+        return pixelsPerLevel;
+    }
+
+    public void setPixelsPerLevel(int pixelsPerLevel) {
+        this.pixelsPerLevel = pixelsPerLevel;
+    }
+
     public void setExpandedIcon(final Icon expandedIcon) {
+        if (expandedIconLabel == null) {
+            expandedIconLabel = new JLabel(expandedIcon, JLabel.RIGHT);
+            expandedIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+        } else {
+            expandedIconLabel.setIcon(expandedIcon);
+        }
         this.expandedIcon = expandedIcon;
         setMaxIconWidth();
     }
 
-    public void setCollapsedIcon(final Icon expandedIcon) {
+    public void setCollapsedIcon(final Icon collapsedIcon) {
+        if (collapsedIconLabel == null) {
+            collapsedIconLabel = new JLabel(collapsedIcon, JLabel.RIGHT);
+            collapsedIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+        } else {
+            collapsedIconLabel.setIcon(collapsedIcon);
+        }
         this.collapsedIcon = expandedIcon;
         setMaxIconWidth();
     }
@@ -55,7 +78,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
 
     protected int getNodeIndent(final TreeTableNode node) {
         final int adjustShowRoot = treeTableModel.getShowRoot()? 0 : 1;
-        return maxIconWidth + ((node.getLevel() - adjustShowRoot) * PIXELS_PER_LEVEL);
+        return PADDING + maxIconWidth + ((node.getLevel() - adjustShowRoot) * pixelsPerLevel);
     }
 
     private void setNode(final TreeTableNode node) {
@@ -78,8 +101,9 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         public void paintBorder(final Component c, final Graphics g, final int x, final int y,
                                 final int width, final int height) {
             if (currentNode.getAllowsChildren()) {
-                Icon iconToPaint = currentNode.isExpanded() ? expandedIcon : collapsedIcon;
-                iconToPaint.paintIcon(c, g, insets.left - iconToPaint.getIconWidth(), 0);
+                final JLabel labelToPaint = currentNode.isExpanded() ? expandedIconLabel : collapsedIconLabel;
+                labelToPaint.setSize(insets.left, height);
+                labelToPaint.paint(g);
             }
         }
 

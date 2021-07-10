@@ -16,10 +16,13 @@ import java.util.List;
  */
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
 
-    private final Insets insets = new Insets(2, 24, 2, 0);
+    private static final int ICON_AND_NUMBER_WIDTH = 32; // hard coded value for ascend/descend icon and text... should calculate?
+    private static final int PADDING = 4; // white space padding at end of ascend/descend .
 
     private Icon sortAscendingIcon;
     private Icon sortDescendingIcon;
+    private JLabel sortAscendingIconLabel;
+    private JLabel sortDescendingIconLabel;
     private Color gridColor;
     private Color sortcolumnTextColor;
     private Font headerFont;
@@ -33,8 +36,8 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      * Constructs a TreeTableHeaderRenderer.
      */
     public TreeTableHeaderRenderer() {
-        sortAscendingIcon = UIManager.getIcon("Table.ascendingSortIcon");
-        sortDescendingIcon = UIManager.getIcon("Table.descendingSortIcon");
+        setSortAscendingIcon(UIManager.getIcon("Table.ascendingSortIcon"));
+        setSortDescendingIcon(UIManager.getIcon("Table.descendingSortIcon"));
         setSortColumnTextColor(Color.GRAY);
         setHorizontalAlignment(JLabel.CENTER);
         setBoldOnSorted(true);
@@ -93,6 +96,12 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
 
     public void setSortAscendingIcon(final Icon sortAscendingIcon) {
         this.sortAscendingIcon = sortAscendingIcon;
+        if (sortAscendingIconLabel == null) {
+            sortAscendingIconLabel = new JLabel(sortAscendingIcon);
+            sortAscendingIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+        } else {
+            sortAscendingIconLabel.setIcon(sortAscendingIcon);
+        }
         //TODO: calc icon widths...?
     }
 
@@ -100,8 +109,14 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         return sortAscendingIcon;
     }
 
-    public void setSortDescendingIcon(final Icon sortAscendingIcon) {
-        this.sortAscendingIcon = sortAscendingIcon;
+    public void setSortDescendingIcon(final Icon sortDescendingIcon) {
+        this.sortDescendingIcon = sortDescendingIcon;
+        if (sortDescendingIconLabel == null) {
+            sortDescendingIconLabel = new JLabel(sortDescendingIcon);
+            sortDescendingIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+        } else {
+            sortDescendingIconLabel.setIcon(sortDescendingIcon);
+        }
         //TODO: calc icon widths...?
     }
 
@@ -155,18 +170,17 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      */
     protected class SortIconBorder implements Border {
 
+        private final Insets insets = new Insets(4, ICON_AND_NUMBER_WIDTH, 4, 0);
+
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            if (sortColumn >= 0) {
-                Icon iconToPaint = sortOrder == sortOrder.ASCENDING ? sortAscendingIcon : sortDescendingIcon;
-                iconToPaint.paintIcon(c, g, insets.left - iconToPaint.getIconWidth(), 4);
-                if (g instanceof Graphics2D) {
-                    ((Graphics2D) g).setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-                                                      RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                }
-                g.setFont(headerFont);
-                g.setColor(sortcolumnTextColor);
-                g.drawString(Integer.toString(sortColumn + 1), 2, 14 + insets.top);
+            if (sortColumn >= 0 && sortOrder != SortOrder.UNSORTED) {
+                final JLabel labelToPaint = sortOrder == SortOrder.ASCENDING ? sortAscendingIconLabel : sortDescendingIconLabel;
+                labelToPaint.setSize(ICON_AND_NUMBER_WIDTH, height);
+                labelToPaint.setFont(headerFont);
+                labelToPaint.setText(Integer.toString(sortColumn + 1));
+                labelToPaint.setForeground(sortcolumnTextColor);
+                labelToPaint.paint(g);
             }
         }
 
