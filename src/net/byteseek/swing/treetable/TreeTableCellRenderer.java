@@ -7,7 +7,6 @@ import java.awt.*;
 
 public class TreeTableCellRenderer extends DefaultTableCellRenderer {
 
-    //TODO: should indent be defined in terms of pixels (HDPi screens will make this very small...)
     private static final int PIXELS_PER_LEVEL = 16;
 
     private final TreeTableModel treeTableModel;
