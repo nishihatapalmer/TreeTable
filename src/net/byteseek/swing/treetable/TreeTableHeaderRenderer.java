@@ -10,46 +10,45 @@ import javax.swing.table.TableModel;
 import java.awt.*;
 import java.util.List;
 
+/**
+ * Renders a header for a JTable which shows multi-column sorting, putting a number for each sort key against the
+ * icon for ascending or descending.
+ */
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
-
-    private Icon sortAscendingIcon;
-    private Icon sortDescendingIcon;
-    private int sortColumn;
-    private SortOrder sortOrder;
 
     private final Insets insets = new Insets(2, 24, 2, 0);
 
+    private Icon sortAscendingIcon;
+    private Icon sortDescendingIcon;
+    private Color gridColor;
+    private Color sortcolumnTextColor;
+    private Font headerFont;
+    private Font boldHeaderFont;
+    private boolean boldOnSorted;
+
+    private int sortColumn;
+    private SortOrder sortOrder;
+
+    /**
+     * Constructs a TreeTableHeaderRenderer.
+     */
     public TreeTableHeaderRenderer() {
         sortAscendingIcon = UIManager.getIcon("Table.ascendingSortIcon");
         sortDescendingIcon = UIManager.getIcon("Table.descendingSortIcon");
+        setSortColumnTextColor(Color.GRAY);
         setHorizontalAlignment(JLabel.CENTER);
-        setBorder(new MatteBorder(1, 0, 1, 1, Color.lightGray));
-        setMinimumSize(new Dimension(32, 64));
-    }
-
-    public Icon getSortAscendingIcon() {
-        return sortAscendingIcon;
-    }
-
-    public Icon getSortDescendingIcon() {
-        return sortDescendingIcon;
-    }
-
-    public void setSortAscendingIcon(Icon sortAscendingIcon) {
-        this.sortAscendingIcon = sortAscendingIcon;
-        //TODO: calc icon widths...?
-    }
-
-    public void setSortDescendingIcon(Icon sortAscendingIcon) {
-        this.sortAscendingIcon = sortAscendingIcon;
-        //TODO: calc icon widths...?
+        setBoldOnSorted(true);
     }
 
     @Override
-    public void setBorder(Border border) {
-        super.setBorder(new CompoundBorder(border, new SortIconBorder()));
+    public void setBorder(final Border border) {
+        // If the border is already a compound with an inner SortIconBorder, just set it directly.
+        if (border instanceof CompoundBorder && ((CompoundBorder) border).getInsideBorder() instanceof SortIconBorder) {
+            super.setBorder(border);
+        } else {  // Wrap the border in a CompoundBorder using the SortIconBorder inside to render sort icon and number.
+            super.setBorder(new CompoundBorder(border, new SortIconBorder()));
+        }
     }
-
 
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
@@ -61,12 +60,63 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
                 setBackground(header.getBackground());
                 setText(value == null? "" : value.toString());
                 setColumnSorted(table, column);
+                setGridColor(table.getGridColor());
             }
         }
         return this;
     }
 
-    private void setColumnSorted(JTable table, int column) {
+    @Override
+    public void setFont(Font newFont) {
+        if (newFont != headerFont || newFont != boldHeaderFont) {
+            headerFont = newFont;
+            boldHeaderFont = getBoldFont(newFont);
+        }
+        super.setFont(newFont);
+    }
+
+    public void setBoldOnSorted(boolean boldOnSorted) {
+        this.boldOnSorted = boldOnSorted;
+    }
+
+    public boolean getBoldOnSorted() {
+        return boldOnSorted;
+    }
+
+    public void setSortColumnTextColor(final Color sortcolumnTextColor) {
+        this.sortcolumnTextColor = sortcolumnTextColor;
+    }
+
+    public Color getSortColumnTextColor() {
+        return sortcolumnTextColor;
+    }
+
+    public void setSortAscendingIcon(final Icon sortAscendingIcon) {
+        this.sortAscendingIcon = sortAscendingIcon;
+        //TODO: calc icon widths...?
+    }
+
+    public Icon getSortAscendingIcon() {
+        return sortAscendingIcon;
+    }
+
+    public void setSortDescendingIcon(final Icon sortAscendingIcon) {
+        this.sortAscendingIcon = sortAscendingIcon;
+        //TODO: calc icon widths...?
+    }
+
+    public Icon getSortDescendingIcon() {
+        return sortDescendingIcon;
+    }
+
+    protected void setGridColor(Color gridColor) {
+        if (this.gridColor != gridColor) {
+            this.gridColor = gridColor;
+            setBorder(new MatteBorder(1, 0, 1, 1, gridColor));
+        }
+    }
+
+    protected void setColumnSorted(JTable table, int column) {
         final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
         if (rowSorter != null) {
             List<? extends RowSorter.SortKey> sortKeys = rowSorter.getSortKeys();
@@ -87,21 +137,23 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         sortColumn = -1;
     }
 
-    private void setBold(final boolean bold) {
-        setFont(bold ? getBoldFont() : getUnBoldFont());
+    protected void setBold(final boolean bold) {
+        if (boldOnSorted) {
+            setFont(bold ? boldHeaderFont : headerFont);
+        }
     }
 
-    private Font getBoldFont() {
-        Font currentFont = getFont();
-        return currentFont.deriveFont(currentFont.getStyle() | Font.BOLD);
+    protected Font getBoldFont(Font font) {
+        if ((font.getStyle() & Font.BOLD) == Font.BOLD) {
+            return font;
+        }
+        return font.deriveFont(font.getStyle() | Font.BOLD);
     }
 
-    private Font getUnBoldFont() {
-        Font currentFont = getFont();
-        return currentFont.deriveFont(currentFont.getStyle() & ~Font.BOLD);
-    }
-
-    private class SortIconBorder implements Border {
+    /**
+     * A border that leaves space to paint a sort icon and sort key number.
+     */
+    protected class SortIconBorder implements Border {
 
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
@@ -112,8 +164,8 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
                     ((Graphics2D) g).setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
                                                       RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 }
-                g.setFont(getUnBoldFont());
-                g.setColor(Color.GRAY);
+                g.setFont(headerFont);
+                g.setColor(sortcolumnTextColor);
                 g.drawString(Integer.toString(sortColumn + 1), 2, 14 + insets.top);
             }
         }
