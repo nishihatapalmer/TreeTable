@@ -11,11 +11,10 @@ import java.util.List;
 // * selection jumps when sorting - are events in right order?
 
 //TODO: tests:
-// * test dynamic expand remove nodes
+// * custom comparators
 // * test customise visual appearance - all just on the JTable? Check we set all table settings in TreeTableCellRenderer.
 // * test setting different icons.
 // * test setting different keys for expand / collapse.
-
 
 //TODO: functionality
 // * show plus sign on nodes that we haven't dynamically expanded (if they support having children).
@@ -132,11 +131,52 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * @param table The JTable to bind to this TreeTableModel.
      */
     public void bindTable(final JTable table) {
+        bindTable(table, new TreeTableRowSorter(this), new TreeTableHeaderRenderer());
+    }
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
+     * @param rowSorter The row sorter to use with the table.
+     */
+    public void bindTable(final JTable table, final RowSorter<TreeTableModel> rowSorter) {
+        bindTable(table, rowSorter, new TreeTableHeaderRenderer());
+    }
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
+     * @param headerRenderer The renderer to use to draw the table header.
+     */
+    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer) {
+        bindTable(table, new TreeTableRowSorter(this), headerRenderer);
+    }
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
+     * @param rowSorter The row sorter to use with the table.
+     * @param headerRenderer The renderer to use to draw the table header.
+     */
+    public void bindTable(final JTable table,
+                          final RowSorter<TreeTableModel> rowSorter,
+                          final TableCellRenderer headerRenderer) {
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
-        table.setRowSorter(new TreeTableRowSorter(this));
+        if (rowSorter != null) {
+            table.setRowSorter(rowSorter);
+        }
         table.addKeyListener(treeKeyboardListener);
+        if (headerRenderer != null) {
+            table.getTableHeader().setDefaultRenderer(headerRenderer);
+        }
         addMouseListener(table);
     }
 
@@ -154,6 +194,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
             table.setRowSorter(null);
             table.setAutoCreateColumnsFromModel(true);
             table.setModel(new DefaultTableModel());
+            //TODO: can we get a default header renderer and set it back?
         }
     }
 
@@ -428,7 +469,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
                 removeDisplayedChildren(modelRow, visibleChildrenBeforeListeners);
             }
             // If we're still the same expansion as before listeners ran, toggle it.
-            // If the listeners have already toggled it, we won't toggle it back.
+            // If the listeners have already toggled it, but approved the event, we won't toggle it back.
             if (expanded == node.isExpanded()) {
                 node.toggleExpanded();
             }
@@ -543,10 +584,10 @@ public abstract class TreeTableModel extends AbstractTableModel {
             final char keyChar = e.getKeyChar();
             if ((keyChar == expandChar || keyChar == collapseChar) && component instanceof JTable) {
                 final JTable table = (JTable) component;
-                final int selectedRow = table.getSelectedRow();
-                final TreeTableNode node = getNodeAtTableRow(table, selectedRow);
+                final int modelIndexRow = getModelIndex(table, table.getSelectedRow());
+                final TreeTableNode node = getNodeAtRow(modelIndexRow);
                 if (node.getAllowsChildren() && node.isExpanded() ? keyChar == collapseChar : keyChar == expandChar) {
-                    toggleExpansion(node, selectedRow);
+                    toggleExpansion(node, modelIndexRow);
                 }
             }
         }
