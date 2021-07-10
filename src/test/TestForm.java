@@ -64,16 +64,26 @@ public class TestForm {
         } catch (UnsupportedLookAndFeelException e) {
             throw new RuntimeException(e);
         }
-        System.out.println(UIManager.getLookAndFeel().getID());
     }
 
     private void createTreeTable() {
         random = new Random(0);
         readWordList();
-        TreeTableNode rootNode = buildRandomTree();
+        TreeTableNode rootNode = buildRandomTree(2, 5);
         treeTableModel = new TestTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
-        table1.getTableHeader().setDefaultRenderer(new TreeTableHeaderRenderer());
+        treeTableModel.addListener(new TreeTableEvent.Listener() {
+            @Override
+            public boolean actionTreeEvent(TreeTableEvent event) {
+                if (event.getEventType() == TreeTableEvent.TreeTableEventType.EXPANDING) {
+                    TreeTableNode node = event.getNode();
+                    if (node.getAllowsChildren()) {
+                        buildRandomChildren(node, node.getLevel() + 2, 8);
+                    }
+                }
+                return true;
+            }
+        });
         table1.setRowHeight(24);
     }
 
@@ -93,20 +103,20 @@ public class TestForm {
         return rootNode;
     }
 
-    private TreeTableNode buildRandomTree() {
+    private TreeTableNode buildRandomTree(int maxLevels, int chanceOutOfTenForChildren) {
         TreeTableNode rootNode = randomTestNode(true);
-        buildRandomChildren(rootNode);
+        buildRandomChildren(rootNode, maxLevels, chanceOutOfTenForChildren);
         return rootNode;
     }
 
-    private void buildRandomChildren(TreeTableNode parentNode) {
-        boolean allowsChildren = parentNode.getAllowsChildren() && parentNode.getLevel() < 6;
+    private void buildRandomChildren(TreeTableNode parentNode, int maxLevels, int chanceOutOfTenForChildren) {
+        boolean allowsChildren = parentNode.getAllowsChildren() && parentNode.getLevel() < maxLevels;
         if (allowsChildren) {
             int numChildren = random.nextInt(50);
             for (int child = 0; child < numChildren; child++) {
-                TreeTableNode newChild = randomTestNode(random.nextInt(10) > 5 && allowsChildren);
+                TreeTableNode newChild = randomTestNode(random.nextInt(10) >= chanceOutOfTenForChildren && allowsChildren);
                 parentNode.add(newChild);
-                buildRandomChildren(newChild);
+                buildRandomChildren(newChild, maxLevels, chanceOutOfTenForChildren);
             }
         }
     }
