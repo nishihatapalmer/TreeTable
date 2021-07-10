@@ -1,4 +1,4 @@
-package test;
+package net.byteseek.swing.treetable.demo;
 
 import java.util.ArrayList;
 import java.util.List;

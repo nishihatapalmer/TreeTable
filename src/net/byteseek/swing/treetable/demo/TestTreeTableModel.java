@@ -1,4 +1,4 @@
-package test;
+package net.byteseek.swing.treetable.demo;
 
 import net.byteseek.swing.treetable.TreeTableCellRenderer;
 import net.byteseek.swing.treetable.TreeTableModel;
