@@ -36,11 +36,35 @@ public class TestForm {
     }
 
     public static void main(String[] args) {
+        setSystemLookAndFeel();
+
         JFrame frame = new JFrame("Test");
         frame.setContentPane(new TestForm().rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
         frame.setVisible(true);
+    }
+
+    private static void setSystemLookAndFeel() {
+        System.out.println(UIManager.getLookAndFeel().getID());
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // String os = System.getProperty("os.name").toLowerCase();
+            // if (os.indexOf("windows") != -1 || os.indexOf("mac os x") != -1)
+            // {
+            // UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // }
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (UnsupportedLookAndFeelException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(UIManager.getLookAndFeel().getID());
     }
 
     private void createTreeTable() {
