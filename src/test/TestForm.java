@@ -3,6 +3,7 @@ package test;
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
@@ -45,47 +46,16 @@ public class TestForm {
         frame.setVisible(true);
     }
 
-    private static void setSystemLookAndFeel() {
-        System.out.println(UIManager.getLookAndFeel().getID());
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // String os = System.getProperty("os.name").toLowerCase();
-            // if (os.indexOf("windows") != -1 || os.indexOf("mac os x") != -1)
-            // {
-            // UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // }
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (InstantiationException e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedLookAndFeelException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private void createTreeTable() {
         random = new Random(0);
         readWordList();
-        TreeTableNode rootNode = buildRandomTree(2, 5);
+        TreeTableNode rootNode = buildRandomTree(4, 5);
         treeTableModel = new TestTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
-        treeTableModel.addListener(new TreeTableEvent.Listener() {
-            @Override
-            public boolean actionTreeEvent(TreeTableEvent event) {
-                if (event.getEventType() == TreeTableEvent.TreeTableEventType.EXPANDING) {
-                    TreeTableNode node = event.getNode();
-                    if (node.getAllowsChildren()) {
-                        buildRandomChildren(node, node.getLevel() + 2, 8);
-                    }
-                }
-                return true;
-            }
-        });
         table1.setRowHeight(24);
     }
+
+
 
     private TreeTableNode buildTree() {
         TreeTableNode rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
@@ -137,4 +107,26 @@ public class TestForm {
     private String getRandomDescription() {
         return wordList.get(random.nextInt(wordList.size())) + ' ' + wordList.get(random.nextInt(wordList.size()));
     }
+
+    private static void setSystemLookAndFeel() {
+        System.out.println(UIManager.getLookAndFeel().getID());
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // String os = System.getProperty("os.name").toLowerCase();
+            // if (os.indexOf("windows") != -1 || os.indexOf("mac os x") != -1)
+            // {
+            // UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+            // }
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (UnsupportedLookAndFeelException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 }

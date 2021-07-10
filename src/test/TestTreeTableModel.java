@@ -12,6 +12,7 @@ public class TestTreeTableModel extends TreeTableModel {
     private static final int NUM_COLUMNS = 3;
 
     private final TableColumn[] TABLE_COLUMNS = new TableColumn[NUM_COLUMNS];
+    private final Comparator<TreeTableNode> nodeComparator = new TestNodeComparator();
 
     public TestTreeTableModel(TreeTableNode rootNode, boolean showRoot) {
         super(rootNode, NUM_COLUMNS, showRoot);
@@ -43,7 +44,7 @@ public class TestTreeTableModel extends TreeTableModel {
 
     @Override
     public Comparator<TreeTableNode> getNodeComparator() {
-        return null; //TODO: return node comparator to enable node-property related sorting for all columns.
+        return nodeComparator;
     }
 
     private void buildColumns() {
