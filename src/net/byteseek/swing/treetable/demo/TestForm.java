@@ -108,7 +108,6 @@ public class TestForm {
     }
 
     private static void setSystemLookAndFeel() {
-        System.out.println(UIManager.getLookAndFeel().getID());
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             // String os = System.getProperty("os.name").toLowerCase();

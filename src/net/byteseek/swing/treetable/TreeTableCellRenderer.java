@@ -8,18 +8,24 @@ import java.awt.*;
 public class TreeTableCellRenderer extends DefaultTableCellRenderer {
 
     private static final int PADDING = 4;
-    private static final int PIXELS_PER_LEVEL = 18;
+    private static final int DEFAULT_PIXELS_PER_LEVEL = 18; // It's a bit subjective... 16 felt too small, 20 too big.
 
     private final TreeTableModel treeTableModel;
     private final Insets insets = new Insets(0, 0, 0, 0);
 
-    private Icon expandedIcon;         // expand icon, dependent on the look and feel theme.
-    private Icon collapsedIcon;        // collapse icon, dependent on the look and feel theme.
-    private JLabel expandedIconLabel;  // For some reason, GTK icons don't paint directly, but they do inside a JLabel...
-    private JLabel collapsedIconLabel; // For some reason, GTK icons don't paint directly, but they do inside a JLabel...
-    private int pixelsPerLevel = PIXELS_PER_LEVEL;
+    private int pixelsPerLevel = DEFAULT_PIXELS_PER_LEVEL;
 
-    private int maxIconWidth;          // Calculated max icon width of the expand and collapse icons.
+    private Icon expandedIcon;          // expand icon, dependent on the look and feel theme.
+    private Icon collapsedIcon;         // collapse icon, dependent on the look and feel theme.
+
+
+    // We have labels for each of the icons, because for some reason GTK icons won't paint on Graphic objects,
+    // but when embedded in a JLabel it paints fine.
+    private JLabel expandedIconLabel;
+    private JLabel collapsedIconLabel;
+
+    // Calculated max icon width of the expand and collapse icons, to get consistent indentation levels.
+    private int maxIconWidth;
 
     private TreeTableNode currentNode;
 
@@ -38,8 +44,14 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         setFont(table.getFont());
         setValue(value);
         setToolTipText(value.toString());
-        setNode(getNodeAtRow(table, row));
+        final TreeTableNode node = getNodeAtRow(table, row);
+        setNode(node);
+        setNodeIcon(node);
         return this;
+    }
+
+    private void setNodeIcon(TreeTableNode node) {
+        setIcon(treeTableModel.getNodeIcon(node));
     }
 
     public int getPixelsPerLevel() {

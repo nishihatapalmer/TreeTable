@@ -10,6 +10,8 @@ import javax.swing.table.TableModel;
 import java.awt.*;
 import java.util.List;
 
+//TODO: rendering in GTK again weird - grid lines are off by a bit, but not in Metal.
+
 /**
  * Renders a header for a JTable which shows multi-column sorting, putting a number for each sort key against the
  * icon for ascending or descending.

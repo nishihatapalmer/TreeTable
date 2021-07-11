@@ -22,12 +22,24 @@ public class TestClass {
         return description;
     }
 
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public long getSize() {
         return size;
     }
 
+    public void setSize(long size) {
+        this.size = size;
+    }
+
     public boolean isEnabled() {
         return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 
     public void addChild(TestClass test) {

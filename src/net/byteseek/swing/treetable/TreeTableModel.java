@@ -8,7 +8,14 @@ import java.util.*;
 import java.util.List;
 
 //TOOO: bugs?
-// * selection jumps when sorting - are events in right order?
+// * selection jumps when sorting - are events in right order?  This is looking better - test again.
+// * header grid line is a bit off from cell grid lines.
+
+//TODO: features:
+// * show default folder / file icons for getAllowsChildren() ?
+// * Different sort / click strategies: multi sort strategies... click column makes primary sort... no unsorted, etc.
+// * current sort order always reversed everything - what if you want something to be independent, e.g. folders always on top?
+//   sorts same ascending or descending...
 
 //TODO: tests:
 // * custom comparators
@@ -214,6 +221,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
     public abstract Object getColumnValue(TreeTableNode node, int column);
 
     /**
+     * Sets the value of the column to the node.
+     *
+     * @param node The node to set a column value for.
+     * @param column The column to set the value for.
+     * @param value The value to set.
+     */
+    public abstract void setColumnValue(TreeTableNode node, int column, Object value);
+
+    /**
      * Returns a TableColumn defining the column.
      *
      * @param column The column index to get the TableColumn for.
@@ -243,6 +259,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
     public abstract Comparator<TreeTableNode> getNodeComparator();
 
+    public abstract Icon getNodeIcon(TreeTableNode node);
 
     /******************************************************************************************************************
      *                                    TableModel interface methods.
@@ -576,7 +593,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     /**
      * A listener for keyboard events which expands or collapses a node if + or - is pressed on a node that allows children.
      */
-    private class TreeKeyboardListener implements KeyListener {
+    protected class TreeKeyboardListener implements KeyListener {
 
         @Override
         public void keyPressed(final KeyEvent e) {
