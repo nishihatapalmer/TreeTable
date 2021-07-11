@@ -11,7 +11,7 @@ Let's say we have defined an object that records information about people and wh
    public class Person {
        private String name;
        private String role;
-       private Person[] reports;
+       private List<Person> reports;
        ...
    }
        
