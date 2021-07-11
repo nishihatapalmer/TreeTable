@@ -3,7 +3,8 @@
 Treetable is a set of Java classes that displays a tree of information with additional columns for each item in the tree in a standard `JTable`.
 
 ## The object
-Let's say we have defined an object that records information about people and who they manage, and we want to display this in a tree table:
+Let's say we have defined an object that records information about people and who they manage, and we want to display this in a tree table, with the role displayed against the name:
+
 ```java
    public class Person {
        private String name;
@@ -15,11 +16,19 @@ Let's say we have defined an object that records information about people and wh
 ```
 
 ## The model
-First we need to subclass a `TreeTableModel`, which defines how to map a table to the `Person` class.  At a minimum, three abstract methods need to be defined, which define the table columns that the `JTable` will use, and get and set values given a column index.
+First we need to subclass a `TreeTableModel`, which defines how to map a table to the `Person` class.  
+
 ```java
    public class PersonTreeTableModel extends TreeTableModel {
    
+      private static final int NUM_COLUMNS = 2;
+   
+      public PersonTreeTableModel(TreeTableNode rootNode, boolean showRoot) {
+          super(rootNode, NUM_COLUMNS, showRoot);
+      }
+   
       public Object getColumnValue(TreeTableNode node, int column) {  
+         checkValidColumn(column);
          Person person = (Person) node.getUserObject();
          switch (column) {
             case 0: return person.getName();
@@ -29,6 +38,7 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
       }
     
       public void setColumnValue(TreeTableNode node, int column, Object value) {
+         checkValidColumn(column);
          Person person = (Person) node.getUserObject();
          switch (column) {
             case 0: person.setName((String) value);
@@ -37,11 +47,12 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
       }
     
       public TableColumn getTableColumn(int column) {
+         checkValidColumn(column);
          switch (column) {
             case 0: return createColumn("Name", 0, new TreeTableCellRenderer(this));
             case 1: return createColumn("Role", 1, null);
          }
-         throw new IllegalArgumentException("Column index: " + column + " must be 0 or 1");
+         return null;
       }
       
    }
