@@ -1,8 +1,10 @@
 # TreeTable
 
-Treetable is a set of Java classes that displays a tree of information with additional columns for each item in the tree in a standard `JTable`.
+Treetable displays a tree of information, with additional columns for each item in the tree, in a standard Java Swing `JTable`.
 
-## The object
+## Getting started
+
+### The object
 Let's say we have defined an object that records information about people and who they manage, and we want to display this in a tree table, with the role displayed against the name:
 
 ```java
@@ -15,7 +17,7 @@ Let's say we have defined an object that records information about people and wh
        
 ```
 
-## The model
+### The model
 First we need to subclass a `TreeTableModel`, which defines how to map a table to the `Person` class.  
 
 ```java
@@ -41,8 +43,14 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
          checkValidColumn(column);
          Person person = (Person) node.getUserObject();
          switch (column) {
-            case 0: person.setName((String) value);
-            case 1: person.setRole((String) role);
+            case 0: {
+                person.setName((String) value);
+                break;
+            }
+            case 1: {
+                person.setRole((String) role);
+                break;
+            }
          }
       }
     
@@ -61,8 +69,8 @@ Note that we provide a `TreeTableCellRenderer` for the first column.  This is a 
 One column needs to provide a `TreeTableCellRenderer` (or another class that can render the tree structure).
 
 
-## Displaying the tree
-To display a `TreeTableModel`, bind it to a standard `JTable`:
+### Displaying the tree
+To display a `TreeTableModel`, instantiate a model with a root node, and bind it to a standard `JTable`:
 
 ```java
    JTable table = ... 
