@@ -25,7 +25,7 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
             case 0: return person.getName();
             case 1: return person.getRole();
          }
-         return "";
+         return null;
       }
     
       public void setColumnValue(TreeTableNode node, int column, Object value) {
@@ -38,11 +38,16 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
     
       public TableColumn getTableColumn(int column) {
          switch (column) {
-            case 0: return createColumn("Name", 0, null);
+            case 0: return createColumn("Name", 0, new TreeTableCellRenderer(this));
             case 1: return createColumn("Role", 1, null);
+         }
+         throw new IllegalArgumentException("Column index: " + column + " must be 0 or 1");
       }
+      
    }
 ```
+Note that we provide a `TreeTableCellRenderer` for the first column.  This is a built-in renderer that will render the tree structure.
+One column needs to provide a `TreeTableCellRenderer` (or another class that can render the tree structure).
 
 
 ## Displaying the tree
