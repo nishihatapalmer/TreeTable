@@ -5,7 +5,7 @@ Treetable displays a tree of information, with additional columns for each item 
 ## Getting started
 
 ### The object
-Let's say we have defined an object that records information about people and who they manage, and we want to display this in a tree table, with the role displayed against the name:
+Let's say we are working with data about people who manage other people.  We'd like to display this as a tree of people with their names and roles in separate columns.
 
 ```java
    public class Person {
@@ -30,7 +30,6 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
       }
    
       public Object getColumnValue(TreeTableNode node, int column) {  
-         checkValidColumn(column);
          Person person = (Person) node.getUserObject();
          switch (column) {
             case 0: return person.getName();
@@ -40,7 +39,6 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
       }
     
       public void setColumnValue(TreeTableNode node, int column, Object value) {
-         checkValidColumn(column);
          Person person = (Person) node.getUserObject();
          switch (column) {
             case 0: {
@@ -48,14 +46,13 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
                 break;
             }
             case 1: {
-                person.setRole((String) role);
+                person.setRole((String) value);
                 break;
             }
          }
       }
     
       public TableColumn getTableColumn(int column) {
-         checkValidColumn(column);
          switch (column) {
             case 0: return createColumn("Name", 0, new TreeTableCellRenderer(this));
             case 1: return createColumn("Role", 1, null);
