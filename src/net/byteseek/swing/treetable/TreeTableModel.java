@@ -9,24 +9,19 @@ import java.util.List;
 
 //TOOO: bugs?
 // * selection jumps when sorting - are events in right order?  This is looking better - test again.
-// * header grid line is a bit off from cell grid lines.
+// * header grid line is a bit off from cell grid lines in GTK.
 
 //TODO: features:
-// * show default folder / file icons for getAllowsChildren() ?
 // * Different sort / click strategies: multi sort strategies... click column makes primary sort... no unsorted, etc.
 // * current sort order always reversed everything - what if you want something to be independent, e.g. folders always on top?
 //   sorts same ascending or descending...
+// * cell editing.
 
 //TODO: tests:
 // * custom comparators
 // * test customise visual appearance - all just on the JTable? Check we set all table settings in TreeTableCellRenderer.
 // * test setting different icons.
 // * test setting different keys for expand / collapse.
-
-//TODO: functionality
-// * show plus sign on nodes that we haven't dynamically expanded (if they support having children).
-// * Should allow expand on a node with no children?
-// * Should show expand handle for node with no children (what about dynamically adding nodes?)
 
 /**
  * A tree table model which binds to a JTable as a TableModel given a root tree node.
@@ -89,6 +84,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     private boolean showRoot;
     private char expandChar = PLUS;
     private char collapseChar = MINUS;
+    private boolean isNodeComparatorAscendingOnly;
 
     /*
      * Cached/calculated properties of the model:
@@ -129,6 +125,10 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     /******************************************************************************************************************
      *                        Methods to bind and unbind this model to and from a JTable
+     *
+     * To use a TreeTableModel, it must be bound to a JTable.  These are convenience methods to automate adding
+     * all the correct listeners and setting the correct properties.  It isn't necessary to use them - you can set
+     * up the bindings manually, this just makes it easier.
      */
 
     /**
@@ -201,13 +201,15 @@ public abstract class TreeTableModel extends AbstractTableModel {
             table.setRowSorter(null);
             table.setAutoCreateColumnsFromModel(true);
             table.setModel(new DefaultTableModel());
-            //TODO: can we get a default header renderer and set it back?
         }
     }
 
 
     /******************************************************************************************************************
-     *                              Abstract methods for subclasses to implement
+     *                             Abstract methods for subclasses to implement
+     *
+     * These methods define how a particular model obtains data, sets data and defines the columns of the table.
+     * These are obviously user specific, and must be defined by the subclass.
      */
 
     /**
@@ -259,10 +261,60 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
     public abstract Comparator<TreeTableNode> getNodeComparator();
 
+    /**
+     * Returns an icon for a given node, to be rendered against the node.
+     *
+     * @param node The node to get an icon for.
+     * @return The icon for that node, or null if no icon is defined.
+     */
     public abstract Icon getNodeIcon(TreeTableNode node);
+
+
+    /******************************************************************************************************************
+     *                                    Node comparison configuration.
+     *
+     * These methods set or get whether node comparisons always maintain an ascending order.
+     * Node comparisons group nodes together on some basis.  If we want the groupings to remain positionally
+     * stably while the contents sort within them, we need to maintain an ascending order for node comparisons and
+     * ignore the defined sort order.
+     */
+
+    /**
+     * If this method returns true, then the node comparator (if defined) will always maintain an ascending order.
+     * All other node comparisons on their values will use whatever sort order is actually defined.
+     * It's not obvious why we might want this, so here is an example.
+     * <p>
+     * Let's say we are using the node comparator to sort different classes of nodes into groups.  For example,
+     * we want folders to be grouped together, then files, and the rest of sorting to occur within those groups.
+     * So we define a node comparator that makes folders smaller than files, and this will work fine.
+     * However, when you switch between ascending and descending sorts, the groups themselves will move relative order.
+     * If ascending the folders are at the top of the parent and the files below, but descending, the files are now
+     * at the top and the folders below.
+     * <p>
+     * So if we want our node comparator groupings to remain positionally stable, even while the contents sort within
+     * those groups, return true.  Then the items will still sort ascending or descending on their values,
+     * but folders would always remain at the top and files below them.
+     *
+     * @return whether node comparators maintains ascending order.
+     */
+    public boolean isNodeComparatorAscendingOnly() {
+        return isNodeComparatorAscendingOnly;
+    }
+
+    /**
+     * Sets whether node comparators maintain ascending order only.
+     * See the {@link #isNodeComparatorAscendingOnly} method for an explanation of why this can be useful.
+     *
+     * @param ascendingOnly Whether the node comparator maintains an ascending sort order only.
+     */
+    public void setNodeComparatorAscendingOnly(final boolean ascendingOnly) {
+        this.isNodeComparatorAscendingOnly = ascendingOnly;
+    }
 
     /******************************************************************************************************************
      *                                    TableModel interface methods.
+     *
+     * Methods required for a JTable to interact with this class.
      */
 
     @Override
@@ -283,6 +335,8 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     /******************************************************************************************************************
      *                                          Node getters
+     *
+     * Methods to get nodes from a JTable, converting between model and table indexes.
      */
 
     /**
@@ -416,6 +470,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *                                          Column utility methods
      */
 
+    /**
+     * @return the TableColumnModel for this TreeTableModel.
+     */
     public TableColumnModel getTableColumnModel() {
         if (columnModel == null) {
             columnModel = new DefaultTableColumnModel();
@@ -426,6 +483,14 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return columnModel;
     }
 
+    /**
+     * Utility method to create a TableColumn given a value, modelIndex and renderer.
+     *
+     * @param headerValue The header name.
+     * @param modelIndex The index of the column in the model.
+     * @param renderer The renderer for that column (can be null).
+     * @return A TableColumn constructed with the provided parameters.
+     */
     public TableColumn createColumn(final String headerValue, final int modelIndex, final TableCellRenderer renderer) {
         TableColumn tableColumn = new TableColumn(modelIndex);
         tableColumn.setHeaderValue(headerValue);

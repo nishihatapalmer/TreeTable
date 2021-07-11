@@ -235,7 +235,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
             if (order == SortOrder.UNSORTED) {
                 return unsortedCompare;
             }
-            final int result = compareNodes(firstNode, secondNode, key.getColumn());
+            final int result = compareNodes(firstNode, secondNode, key.getColumn(), order);
             if (result != 0) {  // if not equal, we have a definite unequal result - return it.
                 return order == SortOrder.ASCENDING? result: result * -1; // invert the result if not ascending
             }
@@ -252,12 +252,15 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param column The column value to compare.
      * @return The result of comparing the first and second node on the specified column.
      */
-    protected int compareNodes(final TreeTableNode firstNode, final TreeTableNode secondNode, final int column) {
+    protected int compareNodes(final TreeTableNode firstNode, final TreeTableNode secondNode, final int column, final SortOrder order) {
         final TreeTableModel localModel = model;
 
         // Compare on node values, if a node comparator is defined:
         final Comparator<TreeTableNode> nodeComparator = localModel.getNodeComparator();
         int result = nodeComparator == null ? 0 : nodeComparator.compare(firstNode, secondNode); // Compare with node comparator.
+        if (localModel.isNodeComparatorAscendingOnly() && order == SortOrder.DESCENDING) {
+            result *= -1; // this will get flipped back in compare(), so will maintain original ordering.
+        }
 
         // If we don't have a node comparator, or the comparison is equal, compare on column values:
         if (result == 0) {
