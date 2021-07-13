@@ -36,16 +36,16 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
    
       public Object getColumnValue(TreeTableNode node, int column) {  
           Person person = (Person) node.getUserObject();
-         switch (column) {
-            case 0: return person.getName();
-            case 1: return person.getRole();
-         }
+          switch (column) {
+             case 0: return person.getName();
+             case 1: return person.getRole();
+          }
          throw new IllegalArgumentException("Invalid column: " + column);
       }
     
       public void setColumnValue(TreeTableNode node, int column, Object value) {
           Person person = (Person) node.getUserObject();
-         switch (column) {
+          switch (column) {
             case 0: {
                 person.setName((String) value);
                 break;
@@ -54,18 +54,18 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
                 person.setRole((String) value);
                 break;
             }
-             default: {
-                 throw new IllegalArgumentException("Invalid column: " + column);
-             }
+            default: {
+                throw new IllegalArgumentException("Invalid column: " + column);
+            }
          }
       }
     
       public TableColumn getTableColumn(int column) {
-         switch (column) {
-            case 0: return createColumn("Name", 0, new TreeTableCellRenderer(this));
-            case 1: return createColumn("Role", 1, null);
-         }
-         throw new IllegalArgumentException("No column exists for " + column);
+          switch (column) {
+             case 0: return createColumn("Name", 0, new TreeTableCellRenderer(this));
+             case 1: return createColumn("Role", 1, null);
+          }
+          throw new IllegalArgumentException("No column exists for " + column);
       }
       
    }
