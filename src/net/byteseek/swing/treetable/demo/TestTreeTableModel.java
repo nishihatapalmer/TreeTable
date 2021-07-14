@@ -40,6 +40,7 @@ public class TestTreeTableModel extends TreeTableModel {
     }
 
     public Object getColumnValue(final TreeTableNode node, final int column) {
+        checkValidColumn(column);
         final Object o = node.getUserObject();
         if (o instanceof TestClass) {
             final TestClass obj = (TestClass) o;
@@ -54,6 +55,7 @@ public class TestTreeTableModel extends TreeTableModel {
 
     @Override
     public void setColumnValue(final TreeTableNode node, final int column, final Object value) {
+        checkValidColumn(column);
         final Object o = node.getUserObject();
         if (o instanceof TestClass) {
             final TestClass obj = (TestClass) o;
@@ -76,6 +78,7 @@ public class TestTreeTableModel extends TreeTableModel {
 
     @Override
     public TableColumn getTableColumn(int column) {
+        checkValidColumn(column);
         return TABLE_COLUMNS[column];
     }
 
@@ -113,9 +116,9 @@ public class TestTreeTableModel extends TreeTableModel {
     }
 
     private void buildColumns() {
-        TABLE_COLUMNS[0] = createColumn("description", 0, new TreeTableCellRenderer(this));
-        TABLE_COLUMNS[1] = createColumn("size", 1, null);
-        TABLE_COLUMNS[2] = createColumn("enabled", 2,null);
+        TABLE_COLUMNS[0] = createColumn(0, "description");
+        TABLE_COLUMNS[1] = createColumn(1, "size");
+        TABLE_COLUMNS[2] = createColumn(2, "enabled");
     }
 
 }

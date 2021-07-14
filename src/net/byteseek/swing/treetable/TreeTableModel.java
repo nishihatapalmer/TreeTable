@@ -7,9 +7,14 @@ import java.awt.event.*;
 import java.util.*;
 import java.util.List;
 
-//TOOO: bugs?
+//TODO: bugs
 // * selection jumps when sorting - are events in right order?  This is looking better - test again.
 // * header grid line is a bit off from cell grid lines in GTK.
+
+//TODO: issues
+// * The use of the TreeTableCellRenderer is required, because the model uses it to determine the node indent.
+//   Need to either make clickExpand in the model independent of the specific renderer, or ensure that a TreeTableCellRenderer
+//   is actually used without the user having to do anything.
 
 //TODO: features:
 // * Different sort / click strategies: multi sort strategies... click column makes primary sort... no unsorted, etc.
@@ -66,6 +71,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     private static final char PLUS = '+';  // default node expand key char
     private static final char MINUS = '-'; // default node collapse key char
+    private static final int DEFAULT_COLUMN_WIDTH = 75;
 
     /*
      * Immutable on construction
@@ -85,6 +91,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     private char expandChar = PLUS;
     private char collapseChar = MINUS;
     private boolean isNodeComparatorAscendingOnly;
+    private int treeColumnModelIndex; // the model index of the column which renders the tree and provides click expansion handling.
 
     /*
      * Cached/calculated properties of the model:
@@ -95,9 +102,10 @@ public abstract class TreeTableModel extends AbstractTableModel {
     /*
      * Keyboard, mouse and tree events
      */
-    private TreeKeyboardListener treeKeyboardListener;
-    private Map<JTable, MouseListener> tableMouseListeners = new HashMap<>();
-    private List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2);
+    private TreeKeyboardListener treeKeyboardListener; // processes keyboard expand / collapse events.
+    private Map<JTable, MouseListener> tableMouseListeners = new HashMap<>(); // tracks which JTable a listener is registered to.
+    private List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2); // tree event listeners.
+    private TreeClickHandler clickHandler; // the handler which processes expand/collapse click events.
 
 
     /******************************************************************************************************************
@@ -124,7 +132,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
     /******************************************************************************************************************
-     *                        Methods to bind and unbind this model to and from a JTable
+     *                        Convenience methods to bind and unbind this model to and from a JTable
      *
      * To use a TreeTableModel, it must be bound to a JTable.  These are convenience methods to automate adding
      * all the correct listeners and setting the correct properties.  It isn't necessary to use them - you can set
@@ -247,7 +255,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * @param column The column to return a Comparator for, or null if the default comparison is OK.
      * @return A Comparator for the given column, or null if no special comparator is required.
      */
-    public abstract Comparator<?> getColumnComparator(int column);
+    public Comparator<?> getColumnComparator(int column) {
+        return null;
+    }
 
     /**
      * Returns a Comparator for a node, or null if not set.
@@ -259,7 +269,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @return a Comparator for a node, or null if not set.
      */
-    public abstract Comparator<TreeTableNode> getNodeComparator();
+    public Comparator<TreeTableNode> getNodeComparator() {
+        return null;
+    }
 
     /**
      * Returns an icon for a given node, to be rendered against the node.
@@ -267,7 +279,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * @param node The node to get an icon for.
      * @return The icon for that node, or null if no icon is defined.
      */
-    public abstract Icon getNodeIcon(TreeTableNode node);
+    public Icon getNodeIcon(TreeTableNode node) {
+        return null;
+    }
 
 
     /******************************************************************************************************************
@@ -465,10 +479,41 @@ public abstract class TreeTableModel extends AbstractTableModel {
         }
     }
 
+    /**
+     * Sets the click handler for the primary tree column.  If not set explicitly, it will either default
+     * to the primary TableCellRenderer if it implements the TreeClickHandler interface, or a very rough default
+     * handler will be used that estimates the likely node indent for a tree when processing clicks.
+     *
+     * @param clickHandler The TreeClickHandler to process expand/collapse events for the primary tree column.
+     */
+    public void setTreeClickHandler(final TreeClickHandler clickHandler) {
+        this.clickHandler = clickHandler;
+    }
+
 
     /******************************************************************************************************************
-     *                                          Column utility methods
+     *                                          Column methods
      */
+
+    /**
+     * Sets the model index of the column that will render the tree structure and respond to expand/collapse clicks.c
+     * Defaults to zero (first column) if not set.  It uses the model index, which each column has.
+     * Note that columns in the TableColumnModel can be re-arranged (if columns are dragged to new positions)
+     * so the index of a column in a TableColumnModel may be different to the model index of that column.
+     *
+     * @param treeColumnModelIndex the column that will render the tree structure and respond to expand/collapse clicks.
+     */
+    public void setTreeColumn(final int treeColumnModelIndex) {
+        checkValidColumn(treeColumnModelIndex);
+        this.treeColumnModelIndex = treeColumnModelIndex;
+    }
+
+    /**
+     * @return The model index of the column that renders the tree structure.
+     */
+    public int getTreeColumnModelIndex() {
+        return treeColumnModelIndex;
+    }
 
     /**
      * @return the TableColumnModel for this TreeTableModel.
@@ -477,27 +522,62 @@ public abstract class TreeTableModel extends AbstractTableModel {
         if (columnModel == null) {
             columnModel = new DefaultTableColumnModel();
             for (int column = 0; column < getColumnCount(); column++) {
-                columnModel.addColumn(getTableColumn(column));
+                TableColumn tcolumn = getTableColumn(column);
+                if (column == treeColumnModelIndex && tcolumn.getCellRenderer() == null) {
+                    tcolumn.setCellRenderer(new TreeTableCellRenderer(this));
+                }
+                columnModel.addColumn(tcolumn);
             }
         }
         return columnModel;
     }
 
     /**
-     * Utility method to create a TableColumn given a value, modelIndex and renderer.
+     * Calculates the space taken up by columns to the left of the column in the TableColumnModel.
      *
-     * @param headerValue The header name.
-     * @param modelIndex The index of the column in the model.
-     * @param renderer The renderer for that column (can be null).
-     * @return A TableColumn constructed with the provided parameters.
+     * @param colIndex
+     * @return
      */
-    public TableColumn createColumn(final String headerValue, final int modelIndex, final TableCellRenderer renderer) {
-        TableColumn tableColumn = new TableColumn(modelIndex);
-        tableColumn.setHeaderValue(headerValue);
-        if (renderer != null) {
-            tableColumn.setCellRenderer(renderer);
+    public int calculateWidthToLeft(final int colIndex) {
+        TableColumnModel model = getTableColumnModel();
+        int width = 0;
+        for (int col = colIndex - 1; col >= 0; col--) {
+            width += model.getColumn(col).getWidth();
         }
-        return tableColumn;
+        return width;
+    }
+
+    /**
+     * Checks that a column is a valid column index, and throws an IllegalArgumentException if it is not.
+     * @param column The model column index.
+     * @throws IllegalArgumentException if the column index is not valid.
+     */
+    public void checkValidColumn(final int column) {
+        if (column >= numColumns || column < 0) {
+            throw new IllegalArgumentException("Columns must be between 0 and " + (numColumns - 1) + ". Column value was: " + column);
+        }
+    }
+
+    public TableColumn createColumn(final int modelIndex, final Object headerValue) {
+        return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, null, null, headerValue);
+    }
+
+    public TableColumn createColumn(final int modelIndex, final TableCellRenderer cellRenderer, final Object headerValue) {
+        return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, cellRenderer, null, headerValue);
+    }
+
+    public TableColumn createColumn(final int modelIndex,
+                                    final TableCellRenderer cellRenderer, final TableCellEditor cellEditor,
+                                    final Object headerValue) {
+        return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor, headerValue);
+    }
+
+    public TableColumn createColumn(final int modelIndex, final int width,
+                                    final TableCellRenderer cellRenderer, final TableCellEditor cellEditor,
+                                    final Object headerValue) {
+        final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
+        column.setHeaderValue(headerValue);
+        return column;
     }
 
     /******************************************************************************************************************
@@ -566,27 +646,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
     protected void toggleExpansion(final JTable table, final MouseEvent evt) {
         final Point point = evt.getPoint();
         final int tableRow = table.rowAtPoint(point);
-        final int col = table.columnAtPoint(point); // does this change if columns are re-ordered?
+        final int columnIndex = table.columnAtPoint(point);
         final int modelRow = getModelIndex(table, tableRow);
         final TreeTableNode node = displayedNodes.get(modelRow);
-        if (clickOnExpand(node, col, evt)) {
+        if (getClickHandler().clickOnExpand(node, columnIndex, evt)) {
             toggleExpansion(node, modelRow);
         }
-    }
-
-    protected boolean clickOnExpand(final TreeTableNode node, final int column, final MouseEvent evt) {
-        final TableCellRenderer renderer = getTableColumnModel().getColumn(column).getCellRenderer();
-        if (renderer instanceof TreeTableCellRenderer) {
-            if (node != null && node.getAllowsChildren()) {
-                final int columnStart = calculateWidthToLeft(column);
-                final int expandEnd = columnStart + ((TreeTableCellRenderer) renderer).getNodeIndent(node);
-                final int mouseX = evt.getPoint().x;
-                if (mouseX > columnStart && mouseX < expandEnd) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
 
@@ -655,6 +720,29 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return true;
     }
 
+    private TreeClickHandler getClickHandler() {
+        if (clickHandler == null) {
+            final TableCellRenderer renderer = getColumnWithModelIndex(treeColumnModelIndex).getCellRenderer();
+            if (renderer instanceof TreeClickHandler) {
+                clickHandler = (TreeClickHandler) renderer;
+            } else {
+                clickHandler = new TreeTableCellRenderer(this); // implements click handler.
+            }
+        }
+        return clickHandler;
+    }
+
+    private TableColumn getColumnWithModelIndex(int modelIndex) {
+        TableColumnModel model = getTableColumnModel();
+        for (int columnIndex = 0; columnIndex < model.getColumnCount(); columnIndex++) {
+            final TableColumn column = model.getColumn(columnIndex);
+            if (column.getModelIndex() == modelIndex) {
+                return column;
+            }
+        }
+        return null; // should not happen if model index is valid.
+    }
+
     /**
      * A listener for keyboard events which expands or collapses a node if + or - is pressed on a node that allows children.
      */
@@ -687,13 +775,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *                                              Miscellaneous
      */
 
-    private int calculateWidthToLeft(final int colIndex) {
-        TableColumnModel model = getTableColumnModel();
-        int width = 0;
-        for (int col = colIndex - 1; col >= 0; col--) {
-            width += model.getColumn(col).getWidth();
-        }
-        return width;
-    }
+
 
 }

@@ -4,8 +4,9 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.awt.event.MouseEvent;
 
-public class TreeTableCellRenderer extends DefaultTableCellRenderer {
+public class TreeTableCellRenderer extends DefaultTableCellRenderer implements TreeClickHandler {
 
     private static final int PADDING = 4;
     private static final int DEFAULT_PIXELS_PER_LEVEL = 18; // It's a bit subjective... 16 felt too small, 20 too big.
@@ -48,6 +49,21 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer {
         setNode(node);
         setNodeIcon(node);
         return this;
+    }
+
+    @Override
+    public boolean clickOnExpand(TreeTableNode node, int column, MouseEvent evt) {
+        TreeTableModel localModel = treeTableModel;
+        final int columnModelIndex = localModel.getTableColumnModel().getColumn(column).getModelIndex();
+        if (columnModelIndex == localModel.getTreeColumnModelIndex() && node != null & node.getAllowsChildren()) {
+            final int columnStart = localModel.calculateWidthToLeft(column);
+            final int expandEnd = getNodeIndent(node);
+            final int mouseX = evt.getPoint().x;
+            if (mouseX > columnStart && mouseX < columnStart + expandEnd) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void setNodeIcon(TreeTableNode node) {
