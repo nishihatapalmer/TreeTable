@@ -62,17 +62,14 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
     
       public TableColumn getTableColumn(int column) {
           switch (column) {
-             case 0: return createColumn("Name", 0, new TreeTableCellRenderer(this));
-             case 1: return createColumn("Role", 1, null);
+             case 0: return createColumn(0, "Name");
+             case 1: return createColumn(1, "Role");
           }
           throw new IllegalArgumentException("No column exists for " + column);
       }
       
    }
 ```
-Note that we provide a `TreeTableCellRenderer` for the first column.  This is a built-in renderer that will render the tree structure.
-One column needs to provide a `TreeTableCellRenderer` (or another class that can render the tree structure).
-
 
 ### Displaying the tree
 To display a `TreeTableModel`, instantiate a model with a root node, and bind it to a standard `JTable`:
