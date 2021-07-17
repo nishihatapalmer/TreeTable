@@ -107,3 +107,12 @@ In general, you probably don't want to implement your own tree renderer from scr
 By default, a `TreeTableHeaderRenderer` is used to render the table header.  This displays multi-column sorts by adding the number of the sort column as well as the ascending/descending icons.
 
 You can use a different header renderer if you like - just use one of the `bind()`  methods that lets you specify an alternative header renderer, or set it yourself on the `JTable` directly.  The header renderer has no knowledge that there is a tree being rendered.
+
+## Sorting
+Sorting is enabled by default, giving a multi-column sort (up to three columns). For each column that sorting is defined on, the following comparators will be used:
+
+1. If a custom comparator has been defined for that columnn, it will be used. 
+2. If no custom comparator, if the node values implement `Comparable` then they will be compared directly.
+3. If no custom comparator and they do not implement `Comparable`, they will be compared on their string value.
+
+Custom comparators can be supplied for any column by overriding `TreeTableModel.getColumnComparator()`.
