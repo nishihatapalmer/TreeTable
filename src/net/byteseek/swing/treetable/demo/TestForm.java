@@ -5,6 +5,7 @@ import net.byteseek.swing.treetable.*;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -90,7 +91,7 @@ public class TestForm {
 
     private void readWordList() {
         try {
-            wordList = Files.readAllLines(Paths.get("/home/matt/english2.txt"));
+            wordList = Files.readAllLines(Paths.get(getFilePath("/wordlist.txt")));
         } catch (IOException e) {
             System.out.println(e);
         }
@@ -103,6 +104,14 @@ public class TestForm {
 
     private String getRandomDescription() {
         return wordList.get(random.nextInt(wordList.size())) + ' ' + wordList.get(random.nextInt(wordList.size()));
+    }
+
+    private File getFile(final String resourceName) {
+        return new File(getFilePath(resourceName));
+    }
+
+    private String getFilePath(final String resourceName) {
+        return this.getClass().getResource(resourceName).getPath();
     }
 
     private static void setSystemLookAndFeel() {
