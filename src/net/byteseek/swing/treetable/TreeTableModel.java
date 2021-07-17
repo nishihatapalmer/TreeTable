@@ -11,16 +11,17 @@ import java.util.List;
 // * selection jumps when sorting - are events in right order?  This is looking better - test again.
 // * header grid line is a bit off from cell grid lines in GTK.
 
-//TODO: issues
-// * The use of the TreeTableCellRenderer is required, because the model uses it to determine the node indent.
-//   Need to either make clickExpand in the model independent of the specific renderer, or ensure that a TreeTableCellRenderer
-//   is actually used without the user having to do anything.
-
 //TODO: features:
 // * Different sort / click strategies: multi sort strategies... click column makes primary sort... no unsorted, etc.
 // * current sort order always reversed everything - what if you want something to be independent, e.g. folders always on top?
 //   sorts same ascending or descending...
 // * cell editing.
+// * programmatic control over node expansion and collapse - do we do this on the nodes (how to refresh tree?) or do we
+//   provide public methods on the model?  Model has the advantage that it will refresh the tree automatically.
+//   What would happen if node expansion was different to the displayed model?  Don't really want node change events
+//   feeding to the model (all nodes have to know the model they're in, so programmers have to specify that, or it
+//   automatically picks up the tree model from the root?).
+// * Should we use virtual key / key combos for expand collapse instead of chars?
 
 //TODO: tests:
 // * custom comparators
@@ -248,7 +249,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     public abstract TableColumn getTableColumn(int column);
 
     /**
-     * Returns a Comparator for a given column index.
+     * Returns a Comparator for a given column index.  Override this method if you want to specify custom comparators.
      * If null, then the model will compare node values directly if they implement Comparable,
      * or compare on the string value of the objects if they are not.
      *
@@ -261,11 +262,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     /**
      * Returns a Comparator for a node, or null if not set.
+     * <p>
      * The node comparator (if set) is executed first, allowing comparisons to be made on the basis of the node itself,
      * no matter what column is being compared. If the result of the node comparator is equal, then the other comparators
      * are executed in turn.  For example, if you want to separate the sort of items based on whether they are folders
      * or files (to keep folders and files separate in the sort), you could implement a node comparator which sorts
-     * on the basis of the node resource type.
+     * on the basis of whether the node represents a file or a folder.
      *
      * @return a Comparator for a node, or null if not set.
      */
@@ -288,22 +290,23 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *                                    Node comparison configuration.
      *
      * These methods set or get whether node comparisons always maintain an ascending order.
-     * Node comparisons group nodes together on some basis.  If we want the groupings to remain positionally
-     * stably while the contents sort within them, we need to maintain an ascending order for node comparisons and
-     * ignore the defined sort order.
+     * Node comparisons group nodes together on some basis which isn't a column value.
+     * If we want the groupings to remain positionally stable while the column contents sort within them,
+     * we need to maintain an ascending order for node comparisons and ignore the defined sort order.
      */
 
     /**
      * If this method returns true, then the node comparator (if defined) will always maintain an ascending order.
-     * All other node comparisons on their values will use whatever sort order is actually defined.
+     * All other comparisons on column values will use whatever sort order is actually defined.
      * It's not obvious why we might want this, so here is an example.
      * <p>
      * Let's say we are using the node comparator to sort different classes of nodes into groups.  For example,
      * we want folders to be grouped together, then files, and the rest of sorting to occur within those groups.
-     * So we define a node comparator that makes folders smaller than files, and this will work fine.
+     * So we define a node comparator that makes folders "less than" than files, and this will work fine.
      * However, when you switch between ascending and descending sorts, the groups themselves will move relative order.
      * If ascending the folders are at the top of the parent and the files below, but descending, the files are now
-     * at the top and the folders below.
+     * at the top and the folders below.  It can be quite disorienting for the groups to switch positions.
+     * Often we want the items within the groups to sort, but the groups themselves to remain stable.
      * <p>
      * So if we want our node comparator groupings to remain positionally stable, even while the contents sort within
      * those groups, return true.  Then the items will still sort ascending or descending on their values,
@@ -311,7 +314,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @return whether node comparators maintains ascending order.
      */
-    public boolean isNodeComparatorAscendingOnly() {
+    public boolean isNodeSortAscending() {
         return isNodeComparatorAscendingOnly;
     }
 
@@ -321,7 +324,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param ascendingOnly Whether the node comparator maintains an ascending sort order only.
      */
-    public void setNodeComparatorAscendingOnly(final boolean ascendingOnly) {
+    public void setNodeSortAscending(final boolean ascendingOnly) {
         this.isNodeComparatorAscendingOnly = ascendingOnly;
     }
 
@@ -430,7 +433,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param listener The listener to be notified of tree expand or collapse events.
      */
-    public void addListener(final TreeTableEvent.Listener listener) {
+    public void addTreeTableEventListener(final TreeTableEvent.Listener listener) {
         if (!eventListeners.contains(listener)) {
             eventListeners.add(listener);
         }
@@ -441,7 +444,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param listener The listener to remove.
      */
-    public void removeListener(final TreeTableEvent.Listener listener) {
+    public void removeTreeTableEventListener(final TreeTableEvent.Listener listener) {
         eventListeners.remove(listener);
     }
 
@@ -451,7 +454,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param table The JTable to add the listener to.
      */
-    public void addMouseListener(JTable table) {
+    public void addMouseListener(final JTable table) {
         MouseListener listener = tableMouseListeners.get(table);
         if (listener == null) {
             listener = new MouseAdapter() {
@@ -471,7 +474,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param table The JTable to remove registered listeners from.
      */
-    public void removeMouseListener(JTable table) {
+    public void removeMouseListener(final JTable table) {
         MouseListener listener = tableMouseListeners.get(table);
         if (listener != null) {
             table.removeMouseListener(listener);
@@ -511,7 +514,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     /**
      * @return The model index of the column that renders the tree structure.
      */
-    public int getTreeColumnModelIndex() {
+    public int getTreeColumn() {
         return treeColumnModelIndex;
     }
 

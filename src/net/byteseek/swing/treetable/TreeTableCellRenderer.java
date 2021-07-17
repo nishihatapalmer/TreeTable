@@ -8,7 +8,7 @@ import java.awt.event.MouseEvent;
 
 public class TreeTableCellRenderer extends DefaultTableCellRenderer implements TreeClickHandler {
 
-    private static final int PADDING = 4;
+    private static final int PADDING = 4;  // how many pixels to pad left and right, so display looks nice.
     private static final int DEFAULT_PIXELS_PER_LEVEL = 18; // It's a bit subjective... 16 felt too small, 20 too big.
 
     private final TreeTableModel treeTableModel;
@@ -19,16 +19,15 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     private Icon expandedIcon;          // expand icon, dependent on the look and feel theme.
     private Icon collapsedIcon;         // collapse icon, dependent on the look and feel theme.
 
-
     // We have labels for each of the icons, because for some reason GTK icons won't paint on Graphic objects,
-    // but when embedded in a JLabel it paints fine.
+    // but when embedded in a JLabel it paints fine.  They seem to be some kind of Icon proxy object...
     private JLabel expandedIconLabel;
     private JLabel collapsedIconLabel;
 
     // Calculated max icon width of the expand and collapse icons, to get consistent indentation levels.
     private int maxIconWidth;
 
-    private TreeTableNode currentNode;
+    private TreeTableNode currentNode; // The node about to be rendered.
 
     public TreeTableCellRenderer(final TreeTableModel treeTableModel) {
         this.treeTableModel = treeTableModel;
@@ -55,7 +54,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     public boolean clickOnExpand(TreeTableNode node, int column, MouseEvent evt) {
         TreeTableModel localModel = treeTableModel;
         final int columnModelIndex = localModel.getTableColumnModel().getColumn(column).getModelIndex();
-        if (columnModelIndex == localModel.getTreeColumnModelIndex() && node != null & node.getAllowsChildren()) {
+        if (columnModelIndex == localModel.getTreeColumn() && node != null & node.getAllowsChildren()) {
             final int columnStart = localModel.calculateWidthToLeft(column);
             final int expandEnd = getNodeIndent(node);
             final int mouseX = evt.getPoint().x;

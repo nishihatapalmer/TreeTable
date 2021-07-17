@@ -12,12 +12,23 @@ import java.util.*;
  */
 public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
-    private static final int[] EMPTY_ARRAY = new int[0];
-
     /**
-     * default maximum number of sort keys.
+     * Configurable strategy to determine what columns are sorted, in what way,
+     * after a request to sort on a column is made.  Will default to the NestedColumnStrategy if not supplied.
      */
-    protected static final int MAX_DEFAULT_SORT_KEYS = 3;
+    public interface ColumnSortStrategy {
+
+        /**
+         * Builds a list of sort keys reflecting what the new state of sorting should be,
+         * after a request to sort on a column is made.
+         *
+         * @param columnToSort The column which should be sorted.
+         * @param sortKeys The current state of sorting.
+         */
+        List<RowSorter.SortKey> buildNewSortKeys(int columnToSort, List<RowSorter.SortKey> sortKeys);
+    }
+
+    private static final int[] EMPTY_ARRAY = new int[0];
 
     /**
      * The model being sorted.
@@ -30,9 +41,9 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     protected List<SortKey> sortKeys;
 
     /**
-     * The maximum sort keys.
+     * The sort strategy to use to build new sort keys after sort is requested on a column.
      */
-    protected int maximumSortKeys = MAX_DEFAULT_SORT_KEYS;
+    protected ColumnSortStrategy sortStrategy;
 
     /**
      * A sorted index of rows, giving the model index for each view index.
@@ -71,26 +82,11 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return model;
     }
 
+    //TODO: check column index is same if columns are re-ordered.
     @Override
     public void toggleSortOrder(final int column) {
         checkColumnIndex(column);
-        final List<SortKey> newKeys = new ArrayList<>(sortKeys);
-        final int sortKeyIndex = findKeyColumn(column);
-        // if not currently being sorted - and less than max sort keys being used - add a new SortKey.
-        if (sortKeyIndex < 0 && newKeys.size() < maximumSortKeys) {
-            newKeys.add(new SortKey(column, SortOrder.ASCENDING));
-        } else { // It's a column currently being sorted.
-            final SortKey currentKey = newKeys.get(sortKeyIndex);
-            final SortOrder nextState = nextOrder(currentKey.getSortOrder());
-            if (nextState == SortOrder.UNSORTED) {
-                for (int removeIndex = newKeys.size() - 1;  removeIndex >= sortKeyIndex; removeIndex--) {
-                    newKeys.remove(removeIndex);
-                }
-            } else { // Update the sort key:
-                newKeys.set(sortKeyIndex, new SortKey(currentKey.getColumn(), nextState));
-            }
-        }
-        setSortKeys(newKeys);
+        setSortKeys(getSortStrategy().buildNewSortKeys(column, sortKeys));
     }
 
     @Override
@@ -166,19 +162,15 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
-    /**
-     * @return Returns the maximum number of sort keys allowed.
-     */
-    public int getMaximumSortKeys() {
-        return maximumSortKeys;
+    public ColumnSortStrategy getSortStrategy() {
+        if (sortStrategy == null) {
+            sortStrategy = new MultiColumnSortStrategy();
+        }
+        return sortStrategy;
     }
 
-    /**
-     * Sets the maximum number of sort keys allowed.
-     * @param maximumSortKeys The maximum number of sort keys allowed.
-     */
-    public void setMaximumSortKeys(final int maximumSortKeys) {
-        this.maximumSortKeys = maximumSortKeys;
+    public void setSortStrategy(ColumnSortStrategy sortStrategy) {
+        this.sortStrategy = sortStrategy;
     }
 
     /**
@@ -258,8 +250,9 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         // Compare on node values, if a node comparator is defined:
         final Comparator<TreeTableNode> nodeComparator = localModel.getNodeComparator();
         int result = nodeComparator == null ? 0 : nodeComparator.compare(firstNode, secondNode); // Compare with node comparator.
-        if (localModel.isNodeComparatorAscendingOnly() && order == SortOrder.DESCENDING) {
-            result *= -1; // this will get flipped back in compare(), so will maintain original ordering.
+        //TODO: are we maintaining ascending or descending order here?
+        if (localModel.isNodeSortAscending() && order == SortOrder.DESCENDING) {
+            result *= -1; // flip the order - this will get flipped back in compare(), so will maintain original ordering.
         }
 
         // If we don't have a node comparator, or the comparison is equal, compare on column values:
@@ -270,7 +263,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
             if (columnComparator != null) {
                 result = columnComparator.compare(value1, value2);            // Compare with provided comparator.
             } else {
-                if (value1 instanceof Comparable<?>) {
+                if (value1 instanceof Comparable<?>) { //TODO: do we need to validate that value2 is also the same comparable (isAssignableFrom...?)
                     result = ((Comparable<Object>) value1).compareTo(value2); // Compare directly if Comparable<>
                 } else {
                     result = value1.toString().compareTo(value2.toString());  // Compare on string values:
@@ -373,37 +366,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return viewToModelIndex != null; // invariant assumption: sorting if viewToModel index is not null.
     }
 
-    /**
-     * @param sortOrder A SortOrder enumeration.
-     * @return The next sort order (wrapping around).
-     */
-    private SortOrder nextOrder(final SortOrder sortOrder) {
-        switch (sortOrder) {
-            case UNSORTED:   return SortOrder.ASCENDING;
-            case ASCENDING:  return SortOrder.DESCENDING;
-            case DESCENDING: return SortOrder.UNSORTED;
-        }
-        return SortOrder.UNSORTED; // If there's another sort order we can't handle, we just go to unsorted.
-    }
-
-    /**
-     * Returns the index of a sort key for a particular column, or -1 if none is defined for that column.
-     * @param column The column to get a SortKey index for.
-     * @return The index of the SortKey for a particular column, or -1 if none is defined.
-     */
-    private int findKeyColumn(final int column) {
-        final List<SortKey> localKeys = sortKeys;
-        if (localKeys != null) {
-            for (int keyIndex = 0; keyIndex < localKeys.size(); keyIndex++) {
-                if (localKeys.get(keyIndex).getColumn() == column) {
-                    return keyIndex;
-                }
-            }
-        }
-        return -1;
-    }
-
-    /**
+   /**
      * Ensures all the view to model indexes have a SortRow with the model index set to the view index.
      *
      * @param numRows The number of rows to define.
@@ -467,4 +430,5 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
             this.modelIndex = modelIndex;
         }
     }
+
 }
