@@ -36,7 +36,7 @@ public class TestForm {
     }
 
     public static void main(String[] args) {
-        //setSystemLookAndFeel();
+        setSystemLookAndFeel();
         JFrame frame = new JFrame("Test");
         frame.setContentPane(new TestForm().rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -49,7 +49,7 @@ public class TestForm {
         readWordList();
         TreeTableNode rootNode = buildRandomTree(4, 5);
         treeTableModel = new TestTreeTableModel(rootNode, showRoot);
-        treeTableModel.setNodeComparatorAscendingOnly(true);
+        treeTableModel.setNodeSortAscending(true);
         treeTableModel.bindTable(table1);
         table1.setRowHeight(24);
     }
