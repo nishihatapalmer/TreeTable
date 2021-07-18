@@ -3,6 +3,8 @@ package net.byteseek.swing.treetable.demo;
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -50,8 +52,19 @@ public class TestForm {
         readWordList();
         TreeTableNode rootNode = buildRandomTree(4, 5);
         treeTableModel = new TestTreeTableModel(rootNode, showRoot);
-        treeTableModel.setNodeSortAscending(true);
         treeTableModel.bindTable(table1);
+        treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
+            @Override
+            public boolean actionTreeEvent(TreeTableEvent event) {
+                if (event.getEventType() == TreeTableEvent.TreeTableEventType.EXPANDING) {
+                    TreeTableNode node = event.getNode();
+                    if (node.getChildCount() == 0) {
+                        node.setAllowsChildren(false); //TODO: status not immediately reflecting in tree after event (no repaint...?)
+                    }
+                }
+                return true;
+            }
+        });
         table1.setRowHeight(24);
     }
 

@@ -12,16 +12,13 @@ import java.util.List;
 // * header grid line is a bit off from cell grid lines in GTK.
 
 //TODO: features:
-// * Different sort / click strategies: multi sort strategies... click column makes primary sort... no unsorted, etc.
-// * current sort order always reversed everything - what if you want something to be independent, e.g. folders always on top?
-//   sorts same ascending or descending...
-// * cell editing.
 // * programmatic control over node expansion and collapse - do we do this on the nodes (how to refresh tree?) or do we
 //   provide public methods on the model?  Model has the advantage that it will refresh the tree automatically.
 //   What would happen if node expansion was different to the displayed model?  Don't really want node change events
 //   feeding to the model (all nodes have to know the model they're in, so programmers have to specify that, or it
 //   automatically picks up the tree model from the root?).
 // * Should we use virtual key / key combos for expand collapse instead of chars?
+// * If node comparator defined, always use it (even if no other column sort keys defined?)
 
 //TODO: tests:
 // * custom comparators
@@ -91,7 +88,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     private boolean showRoot;
     private char expandChar = PLUS;
     private char collapseChar = MINUS;
-    private boolean isNodeComparatorAscendingOnly;
+    private Comparator<TreeTableNode> nodeComparator;
     private int treeColumnModelIndex; // the model index of the column which renders the tree and provides click expansion handling.
 
     /*
@@ -261,21 +258,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
     /**
-     * Returns a Comparator for a node, or null if not set.
-     * <p>
-     * The node comparator (if set) is executed first, allowing comparisons to be made on the basis of the node itself,
-     * no matter what column is being compared. If the result of the node comparator is equal, then the other comparators
-     * are executed in turn.  For example, if you want to separate the sort of items based on whether they are folders
-     * or files (to keep folders and files separate in the sort), you could implement a node comparator which sorts
-     * on the basis of whether the node represents a file or a folder.
-     *
-     * @return a Comparator for a node, or null if not set.
-     */
-    public Comparator<TreeTableNode> getNodeComparator() {
-        return null;
-    }
-
-    /**
      * Returns an icon for a given node, to be rendered against the node.
      *
      * @param node The node to get an icon for.
@@ -289,44 +271,29 @@ public abstract class TreeTableModel extends AbstractTableModel {
     /******************************************************************************************************************
      *                                    Node comparison configuration.
      *
-     * These methods set or get whether node comparisons always maintain an ascending order.
-     * Node comparisons group nodes together on some basis which isn't a column value.
-     * If we want the groupings to remain positionally stable while the column contents sort within them,
-     * we need to maintain an ascending order for node comparisons and ignore the defined sort order.
+     * Getter and setter for a node comparator.  If set, nodes will be grouped by that comparator, even if no
+     * other sort columns are defined.  This allows different categories of node (e.g. files or folders) to be
+     * grouped in the tree, with sorting of columns within them.
      */
 
     /**
-     * If this method returns true, then the node comparator (if defined) will always maintain an ascending order.
-     * All other comparisons on column values will use whatever sort order is actually defined.
-     * It's not obvious why we might want this, so here is an example.
-     * <p>
-     * Let's say we are using the node comparator to sort different classes of nodes into groups.  For example,
-     * we want folders to be grouped together, then files, and the rest of sorting to occur within those groups.
-     * So we define a node comparator that makes folders "less than" than files, and this will work fine.
-     * However, when you switch between ascending and descending sorts, the groups themselves will move relative order.
-     * If ascending the folders are at the top of the parent and the files below, but descending, the files are now
-     * at the top and the folders below.  It can be quite disorienting for the groups to switch positions.
-     * Often we want the items within the groups to sort, but the groups themselves to remain stable.
-     * <p>
-     * So if we want our node comparator groupings to remain positionally stable, even while the contents sort within
-     * those groups, return true.  Then the items will still sort ascending or descending on their values,
-     * but folders would always remain at the top and files below them.
-     *
-     * @return whether node comparators maintains ascending order.
+     * @return a Comparator for a node, or null if not set.
      */
-    public boolean isNodeSortAscending() {
-        return isNodeComparatorAscendingOnly;
+    public Comparator<TreeTableNode> getNodeComparator() {
+        return nodeComparator;
     }
 
     /**
-     * Sets whether node comparators maintain ascending order only.
-     * See the {@link #isNodeComparatorAscendingOnly} method for an explanation of why this can be useful.
+     * Sets the node comparator to use, or null if no node comparisons are required.
+     * When a node comparator is set, nodes are always sorted first by that comparator, before any column sorts
+     * are applied.  This allows nodes to be grouped by some feature of the node.
      *
-     * @param ascendingOnly Whether the node comparator maintains an ascending sort order only.
+     * @param nodeComparator the node comparator to use, or null if no node comparisons are required.
      */
-    public void setNodeSortAscending(final boolean ascendingOnly) {
-        this.isNodeComparatorAscendingOnly = ascendingOnly;
+    public void setNodeComparator(Comparator<TreeTableNode> nodeComparator) {
+        this.nodeComparator = nodeComparator;
     }
+
 
     /******************************************************************************************************************
      *                                    TableModel interface methods.
@@ -347,6 +314,11 @@ public abstract class TreeTableModel extends AbstractTableModel {
     @Override
     public Object getValueAt(final int row, final int column) {
         return getColumnValue(getNodeAtRow(row), column);
+    }
+
+    @Override
+    public void setValueAt(final Object aValue, final int rowIndex, final int columnIndex) {
+        setColumnValue(getNodeAtRow(rowIndex), columnIndex, aValue);
     }
 
 
@@ -628,10 +600,11 @@ public abstract class TreeTableModel extends AbstractTableModel {
         final boolean expanded = node.isExpanded();
         final int visibleChildrenBeforeListeners = expanded ? node.getChildVisibleNodeCount() : 0;
         if (listenersApprove(node)) {
+            boolean tableNotified = false; // track whether we tell the table it's been changed yet.
 
             // If we had some visible nodes before toggling to unexpanded, remove those children.
             if (expanded) {
-                removeDisplayedChildren(modelRow, visibleChildrenBeforeListeners);
+                tableNotified |= removeDisplayedChildren(modelRow, visibleChildrenBeforeListeners);
             }
             // If we're still the same expansion as before listeners ran, toggle it.
             // If the listeners have already toggled it, but approved the event, we won't toggle it back.
@@ -641,7 +614,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
             // If we weren't already expanded before toggling to expanded, add the new children.
             if (!expanded) {
-                addChildrenToDisplay(modelRow, node);
+                tableNotified |= addChildrenToDisplay(modelRow, node);
+            }
+
+            // If we haven't removed or added any children, notify the table this one node may have changed:
+            if (!tableNotified) {
+                fireTableRowsUpdated(modelRow, modelRow);
             }
         }
     }

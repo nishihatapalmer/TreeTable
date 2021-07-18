@@ -9,7 +9,6 @@ public class TestClass {
     private long   size;
     private boolean enabled;
     private List<TestClass> children;
-    private TestClass parent;
 
     public TestClass(String description, long size, boolean enabled) {
         this.description = description;
