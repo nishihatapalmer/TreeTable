@@ -4,7 +4,7 @@ Treetable displays a tree of information, with additional columns for each item 
 
 ### Software status
 This software is still in **alpha**.  It may change unexpectedly at any time.
-The parts that are implemented seem to work OK, but we have no unit tests, and there are still some features unimplemented (e.g. editing cells).
+The parts that are implemented seem to work OK, but we have no unit tests.
 
 
 ## Getting started
