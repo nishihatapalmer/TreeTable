@@ -73,7 +73,7 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
           switch (column) {
              case 0: return createColumn(0, "Description");
              case 1: return createColumn(1, "Size");
-             case 2: return createColumn(1, "Enabled");
+             case 2: return createColumn(2, "Enabled");
           }
           throw new IllegalArgumentException("No column exists for " + column);
       }
