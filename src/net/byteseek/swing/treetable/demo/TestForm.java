@@ -1,3 +1,34 @@
+/*
+ * BSD 3-Clause License
+ *
+ * Copyright (c) 2021, Matt Palmer
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package net.byteseek.swing.treetable.demo;
 
 import net.byteseek.swing.treetable.*;
@@ -26,7 +57,7 @@ public class TestForm {
     boolean showRoot;
 
     public TestForm() {
-        createTreeTable();
+        createTreeTable(buildRandomTree(5, 5));
         addNodes.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -34,6 +65,7 @@ public class TestForm {
                 treeTableModel.setShowRoot(showRoot);
             }
         });
+        table1.setRowHeight(24);
     }
 
     public static void main(String[] args) {
@@ -45,12 +77,11 @@ public class TestForm {
         frame.setVisible(true);
     }
 
-    private void createTreeTable() {
-        random = new Random(0);
-        readWordList();
-        TreeTableNode rootNode = buildRandomTree(4, 5);
+    private void createTreeTable(MyObject objectTree) {
+        final TreeTableNode rootNode = TreeTableNode.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
         treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
+        /*
         treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
             @Override
             public boolean actionTreeEvent(TreeTableEvent event) {
@@ -63,7 +94,7 @@ public class TestForm {
                 return true;
             }
         });
-        table1.setRowHeight(24);
+         */
     }
 
     private TreeTableNode buildTree() {
@@ -82,20 +113,22 @@ public class TestForm {
         return rootNode;
     }
 
-    private TreeTableNode buildRandomTree(int maxLevels, int chanceOutOfTenForChildren) {
-        TreeTableNode rootNode = randomTestNode(true);
-        buildRandomChildren(rootNode, maxLevels, chanceOutOfTenForChildren);
-        return rootNode;
+    private MyObject buildRandomTree(int maxLevels, int chanceOutOfTenForChildren) {
+        random = new Random(4);
+        readWordList();
+        MyObject rootObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
+        buildRandomChildren(rootObject, maxLevels, chanceOutOfTenForChildren, 0, true);
+        return rootObject;
     }
 
-    private void buildRandomChildren(TreeTableNode parentNode, int maxLevels, int chanceOutOfTenForChildren) {
-        boolean allowsChildren = parentNode.getAllowsChildren() && parentNode.getLevel() < maxLevels;
-        if (allowsChildren) {
+    private void buildRandomChildren(MyObject parent, int maxLevels, int chanceOutOfTenForChildren, int level, boolean forceChildren) {
+        boolean hasChildren = level <= maxLevels && random.nextInt(10) < chanceOutOfTenForChildren;
+        if (hasChildren || forceChildren) {
             int numChildren = random.nextInt(50);
             for (int child = 0; child < numChildren; child++) {
-                TreeTableNode newChild = randomTestNode(random.nextInt(10) >= chanceOutOfTenForChildren && allowsChildren);
-                parentNode.add(newChild);
-                buildRandomChildren(newChild, maxLevels, chanceOutOfTenForChildren);
+                MyObject childObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
+                parent.addChild(childObject);
+                buildRandomChildren(childObject, maxLevels, chanceOutOfTenForChildren, level + 1, false);
             }
         }
     }
@@ -108,7 +141,12 @@ public class TestForm {
         }
     }
 
-    private TreeTableNode randomTestNode(boolean allowsChildren) {
+
+    //TODO: we build a tree for the tree table, but we never build the actual tree of objects...
+    //      another option is to give a root node a root object, and tell it to build all its child nodes
+    //      given a mapping from MyObject.getChildren()...
+
+    private TreeTableNode randomTestObject(boolean allowsChildren) {
         MyObject randomClass = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
         return new TreeTableNode(randomClass, allowsChildren);
     }
