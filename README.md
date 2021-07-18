@@ -97,7 +97,7 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 ## Building a tree
 
-The `TreeTableModel` does not build the tree nodes for you automatically.  You must create nodes and child nodes using `TreeTableNode` or a subclass, and assign the correct user objects to the nodes.
+In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeTableNode` structure, and assign the correct user objects to the nodes.  There are at least two ways to do that:
 
 ### Building a tree from the user object
 If your objects already have a tree structure, you can build a tree from them using the static utility method `TreeTableNode.buildTree()`.  For example:

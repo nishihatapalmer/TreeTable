@@ -114,7 +114,7 @@ public class TestForm {
     }
 
     private MyObject buildRandomTree(int maxLevels, int chanceOutOfTenForChildren) {
-        random = new Random(4);
+        random = new Random(999);
         readWordList();
         MyObject rootObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
         buildRandomChildren(rootObject, maxLevels, chanceOutOfTenForChildren, 0, true);
