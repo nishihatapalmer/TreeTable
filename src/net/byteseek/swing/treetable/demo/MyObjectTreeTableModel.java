@@ -7,7 +7,7 @@ import javax.swing.*;
 import javax.swing.table.TableColumn;
 import java.util.Comparator;
 
-public class TestTreeTableModel extends TreeTableModel {
+public class MyObjectTreeTableModel extends TreeTableModel {
 
     private static final int NUM_COLUMNS = 3;
 
@@ -17,7 +17,7 @@ public class TestTreeTableModel extends TreeTableModel {
     private Icon openIcon;              // tree node displaying children.
     private Icon closedIcon;            // tree node not displaying children.
 
-    public TestTreeTableModel(final TreeTableNode rootNode, final boolean showRoot) {
+    public MyObjectTreeTableModel(final TreeTableNode rootNode, final boolean showRoot) {
         super(rootNode, NUM_COLUMNS, showRoot);
         setIcons();
        // setNodeComparator(new TestNodeComparator());
@@ -42,8 +42,8 @@ public class TestTreeTableModel extends TreeTableModel {
     public Object getColumnValue(final TreeTableNode node, final int column) {
         checkValidColumn(column);
         final Object o = node.getUserObject();
-        if (o instanceof TestClass) {
-            final TestClass obj = (TestClass) o;
+        if (o instanceof MyObject) {
+            final MyObject obj = (MyObject) o;
             switch (column) {
                 case 0: return obj.getDescription();
                 case 1: return obj.getSize();
@@ -57,8 +57,8 @@ public class TestTreeTableModel extends TreeTableModel {
     public void setColumnValue(final TreeTableNode node, final int column, final Object value) {
         checkValidColumn(column);
         final Object o = node.getUserObject();
-        if (o instanceof TestClass) {
-            final TestClass obj = (TestClass) o;
+        if (o instanceof MyObject) {
+            final MyObject obj = (MyObject) o;
             switch (column) {
                 case 0: {
                     obj.setDescription((String) value);

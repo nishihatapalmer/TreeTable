@@ -3,14 +3,14 @@ package net.byteseek.swing.treetable.demo;
 import java.util.ArrayList;
 import java.util.List;
 
-public class TestClass {
+public class MyObject {
 
     private String description;
     private long   size;
     private boolean enabled;
-    private List<TestClass> children;
+    private List<MyObject> children;
 
-    public TestClass(String description, long size, boolean enabled) {
+    public MyObject(String description, long size, boolean enabled) {
         this.description = description;
         this.size = size;
         this.enabled = enabled;
@@ -41,15 +41,15 @@ public class TestClass {
         this.enabled = enabled;
     }
 
-    public void addChild(TestClass test) {
+    public void addChild(MyObject test) {
         children.add(test);
     }
 
-    public void addChildren(List<TestClass> children) {
+    public void addChildren(List<MyObject> children) {
         this.children.addAll(children);
     }
 
-    public List<TestClass> getChildren() {
+    public List<MyObject> getChildren() {
         return children;
     }
 }

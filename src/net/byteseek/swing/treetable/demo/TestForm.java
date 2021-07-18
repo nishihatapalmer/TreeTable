@@ -3,8 +3,6 @@ package net.byteseek.swing.treetable.demo;
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -51,7 +49,7 @@ public class TestForm {
         random = new Random(0);
         readWordList();
         TreeTableNode rootNode = buildRandomTree(4, 5);
-        treeTableModel = new TestTreeTableModel(rootNode, showRoot);
+        treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1);
         treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
             @Override
@@ -69,18 +67,18 @@ public class TestForm {
     }
 
     private TreeTableNode buildTree() {
-        TreeTableNode rootNode = new TreeTableNode(new TestClass("My first test class", 1000, false), true);
+        TreeTableNode rootNode = new TreeTableNode(new MyObject("My first test class", 1000, false), true);
 
-        rootNode.add(new TreeTableNode(new TestClass("First child test class", 256, true), false));
-        rootNode.add(new TreeTableNode(new TestClass("Second child test class", 32, false), false));
+        rootNode.add(new TreeTableNode(new MyObject("First child test class", 256, true), false));
+        rootNode.add(new TreeTableNode(new MyObject("Second child test class", 32, false), false));
 
-        TreeTableNode subchildrenNode = new TreeTableNode(new TestClass("Third child with children", 16, false), true);
+        TreeTableNode subchildrenNode = new TreeTableNode(new MyObject("Third child with children", 16, false), true);
 
-        subchildrenNode.add(new TreeTableNode(new TestClass("First sub child!", 9999, true), false));
-        subchildrenNode.add(new TreeTableNode(new TestClass("Second sub child!!", 1111, false), false));
+        subchildrenNode.add(new TreeTableNode(new MyObject("First sub child!", 9999, true), false));
+        subchildrenNode.add(new TreeTableNode(new MyObject("Second sub child!!", 1111, false), false));
         rootNode.add(subchildrenNode);
 
-        rootNode.add(new TreeTableNode(new TestClass("Fourth child test class", 32, false), false));
+        rootNode.add(new TreeTableNode(new MyObject("Fourth child test class", 32, false), false));
         return rootNode;
     }
 
@@ -111,7 +109,7 @@ public class TestForm {
     }
 
     private TreeTableNode randomTestNode(boolean allowsChildren) {
-        TestClass randomClass = new TestClass(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
+        MyObject randomClass = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
         return new TreeTableNode(randomClass, allowsChildren);
     }
 

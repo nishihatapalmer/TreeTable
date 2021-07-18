@@ -10,48 +10,56 @@ The parts that are implemented seem to work OK, but we have no unit tests, and t
 ## Getting started
 
 ### The object
-Let's say we are working with data about people who manage other people.  We'd like to display this as a tree of people with their names and roles in separate columns.
+We'll start with the object whose values you want to display in a tree table.  For example:
 
 ```java
-   public class Person {
-       private String name;
-       private String role;
-       private List<Person> reports;
+   public class MyObject {
+       private String description;
+       private Long size;
+       private Boolean enabled;
+       private List<MyObject> children;
        ...
    }
        
 ```
 
 ### The model
-First we need to subclass a `TreeTableModel`, which defines how to map a table to the `Person` class.  
+First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.  
 
 ```java
-   public class PersonTreeTableModel extends TreeTableModel {
+   public class MyObjectTreeTableModel extends TreeTableModel {
    
-      private static final int NUM_COLUMNS = 2;
+      private static final int NUM_COLUMNS = 3;
    
       public PersonTreeTableModel(TreeTableNode rootNode, boolean showRoot) {
           super(rootNode, NUM_COLUMNS, showRoot);
       }
    
+      @Override
       public Object getColumnValue(TreeTableNode node, int column) {  
-          Person person = (Person) node.getUserObject();
+          MyObject myObject = (MyObject) node.getUserObject();
           switch (column) {
-             case 0: return person.getName();
-             case 1: return person.getRole();
+             case 0: return myObject.getDescription();
+             case 1: return myObject.getSize();
+             case 2: return myObject.getEnabled();
           }
          throw new IllegalArgumentException("Invalid column: " + column);
       }
-    
+
+      @Override
       public void setColumnValue(TreeTableNode node, int column, Object value) {
-          Person person = (Person) node.getUserObject();
+          MyObject myObject = (MyObject) node.getUserObject();
           switch (column) {
             case 0: {
-                person.setName((String) value);
+                myObject.setDescription((String) value);
                 break;
             }
             case 1: {
-                person.setRole((String) value);
+                myObject.setSize((Long) value);
+                break;
+            }
+            case 2: {
+                myObject.setEnabled((Boolean) value);
                 break;
             }
             default: {
@@ -59,11 +67,13 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
             }
          }
       }
-    
+
+      @Override
       public TableColumn getTableColumn(int column) {
           switch (column) {
-             case 0: return createColumn(0, "Name");
-             case 1: return createColumn(1, "Role");
+             case 0: return createColumn(0, "Description");
+             case 1: return createColumn(1, "Size");
+             case 2: return createColumn(1, "Enabled");
           }
           throw new IllegalArgumentException("No column exists for " + column);
       }
@@ -76,8 +86,8 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 ```java
    JTable table = ... 
-   Person person = new Person("Joe Bloggs", "Chief of Everything");
-   TreeTableNode root = new TreeTableNode(person, true);
+   MyObject myObject = new MyObject("First root", 10000L, true);
+   TreeTableNode root = new TreeTableNode(myObject, true);
    TreeTableModel model = new PersonTreeTableModel(root, true);
    model.bindTable(table);
 ```
@@ -107,15 +117,32 @@ To supply icons for nodes in the tree column, override `TreeTableModel.getNodeIc
 
 The column which renders the tree defaults to the first column.  This can be changed by calling `model.setTreeColumn(columnIndex)` to the model index of the tree column in which the tree should appear.
 
+## Rendering
 
-### Renderer
+### Tree column
 By default, the tree column uses a `TreeTableCellRenderer`.  You can use a different renderer (or a subclass) if you prefer, by specifying the renderer to use when you create the TableColumns in the `model.getTableColumn()` method.  TableColumns let you set the cell renderer and the cell editor to use for that column.
 
 If implementing a different tree renderer, you should also implement a `TreeClickHandler` which determines whether a click in this column is an expand or collapse event.  Then set the `TreeClickHandler` using `model.setTreeClickHandler()`
 
 In general, you probably don't want to implement your own tree renderer from scratch, unless there is something particularly unusual.  You can easily subclass the `TreeTableCellRenderer` to add different formatting, and return your subclassed renderer in the appropriate TableColumn.
 
-## Table headers
+### Other columns
+If you do not specify TableCellRenderers for each TableColumn in `getTableColumn()`, then the JTable will just use a default Object renderer for each column, which calls toString().  To make the JTable use better renderers appropriate to the type of the column, you can override the `TableModel.getColumnClass()` method:
+```java
+    @Override
+    public Class<?> getColumnClass(final int columnIndex) {
+        switch (columnIndex) {
+            case 0: return String.class;
+            case 1: return Long.class;
+            case 2: return Boolean.class;
+        }
+        return Object.class;
+    }
+
+```
+JTable has built-in TableCellRenderers for Object (including String), Boolean, Number, Float, Double, Icon, IconImage and Date. 
+
+### Table headers
 By default, a `TreeTableHeaderRenderer` is used to render the table header.  This displays multi-column sorts by adding the number of the sort column as well as the ascending/descending icons.
 
 You can use a different header renderer if you like - just use one of the `bind()`  methods that lets you specify an alternative header renderer, or set it yourself on the `JTable` directly.  The header renderer has no knowledge that there is a tree being rendered.
@@ -137,3 +164,5 @@ If you want to group nodes by some feature of a node user object that isn't a co
 For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This can be achieved by setting a node comparator that makes folders "smaller than" files.
 
 If a node comparator is set, nodes will always be grouped by the comparator, even if no other columns are being sorted on.
+
+## Editing
