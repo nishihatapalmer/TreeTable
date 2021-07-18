@@ -6,7 +6,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 
-public class TreeTableCellRenderer extends DefaultTableCellRenderer implements TreeClickHandler {
+public class TreeTableCellRenderer extends DefaultTableCellRenderer implements TreeTableModel.TreeClickHandler {
 
     private static final int PADDING = 4;  // how many pixels to pad left and right, so display looks nice.
     private static final int DEFAULT_PIXELS_PER_LEVEL = 18; // It's a bit subjective... 16 felt too small, 20 too big.
