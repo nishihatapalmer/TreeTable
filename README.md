@@ -90,7 +90,7 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
    JTable table = ... 
    MyObject myObject = new MyObject("First root", 10000L, true);
    TreeTableNode root = new TreeTableNode(myObject, true);
-   TreeTableModel model = new PersonTreeTableModel(root, true);
+   TreeTableModel model = new MyObjectTreeTableModel(root, true);
    model.bindTable(table);
 ```
 
@@ -99,8 +99,8 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeTableNode` structure, and assign the correct user objects to the nodes.  There are at least two ways to do that:
 
-### Building a tree from the user object
-If your objects already have a tree structure, you can build a tree from them using the static utility method `TreeTableNode.buildTree()`.  For example:
+### Statically building a tree
+If your objects already have a tree structure, you can build a mirrored tree of TreeTableNodes from them using the static utility method `TreeTableNode.buildTree()`.  For example:
 ```java
    MyObject rootObject = yourMethodToGetAnObjectTree();
    TreeTableNode rootNode = TreeTableNode.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
@@ -169,10 +169,17 @@ For each column that sorting is defined on, the following comparators will be us
 Custom comparators can be supplied for any column by overriding `TreeTableModel.getColumnComparator()`.
 
 ### Grouping
-If you want to group nodes by some feature of a node user object that isn't a column value, you can set a node comparator that implements `Comparator<TreeTableNode>` by calling `model.setNodeComparator(comparator)`.  
+If you want to group nodes by some feature of a node or its user object, you can set a node comparator that implements `Comparator<TreeTableNode>` by calling `model.setNodeComparator(comparator)`.  
 
 For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This can be achieved by setting a node comparator that makes folders "smaller than" files.
 
 If a node comparator is set, nodes will always be grouped by the comparator, even if no other columns are being sorted on.
+
+### Sort behaviour
+When a column header is clicked on, if the column is already being sorted, it wlil flip from ascending to descending to unsorted.  If it's a new column, it will be added as an additional column to sort on, up to three maximum. 
+
+This behaviour can be customised by implementing a `ColumnSortStrategy` object and setting it on the `TreeTableRowSorter ` with `rowsorter.setSortStrategy(sortStrategy)`.
+
+//TODO: keyboard control of sorting?
 
 ## Editing
