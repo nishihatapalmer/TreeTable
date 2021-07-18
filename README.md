@@ -31,7 +31,7 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
    
       private static final int NUM_COLUMNS = 3;
    
-      public PersonTreeTableModel(TreeTableNode rootNode, boolean showRoot) {
+      public MyObjectTreeTableModel(TreeTableNode rootNode, boolean showRoot) {
           super(rootNode, NUM_COLUMNS, showRoot);
       }
    
