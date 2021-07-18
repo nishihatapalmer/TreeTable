@@ -95,7 +95,15 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 ## Building a tree
 
-The `TreeTableModel` **does not** build the tree nodes for you.  You must create nodes and child nodes using `TreeTableNode` or a subclass, and assign the correct user objects to the nodes. 
+The `TreeTableModel` does not build the tree nodes for you automatically.  You must create nodes and child nodes using `TreeTableNode` or a subclass, and assign the correct user objects to the nodes.
+
+### Building a tree from the user object
+If your objects already have a tree structure, you can build a tree from them using the static utility method `TreeTableNode.buildTree()`.  For example:
+```java
+   MyObject rootObject = yourMethodToGetAnObjectTree();
+   TreeTableNode rootNode = TreeTableNode.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
+```
+You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `TreeTableNode` will be returned which is the root node of an identical tree of TreeTableNodes.
 
 ### Dynamically building a tree
 You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableEvent.Listener` and responding to expand or collapse events.
