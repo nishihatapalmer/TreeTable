@@ -107,6 +107,8 @@ If your objects already have a tree structure, you can build a mirrored tree of 
 ```
 You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `TreeTableNode` will be returned which is the root node of an identical tree of TreeTableNodes.
 
+This method makes one assumption: that any node that doesn't have any children isn't allowed to have children.  So no expand or collapse handles will be shown for nodes with no children.  This is generally what is needed, but if your criteria is different, you will have to implement a custom method to build the tree.
+
 ### Dynamically building a tree
 You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableEvent.Listener` and responding to expand or collapse events.
 
@@ -171,8 +173,23 @@ Custom comparators can be supplied for any column by overriding `TreeTableModel.
 ### Grouping
 If you want to group nodes by some feature of a node or its user object, you can set a node comparator that implements `Comparator<TreeTableNode>` by calling `model.setNodeComparator(comparator)`.  
 
-For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This can be achieved by setting a node comparator that makes folders "smaller than" files.
+For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This could be achieved by setting a node comparator that makes folders "smaller than" files.
+```java
+public class AllowsChildrenComparator implements Comparator<TreeTableNode> {
+    @Override
+    public int compare(final TreeTableNode o1, final TreeTableNode o2) {
+        final boolean allowsChildren = o1.getAllowsChildren();
+        if (allowsChildren == o2.getAllowsChildren()) {
+            return 0;
+        }
+        return allowsChildren ? -1 : 1;
+    }
+}
 
+...
+        
+model.setNodeComparator(new AllowsChildrenComparator());
+```
 If a node comparator is set, nodes will always be grouped by the comparator, even if no other columns are being sorted on.
 
 ### Sort behaviour
