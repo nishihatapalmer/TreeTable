@@ -49,7 +49,6 @@ import java.util.List;
 //   feeding to the model (all nodes have to know the model they're in, so programmers have to specify that, or it
 //   automatically picks up the tree model from the root?).
 // * Should we use virtual key / key combos for expand collapse instead of chars?
-// * If node comparator defined, always use it (even if no other column sort keys defined?)
 
 //TODO: tests:
 // * custom comparators
@@ -63,6 +62,7 @@ import java.util.List;
  * <ul>
  *     <li>what the column definitions are</li>
  *     <li>whether any custom comparators or cell renderers will be supplied</li>
+ *     <li>getter and setter that maps columns to fields.</li>
  * </ul>
  *
  * <p><b>Usage</b></p>
@@ -183,6 +183,29 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * react to mouse and keyboard events.
      *
      * @param table The JTable to bind to this TreeTableModel.
+     * @param defaultSortKey The default sort keys the table will have if no other sort defined.
+     */
+    public void bindTable(final JTable table, final RowSorter.SortKey defaultSortKey) {
+        bindTable(table, new TreeTableRowSorter(this, defaultSortKey), new TreeTableHeaderRenderer());
+    }
+
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
+     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
+     */
+    public void bindTable(final JTable table, final List<RowSorter.SortKey> defaultSortKeys) {
+        bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), new TreeTableHeaderRenderer());
+    }
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
      * @param rowSorter The row sorter to use with the table.
      */
     public void bindTable(final JTable table, final RowSorter<TreeTableModel> rowSorter) {
@@ -198,6 +221,30 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
     public void bindTable(final JTable table,  final TableCellRenderer headerRenderer) {
         bindTable(table, new TreeTableRowSorter(this), headerRenderer);
+    }
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
+     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
+     * @param headerRenderer The renderer to use to draw the table header.
+     */
+    public void bindTable(final JTable table,  final List<RowSorter.SortKey> defaultSortKeys, final TableCellRenderer headerRenderer) {
+        bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
+    }
+
+    /**
+     * Binds a JTable to use this model and configures columns, sorters and listeners to
+     * react to mouse and keyboard events.
+     *
+     * @param table The JTable to bind to this TreeTableModel.
+     * @param defaultSortKey The default sort key the table will have if no other sort defined.
+     * @param headerRenderer The renderer to use to draw the table header.
+     */
+    public void bindTable(final JTable table,  final RowSorter.SortKey defaultSortKey, final TableCellRenderer headerRenderer) {
+        bindTable(table, new TreeTableRowSorter(this, defaultSortKey), headerRenderer);
     }
 
     /**

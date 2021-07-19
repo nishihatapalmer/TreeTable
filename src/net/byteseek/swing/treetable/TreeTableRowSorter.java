@@ -34,6 +34,8 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import java.util.*;
 
+//TODO: test default sort keys.
+
 /**
  * A class which sorts a TreeTableModel, given the sort keys to sort on.
  * It provides an index of the view to model, and the model to view.
@@ -109,7 +111,11 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param model The TreeTableModel to sort.
      */
     public TreeTableRowSorter(final TreeTableModel model) {
-        this(model, null);
+        this(model, (List) null);
+    }
+
+    public TreeTableRowSorter(final TreeTableModel model, final SortKey... defaultSortKeys) {
+        this(model, Arrays.asList(defaultSortKeys));
     }
 
     /**
