@@ -35,18 +35,17 @@ import net.byteseek.swing.treetable.TreeTableNode;
 
 import java.util.Comparator;
 
-public class TestNodeComparator implements Comparator<TreeTableNode> {
+public class AllowsChildrenComparator implements Comparator<TreeTableNode> {
 
     @Override
-    public int compare(TreeTableNode o1, TreeTableNode o2) {
-        if (o1.getAllowsChildren()) {
-            if (o2.getAllowsChildren()) {
-                return 0;
-            }
-            return -1;
-        } else if (o2.getAllowsChildren()) {
-            return 1;
+    public int compare(final TreeTableNode o1, final TreeTableNode o2) {
+        //                      o1 children      o1 no children
+        // o2 children               0               1
+        // o2 no children           -1               0
+        final boolean allowsChildren = o1.getAllowsChildren();
+        if (allowsChildren == o2.getAllowsChildren()) {
+            return 0;
         }
-        return 0;
+        return allowsChildren ? -1 : 1;
     }
 }

@@ -51,7 +51,7 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     public MyObjectTreeTableModel(final TreeTableNode rootNode, final boolean showRoot) {
         super(rootNode, NUM_COLUMNS, showRoot);
         setIcons();
-        setNodeComparator(new TestNodeComparator());
+        setNodeComparator(new AllowsChildrenComparator());
         buildColumns();
     }
 
