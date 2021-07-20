@@ -34,8 +34,6 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import java.util.*;
 
-//TODO: test default sort keys.
-
 /**
  * A class which sorts a TreeTableModel, given the sort keys to sort on.
  * It provides an index of the view to model, and the model to view.
@@ -80,7 +78,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * The sort strategy to use to build new sort keys after sort is requested on a column.
      * This lets us change the behaviour when a column is clicked on to sort.  For example,
      * we could make it the primary sort column, or add it to the existing sort columns, or remove other columns.
-     * Defaults to the {@link }MultiColumnSortStrategy} if not supplied.
+     * Defaults to the {@link }TreeTableSortStrategy} if not supplied.
      */
     protected ColumnSortStrategy sortStrategy;
 
@@ -104,16 +102,19 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      */
     protected int lastRowCount;
 
-    //TODO: do we need constructor that supplies SortKeys?  Would avoid multiple sorts.
-
     /**
      * Constructs a TreeTableRowSorter given a TreeTableModel.
      * @param model The TreeTableModel to sort.
      */
     public TreeTableRowSorter(final TreeTableModel model) {
-        this(model, (List) null);
+        this(model, Collections.EMPTY_LIST);
     }
 
+    /**
+     * Constructs a TreeTableRowSorter given a TreeTableModel and one or more default sort keys.
+     * @param model The tree table model to sort.
+     * @param defaultSortKeys The default sort if no other sort is defined.
+     */
     public TreeTableRowSorter(final TreeTableModel model, final SortKey... defaultSortKeys) {
         this(model, Arrays.asList(defaultSortKeys));
     }
@@ -128,8 +129,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
             throw new IllegalArgumentException("Must supply a non null TreeTableModel.");
         }
         this.model = model;
-        this.defaultSortKeys = defaultSortKeys;
-        sortKeys = defaultSortKeys == null? new ArrayList<>() : new ArrayList<>(defaultSortKeys);
+        this.defaultSortKeys = defaultSortKeys == null ? Collections.EMPTY_LIST : defaultSortKeys;
+        sortKeys = new ArrayList<>(defaultSortKeys);
         buildSortIndexes(); // even if no columns are sorted, we might have node comparison sorts.
     }
 
@@ -157,7 +158,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void setSortKeys(final List<? extends SortKey> keys) {
-        List<? extends SortKey> newKeys = keys == null? Collections.emptyList() : keys;
+        final List<? extends SortKey> newKeys = keys == null || keys.isEmpty() ? defaultSortKeys : keys;
         if (!sortKeys.equals(newKeys)) {
             this.sortKeys = new ArrayList<>(newKeys);
             fireSortOrderChanged(); //DefaultRowSorter fires before it actually does the sort, so we do that here.
@@ -218,24 +219,39 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
+    /**
+     * @return the SortStrategy for this RowSorter.  If none is defined, a {@link TreeTableSortStrategy} will be created.
+     */
     public ColumnSortStrategy getSortStrategy() {
         if (sortStrategy == null) {
-            sortStrategy = new MultiColumnSortStrategy();
+            sortStrategy = new TreeTableSortStrategy();
         }
         return sortStrategy;
     }
 
+    /**
+     * Sets the ColumnSortStrategy for this RowSorter.  If set to null, it will revert to a {@link TreeTableRowSorter}.
+     * @param sortStrategy The ColumnSortStrategy to use.
+     */
     public void setSortStrategy(ColumnSortStrategy sortStrategy) {
         this.sortStrategy = sortStrategy;
     }
 
+    /**
+     * Gets the list of sort keys to use if no other sort is defined.
+     * @return The list of sort keys to use if no other sort is defined.
+     */
     public List<SortKey> getDefaultSortKeys() {
         return defaultSortKeys;
     }
 
-    public void setDefaultSortKeys(List<SortKey> newDefaults) {
-        this.defaultSortKeys = newDefaults;
-        if (newDefaults != null && !newDefaults.isEmpty()) { // If we have some keys as defaults
+    /**
+     * Sets the default sort keys to use if no other sort is defined.  Ensures will never set to null.
+     * @param newDefaults The new default sort keys to use.
+     */
+    public void setDefaultSortKeys(final List<SortKey> newDefaults) {
+        this.defaultSortKeys = newDefaults == null? Collections.EMPTY_LIST : newDefaults;
+        if (!defaultSortKeys.isEmpty()) {                    // If we have some keys as defaults
             if (sortKeys == null || sortKeys.isEmpty()) {    // And we currently have no sort keys defined:
                 setSortKeys(newDefaults);                    // Set the defaults as the new sort keys.
             }

@@ -80,7 +80,7 @@ public class TestForm {
     private void createTreeTable(MyObject objectTree) {
         final TreeTableNode rootNode = TreeTableNode.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
         treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
-        treeTableModel.bindTable(table1);
+        treeTableModel.bindTable(table1, new RowSorter.SortKey(0, SortOrder.ASCENDING));
         /*
         treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
             @Override

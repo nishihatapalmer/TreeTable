@@ -33,27 +33,34 @@ package net.byteseek.swing.treetable;
 
 import javax.swing.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class MultiColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
+public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
     public enum NewColumnAction { ADD_TO_START_IF_ROOM, ADD_TO_START, ADD_TO_END_IF_ROOM, ADD_TO_END }
     public enum WhenUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
 
-    private static final int MAX_DEFAULT_SORT_KEYS = 2;
+    private static final int DEFAULT_MAX_SORT_KEYS = 3;
     private static final NewColumnAction DEFAULT_NEW_COLUMN_ACTION = NewColumnAction.ADD_TO_END;
-    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE_SUBSEQUENT;
+    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE;
 
     private int maximumSortKeys;
     private NewColumnAction newColumnAction;
     private WhenUnsortedAction whenUnsortedAction;
 
-    public MultiColumnSortStrategy() {
-        this(MAX_DEFAULT_SORT_KEYS, DEFAULT_NEW_COLUMN_ACTION, DEFAULT_WHEN_UNSORTED_ACTION);
+    /**
+     * The list of default sort keys which are used if no other sort specified.
+     */
+    protected List<RowSorter.SortKey> defaultSortKeys;
+
+    public TreeTableSortStrategy() {
+        this(DEFAULT_MAX_SORT_KEYS, DEFAULT_NEW_COLUMN_ACTION, DEFAULT_WHEN_UNSORTED_ACTION);
     }
 
-    public MultiColumnSortStrategy(final int maximumSortKeys, final NewColumnAction newColumnAction,
-                                   final WhenUnsortedAction whenUnsortedAction) {
+    public TreeTableSortStrategy(final int maximumSortKeys,
+                                 final NewColumnAction newColumnAction,
+                                 final WhenUnsortedAction whenUnsortedAction) {
         this.maximumSortKeys = maximumSortKeys;
         this.newColumnAction = newColumnAction;
         this.whenUnsortedAction = whenUnsortedAction;

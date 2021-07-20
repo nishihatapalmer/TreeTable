@@ -307,21 +307,23 @@ public abstract class TreeTableModel extends AbstractTableModel {
     public abstract Object getColumnValue(TreeTableNode node, int column);
 
     /**
-     * Sets the value of the column to the node.
-     *
-     * @param node The node to set a column value for.
-     * @param column The column to set the value for.
-     * @param value The value to set.
-     */
-    public abstract void setColumnValue(TreeTableNode node, int column, Object value);
-
-    /**
      * Returns a TableColumn defining the column.
      *
      * @param column The column index to get the TableColumn for.
      * @return a TableColumn defining the column.
      */
     public abstract TableColumn getTableColumn(int column);
+
+    /**
+     * Sets the value of the column to the node.
+     *
+     * @param node The node to set a column value for.
+     * @param column The column to set the value for.
+     * @param value The value to set.
+     */
+    public void setColumnValue(TreeTableNode node, int column, Object value) {
+        // Default is read-only.  Subclasses must override to set column values.
+    }
 
     /**
      * Returns a Comparator for a given column index.  Override this method if you want to specify custom comparators.
