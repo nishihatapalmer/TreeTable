@@ -6,7 +6,7 @@ Treetable displays a tree of information, with additional columns for each item 
 
 ### Software status
 This software is still in **alpha**.  It may change unexpectedly at any time.
-The parts that are implemented seem to work OK, but we have no unit tests.
+It seems to work OK, but we have no unit tests, and there's still a few issues which are being worked through.
 
 ## Getting started
 
@@ -25,7 +25,9 @@ We'll start with the object whose values you want to display in a tree table.  F
 ```
 
 ### The model
-First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.
+First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.  
+
+Assuming the tree is composed of `DefaultMutableTreeNode` objects, and each `MyObject` is stored in the node user object:
 
 ```java
 public class MyObjectTreeTableModel extends TreeTableModel {
