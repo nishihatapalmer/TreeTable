@@ -27,7 +27,6 @@ We'll start with the object whose values you want to display in a tree table.  F
 
 ### The model
 First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.  
-
 ```java
    public class MyObjectTreeTableModel extends TreeTableModel {
    
@@ -46,28 +45,6 @@ First we need to subclass a `TreeTableModel`, which defines how to map a table t
              case 2: return myObject.getEnabled();
           }
          throw new IllegalArgumentException("Invalid column: " + column);
-      }
-
-      @Override
-      public void setColumnValue(TreeTableNode node, int column, Object value) {
-          MyObject myObject = (MyObject) node.getUserObject();
-          switch (column) {
-            case 0: {
-                myObject.setDescription((String) value);
-                break;
-            }
-            case 1: {
-                myObject.setSize((Long) value);
-                break;
-            }
-            case 2: {
-                myObject.setEnabled((Boolean) value);
-                break;
-            }
-            default: {
-                throw new IllegalArgumentException("Invalid column: " + column);
-            }
-         }
       }
 
       @Override
@@ -105,9 +82,9 @@ If your objects already have a tree structure, you can build a mirrored tree of 
    MyObject rootObject = yourMethodToGetAnObjectTree();
    TreeTableNode rootNode = TreeTableNode.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
 ```
-You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `TreeTableNode` will be returned which is the root node of an identical tree of TreeTableNodes.
+You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `TreeTableNode` will be returned which is the root node of an identical tree of TreeTableNodes.  This method makes one assumption: that any node that doesn't have any children isn't allowed to have children.  So no expand or collapse handles will be shown for nodes with no children.  
 
-This method makes one assumption: that any node that doesn't have any children isn't allowed to have children.  So no expand or collapse handles will be shown for nodes with no children.  This is generally what is needed, but if your criteria is different, you will have to implement a custom method to build the tree.
+If your object doesn't have a tree structure modelled within it already, you can build any static tree of `TreeTableNode` you like, but you'll have to write the code to do that.
 
 ### Dynamically building a tree
 You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableEvent.Listener` and responding to expand or collapse events.
@@ -120,7 +97,7 @@ The tree column is the column in which the tree structure is rendered.
 ### Expanding and collapsing nodes
 Selected nodes can be expanded or collapsed by clicking to the left of the expand handle, or via the keyboard with the `+` and `-` keys.  The keys to use are configurable by calling `model.setExpandChar()` and `model.setCollapseChar()`.  You can set them both to be the same char if you prefer, e.g. space bar toggles expand/collapse.
 
-When a node expands or collapses, it fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
+When a node expands or collapses, the model fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
 
 ### Icons
 To supply icons for nodes in the tree column, override `TreeTableModel.getNodeIcon(node)`. 
@@ -200,3 +177,52 @@ This behaviour can be customised by implementing a `ColumnSortStrategy` object a
 //TODO: keyboard control of sorting?
 
 ## Editing
+If you want to edit cells in the tree table, you have to override the following method: `TreeTableModel.isCellEditable()` and return true if a particular cell is editable.
+```java
+    @Override
+    public boolean isCellEditable(final int rowIndex, final int columnIndex) {
+        return true;
+    }
+```
+You must also override `TreeTableModel.setColumnValue()` to write to the correct field for a column that's editable:
+```java
+ @Override
+    public void setColumnValue(final TreeTableNode node, final int column, final Object value) {
+        checkValidColumn(column);
+        final Object o = node.getUserObject();
+        if (o instanceof MyObject) {
+            final MyObject obj = (MyObject) o;
+            switch (column) {
+                case 0: {      
+                    obj.setDescription(String) value);
+                    break;
+                }
+                case 1: {
+                    obj.setSize((Long) value);
+                    break;
+                }
+                case 2: {
+                    obj.setEnabled((Boolean) value);
+                    break;
+                }
+            }
+        }
+    }
+```
+
+
+If you are not specifying `TableCellEditor` objects in each `TableColumn`, you must override `TableModel.getColumnClass()` to return the types of the objects in the column.  
+```java
+    @Override
+    public Class<?> getColumnClass(final int columnIndex) {
+        switch (columnIndex) {
+            case 0: return String.class;
+            case 1: return Long.class;
+            case 2: return Boolean.class;
+        }
+        return Object.class;
+    }
+
+```
+JTable has default cell editors for Object (including String), Boolean, Number, Float, Double, Icon, IconImage and Date.  For other types you will need to implement your own `TableCellEditor`.
+//TODO: confirm default cell editors... does it have icon editors???
