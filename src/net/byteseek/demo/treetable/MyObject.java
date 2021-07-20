@@ -29,23 +29,58 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.byteseek.swing.treetable.demo;
+package net.byteseek.demo.treetable;
 
-import net.byteseek.swing.treetable.TreeTableNode;
+import java.util.ArrayList;
+import java.util.List;
 
-import java.util.Comparator;
+public class MyObject {
 
-public class AllowsChildrenComparator implements Comparator<TreeTableNode> {
+    private String description;
+    private long   size;
+    private boolean enabled;
+    private List<MyObject> children;
 
-    @Override
-    public int compare(final TreeTableNode o1, final TreeTableNode o2) {
-        //                      o1 children      o1 no children
-        // o2 children               0               1
-        // o2 no children           -1               0
-        final boolean allowsChildren = o1.getAllowsChildren();
-        if (allowsChildren == o2.getAllowsChildren()) {
-            return 0;
-        }
-        return allowsChildren ? -1 : 1;
+    public MyObject(String description, long size, boolean enabled) {
+        this.description = description;
+        this.size = size;
+        this.enabled = enabled;
+        children = new ArrayList<>();
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public long getSize() {
+        return size;
+    }
+
+    public void setSize(long size) {
+        this.size = size;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public void addChild(MyObject test) {
+        children.add(test);
+    }
+
+    public void addChildren(List<MyObject> children) {
+        this.children.addAll(children);
+    }
+
+    public List<MyObject> getChildren() {
+        return children;
     }
 }

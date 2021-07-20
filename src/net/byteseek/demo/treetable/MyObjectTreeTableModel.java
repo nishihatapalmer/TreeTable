@@ -29,13 +29,14 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.byteseek.swing.treetable.demo;
+package net.byteseek.demo.treetable;
 
 import net.byteseek.swing.treetable.TreeTableModel;
-import net.byteseek.swing.treetable.TreeTableNode;
 
 import javax.swing.*;
 import javax.swing.table.TableColumn;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
 import java.util.Comparator;
 
 public class MyObjectTreeTableModel extends TreeTableModel {
@@ -48,10 +49,10 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     private Icon openIcon;              // tree node displaying children.
     private Icon closedIcon;            // tree node not displaying children.
 
-    public MyObjectTreeTableModel(final TreeTableNode rootNode, final boolean showRoot) {
+    public MyObjectTreeTableModel(final TreeNode rootNode, final boolean showRoot) {
         super(rootNode, NUM_COLUMNS, showRoot);
         setIcons();
-        setNodeComparator(new AllowsChildrenComparator());
+        setNodeComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
         buildColumns();
     }
 
@@ -71,9 +72,9 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     }
 
     @Override
-    public Object getColumnValue(final TreeTableNode node, final int column) {
+    public Object getColumnValue(final TreeNode node, final int column) {
         checkValidColumn(column);
-        final Object o = node.getUserObject();
+        final Object o = ((DefaultMutableTreeNode) node).getUserObject();
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
             switch (column) {
@@ -86,9 +87,9 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     }
 
     @Override
-    public void setColumnValue(final TreeTableNode node, final int column, final Object value) {
+    public void setColumnValue(final TreeNode node, final int column, final Object value) {
         checkValidColumn(column);
-        final Object o = node.getUserObject();
+        final Object o = ((DefaultMutableTreeNode) node).getUserObject();
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
             switch (column) {
@@ -120,10 +121,10 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     }
 
     @Override
-    public Icon getNodeIcon(TreeTableNode node) {
+    public Icon getNodeIcon(TreeNode node) {
         if (node != null) {
             if (node.getAllowsChildren()) {
-                return node.isExpanded() ? openIcon : closedIcon;
+                return isExpanded(node) ? openIcon : closedIcon;
             }
             return leafIcon;
         }

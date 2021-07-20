@@ -159,6 +159,11 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         return sortDescendingIcon;
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName();
+    }
+
     protected void setGridColor(Color gridColor) {
         if (this.gridColor != gridColor) {
             this.gridColor = gridColor;
@@ -171,9 +176,10 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         if (rowSorter != null) {
             List<? extends RowSorter.SortKey> sortKeys = rowSorter.getSortKeys();
             if (sortKeys != null) {
+                final int columnModelIndex = table.convertColumnIndexToModel(column);
                 for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
                     RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
-                    if (key.getColumn() == column && key.getSortOrder() != SortOrder.UNSORTED) {
+                    if (key.getColumn() == columnModelIndex && key.getSortOrder() != SortOrder.UNSORTED) {
                         sortOrder = key.getSortOrder();
                         sortColumn = sortKeyIndex;
                         setBold(true);

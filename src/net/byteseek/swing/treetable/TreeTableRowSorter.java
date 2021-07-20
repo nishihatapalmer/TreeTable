@@ -32,6 +32,7 @@
 package net.byteseek.swing.treetable;
 
 import javax.swing.*;
+import javax.swing.tree.TreeNode;
 import java.util.*;
 
 /**
@@ -258,6 +259,11 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + '(' + model + ')';
+    }
+
     /**
      * Compares two nodes in the tree table mode given their row indexes.
      * This method ensures that only nodes with common parents are compared.
@@ -269,15 +275,15 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @return Whether node 1 is less than (<0), equal to (=0) or greater than (>0) node 2.
      */
     protected int compare(final int modelRowIndex1, final int modelRowIndex2) {
-        TreeTableNode firstNode = model.getNodeAtRow(modelRowIndex1);
-        TreeTableNode secondNode = model.getNodeAtRow(modelRowIndex2);
+        TreeNode firstNode = model.getNodeAtRow(modelRowIndex1);
+        TreeNode secondNode = model.getNodeAtRow(modelRowIndex2);
 
         // If the nodes don't already share a parent, we have to find two comparable parent nodes that do.
         if (firstNode.getParent() != secondNode.getParent()) {
 
             // If the nodes are at different levels, walk one of them back so they are at the same level as each other.
-            final int firstLevel = firstNode.getLevel();
-            final int secondLevel = secondNode.getLevel();
+            final int firstLevel = getLevel(firstNode);
+            final int secondLevel = getLevel(secondNode);
             if (firstLevel < secondLevel) {
                 secondNode = getAncestor(secondNode, secondLevel - firstLevel);
             } else if (secondLevel < firstLevel) {
@@ -286,13 +292,22 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
             // They are now both at the same level - find the nodes that share a common parent (root will be common to all).
             while (firstNode.getParent() != secondNode.getParent()) {
-                firstNode = (TreeTableNode) firstNode.getParent();
-                secondNode = (TreeTableNode) secondNode.getParent();
+                firstNode = firstNode.getParent();
+                secondNode = secondNode.getParent();
             }
         }
 
         // Nodes share a common parent - compare values:
         return compareWithCommonParent(firstNode, secondNode, modelRowIndex1 - modelRowIndex2);
+    }
+
+    private int getLevel(final TreeNode node) {
+        int nodeLevel = 0;
+        TreeNode currentNode = node;
+        while ((currentNode = currentNode.getParent()) != null) {
+            nodeLevel++;
+        }
+        return nodeLevel;
     }
 
     /**
@@ -303,7 +318,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param unsortedCompare A comparison result if they are not sorted.
      * @return The result of comparing the first and second node.
      */
-    protected int compareWithCommonParent(final TreeTableNode firstNode, final TreeTableNode secondNode, final int unsortedCompare) {
+    protected int compareWithCommonParent(final TreeNode firstNode, final TreeNode secondNode, final int unsortedCompare) {
         final int nodeGrouping = groupNodes(firstNode, secondNode);
         if (nodeGrouping != 0) { // if we have a result from grouping, apply it.
             return nodeGrouping;
@@ -325,8 +340,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return unsortedCompare;
     }
 
-    protected int groupNodes(final TreeTableNode firstNode, final TreeTableNode secondNode) {
-        final Comparator<TreeTableNode> nodeComparator = model.getNodeComparator();
+    protected int groupNodes(final TreeNode firstNode, final TreeNode secondNode) {
+        final Comparator<TreeNode> nodeComparator = model.getNodeComparator();
         return nodeComparator == null ? 0 : nodeComparator.compare(firstNode, secondNode);
     }
 
@@ -338,7 +353,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param column The column value to compare.
      * @return The result of comparing the first and second node on the specified column.
      */
-    protected int compareNodeColumns(final TreeTableNode firstNode, final TreeTableNode secondNode, final int column) {
+    protected int compareNodeColumns(final TreeNode firstNode, final TreeNode secondNode, final int column) {
         final TreeTableModel localModel = model;
         final int result;
         final Object value1 = localModel.getColumnValue(firstNode, column);
@@ -471,10 +486,10 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param levelsDown The number of levels down to go (1 = the parent).
      * @return The ancestor of the node.
      */
-    private TreeTableNode getAncestor(final TreeTableNode node, final int levelsDown) {
-        TreeTableNode result = node;
+    private TreeNode getAncestor(final TreeNode node, final int levelsDown) {
+        TreeNode result = node;
         for (int num = 0; num < levelsDown; num++) {
-            result = (TreeTableNode) result.getParent();
+            result = result.getParent();
         }
         return result;
     }

@@ -26,38 +26,47 @@ We'll start with the object whose values you want to display in a tree table.  F
 ```
 
 ### The model
-First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.  
-```java
-   public class MyObjectTreeTableModel extends TreeTableModel {
-   
-      private static final int NUM_COLUMNS = 3;
-   
-      public MyObjectTreeTableModel(TreeTableNode rootNode, boolean showRoot) {
-          super(rootNode, NUM_COLUMNS, showRoot);
-      }
-   
-      @Override
-      public Object getColumnValue(TreeTableNode node, int column) {  
-          MyObject myObject = (MyObject) node.getUserObject();
-          switch (column) {
-             case 0: return myObject.getDescription();
-             case 1: return myObject.getSize();
-             case 2: return myObject.getEnabled();
-          }
-         throw new IllegalArgumentException("Invalid column: " + column);
-      }
+First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.
 
-      @Override
-      public TableColumn getTableColumn(int column) {
-          switch (column) {
-             case 0: return createColumn(0, "Description");
-             case 1: return createColumn(1, "Size");
-             case 2: return createColumn(2, "Enabled");
-          }
-          throw new IllegalArgumentException("No column exists for " + column);
-      }
-      
-   }
+```java
+   import javax.swing.tree.DefaultMutableTreeNode;
+
+public class MyObjectTreeTableModel extends TreeTableModel {
+
+    private static final int NUM_COLUMNS = 3;
+
+    public MyObjectTreeTableModel(TreeNode rootNode, boolean showRoot) {
+        super(rootNode, NUM_COLUMNS, showRoot);
+    }
+
+    @Override
+    public Object getColumnValue(TreeNode node, int column) {
+        MyObject myObject = (MyObject) ((DefaultMutableTreeNode) node).getUserObject();
+        switch (column) {
+            case 0:
+                return myObject.getDescription();
+            case 1:
+                return myObject.getSize();
+            case 2:
+                return myObject.getEnabled();
+        }
+        throw new IllegalArgumentException("Invalid column: " + column);
+    }
+
+    @Override
+    public TableColumn getTableColumn(int column) {
+        switch (column) {
+            case 0:
+                return createColumn(0, "Description");
+            case 1:
+                return createColumn(1, "Size");
+            case 2:
+                return createColumn(2, "Enabled");
+        }
+        throw new IllegalArgumentException("No column exists for " + column);
+    }
+
+}
 ```
 
 ### Displaying the tree
@@ -66,7 +75,7 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 ```java
    JTable table = ... 
    MyObject myObject = new MyObject("First root", 10000L, true);
-   TreeTableNode root = new TreeTableNode(myObject, true);
+   TreeNode root = new DefaultMutableTreeNode(myObject, true);
    TreeTableModel model = new MyObjectTreeTableModel(root, true);
    model.bindTable(table);
 ```
@@ -74,17 +83,17 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 ## Building a tree
 
-In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeTableNode` structure, and assign the correct user objects to the nodes.  There are at least two ways to do that:
+In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeNode` structure, and assign the correct user objects to the nodes.  There are at least two ways to do that:
 
 ### Statically building a tree
-If your objects already have a tree structure, you can build a mirrored tree of TreeTableNodes from them using the static utility method `TreeTableNode.buildTree()`.  For example:
+If your objects already have a tree structure, you can build a mirrored tree of TreeNodes from them using the static utility method `TreeTableModel.buildTree()`.  For example:
 ```java
    MyObject rootObject = yourMethodToGetAnObjectTree();
-   TreeTableNode rootNode = TreeTableNode.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
+   MutableTreeNode rootNode = TreeTableModel.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
 ```
-You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `TreeTableNode` will be returned which is the root node of an identical tree of TreeTableNodes.  This method makes one assumption: that any node that doesn't have any children isn't allowed to have children.  So no expand or collapse handles will be shown for nodes with no children.  
+You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `MutableTreeNode` will be returned which is the root node of an identical tree of `DefaultMutableTreeNode`.  This method makes one assumption: that any node that doesn't have any children isn't allowed to have children.  So no expand or collapse handles will be shown for nodes with no children.  
 
-If your object doesn't have a tree structure modelled within it already, you can build any static tree of `TreeTableNode` you like, but you'll have to write the code to do that.
+If your object doesn't have a tree structure modelled within it already, you can build any static tree of `TreeNode` you like, but you'll have to write the code to do that.
 
 ### Dynamically building a tree
 You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableEvent.Listener` and responding to expand or collapse events.
@@ -148,13 +157,13 @@ For each column that sorting is defined on, the following comparators will be us
 Custom comparators can be supplied for any column by overriding `TreeTableModel.getColumnComparator()`.
 
 ### Grouping
-If you want to group nodes by some feature of a node or its user object, you can set a node comparator that implements `Comparator<TreeTableNode>` by calling `model.setNodeComparator(comparator)`.  
+If you want to group nodes by some feature of a node or its user object, you can set a node comparator that implements `Comparator<TreeNode>` by calling `model.setNodeComparator(comparator)`.  
 
 For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This could be achieved by setting a node comparator that makes folders "smaller than" files.
 ```java
-public class AllowsChildrenComparator implements Comparator<TreeTableNode> {
+public class AllowsChildrenComparator implements Comparator<TreeNode> {
     @Override
-    public int compare(final TreeTableNode o1, final TreeTableNode o2) {
+    public int compare(final TreeNode o1, final TreeNode o2) {
         final boolean allowsChildren = o1.getAllowsChildren();
         if (allowsChildren == o2.getAllowsChildren()) {
             return 0;
@@ -187,9 +196,9 @@ If you want to edit cells in the tree table, you have to override the following 
 You must also override `TreeTableModel.setColumnValue()` to write to the correct field for a column that's editable:
 ```java
  @Override
-    public void setColumnValue(final TreeTableNode node, final int column, final Object value) {
+    public void setColumnValue(final TreeNode node, final int column, final Object value) {
         checkValidColumn(column);
-        final Object o = node.getUserObject();
+        final Object o = (DefaultMutableTreeNode) node.getUserObject();
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
             switch (column) {

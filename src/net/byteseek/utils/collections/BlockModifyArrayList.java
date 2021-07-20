@@ -29,23 +29,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.byteseek.swing.treetable;
+package net.byteseek.utils.collections;
 
 import java.util.AbstractList;
 import java.util.List;
 
 /**
- * A List which provides efficient block operations for insert and remove, backed by an array.
+ * A List which provides efficient block operations for insert and remove of objects backed by an array.
  * It is almost identical to ArrayList, except the block operations don't have to call insert() or remove()
- * individually for each row inserted or removed (which causes an ArrayList to shift all the other values up or
- * down one each time).  So for block insert and remove, ArrayList is O(nm), whereas TreeTableNodeList is O(n+m).
+ * individually for each object inserted or removed (which causes an ArrayList to shift all the other values up or
+ * down one each time).  So for block insert and remove, ArrayList is O(nm), whereas BlockModifyArrayList is O(n+m).
  */
-class TreeTableNodeList extends AbstractList<TreeTableNode> {
+public class BlockModifyArrayList<E> extends AbstractList<E> {
 
     private static final int DEFAULT_CAPACITY = 256;
-    
+
     private int growMultiplierPercent = 200;
-    private TreeTableNode[] displayedNodes = new TreeTableNode[DEFAULT_CAPACITY];
+    private E[] elements = (E[]) new Object[DEFAULT_CAPACITY];
     private int size;
 
     @Override
@@ -54,75 +54,75 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
     }
 
     @Override
-    public TreeTableNode get(final int index) {
+    public E get(final int index) {
         checkIndex(index);
-        return displayedNodes[index];
+        return elements[index];
     }
 
     @Override
-    public boolean add(final TreeTableNode node) {
+    public boolean add(final E element) {
         checkResize(1);
-        displayedNodes[size++] = node;
+        elements[size++] = element;
         return true;
     }
 
-    public boolean add(final List<TreeTableNode> nodes) {
-        final int numToAdd = nodes.size();
+    public boolean add(final List<E> elements) {
+        final int numToAdd = elements.size();
         checkResize(numToAdd);
-        for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {
-            displayedNodes[size++] = nodes.get(nodeIndex);
+        for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
+            this.elements[size++] = elements.get(elementIndex);
         }
         return true;
     }
 
-    public void insert(final TreeTableNode node, final int index) {
+    public void insert(final E element, final int index) {
         if (index == size) {
-            add(node);
+            add(element);
         } else {
             checkIndex(index);
             checkResize(1);
             // Shift the others along one:
             for (int position = size - 1; position >= index; position--) {
-                displayedNodes[position + 1] = displayedNodes[position];
+                elements[position + 1] = elements[position];
             }
-            // insert the new node:
-            displayedNodes[index] = node;
+            // insert the new element:
+            elements[index] = element;
             size++;
         }
     }
 
     //TODO: Insert is called on view index, not model index when sorted.
-    public void insert(final List<TreeTableNode> nodes, final int index) {
+    public void insert(final List<E> elements, final int index) {
         if (index == size) {
-            add(nodes);
+            add(elements);
         } else {
             checkIndex(index);
-            final int numToAdd = nodes.size();
+            final int numToAdd = elements.size();
             checkResize(numToAdd);
             final int numToShift = size - index;
             final int newPosition = index + numToAdd;
-            // move the existing nodes up to create a gap
+            // move the existing elements up to create a gap
             for (int position = numToShift - 1; position >= 0; position--) {
-                displayedNodes[newPosition + position] = displayedNodes[index + position];
+                this.elements[newPosition + position] = this.elements[index + position];
             }
 
-            // insert the new nodes in the gap.
-            for (int nodeIndex = 0; nodeIndex < numToAdd; nodeIndex++) {
-                displayedNodes[index + nodeIndex] = nodes.get(nodeIndex);
+            // insert the new elements in the gap.
+            for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
+                this.elements[index + elementIndex] = elements.get(elementIndex);
             }
             size += numToAdd;
         }
     }
 
     @Override
-    public TreeTableNode remove(final int index) {
+    public E remove(final int index) {
         checkIndex(index);
-        TreeTableNode nodeToRemove = displayedNodes[index];
+        final E elementToRemove = elements[index];
         for (int position = index; position < size - 1; position++) {
-            displayedNodes[position] = displayedNodes[position + 1];
+            elements[position] = elements[position + 1];
         }
         size--;
-        return nodeToRemove;
+        return elementToRemove;
     }
 
     public void remove(final int from, final int to) {
@@ -137,7 +137,7 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
             final int numToRemove = rowAfterRemoved - from;
             final int numToMove = size - rowAfterRemoved;
             for (int position = 0; position < numToMove; position++) {
-                displayedNodes[from + position] = displayedNodes[rowAfterRemoved + position];
+                elements[from + position] = elements[rowAfterRemoved + position];
             }
             size -= numToRemove;
         }
@@ -155,26 +155,26 @@ class TreeTableNodeList extends AbstractList<TreeTableNode> {
     }
 
     private void checkResize(final int numToAdd) {
-        if (size + numToAdd >= displayedNodes.length) {
+        if (size + numToAdd >= elements.length) {
             growArray();
         }
     }
 
     private void growArray() {
-        if (displayedNodes.length == Integer.MAX_VALUE) {
+        if (elements.length == Integer.MAX_VALUE) {
             throw new OutOfMemoryError("Cannot increase the list size beyond Integer.MAX_VALUE: " + this);
         }
-        TreeTableNode[] newArray = new TreeTableNode[getGrowSize()];
-        System.arraycopy(displayedNodes, 0, newArray, 0, displayedNodes.length);
-        displayedNodes = newArray;
+        E[] newArray = (E[]) new Object[getGrowSize()];
+        System.arraycopy(elements, 0, newArray, 0, elements.length);
+        elements = newArray;
     }
     
     private int getGrowSize() {
         // We grow by a multiplier that gradually reduces.
         // This is because we want to grow faster when we're smaller (to avoid frequent re-sizes if large
-        // numbers of nodes are being added), but to grow proportionally a bit slower once we're getting quite big
+        // numbers of elements are being added), but to grow proportionally a bit slower once we're getting quite big
         // (or we will waste a lot of space on average).
-        long newSize = displayedNodes.length * growMultiplierPercent / 100;
+        long newSize = elements.length * growMultiplierPercent / 100;
         if (growMultiplierPercent > 120) {
             growMultiplierPercent -= 17; // the next time we grow, it will be by a smaller proportion (more absolute).
         }

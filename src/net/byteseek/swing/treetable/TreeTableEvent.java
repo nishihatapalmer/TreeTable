@@ -31,6 +31,8 @@
  */
 package net.byteseek.swing.treetable;
 
+import javax.swing.tree.TreeNode;
+
 /**
  * An event in the tree table which may change the structure - a node is expanding or collapsing.
  */
@@ -50,7 +52,7 @@ public class TreeTableEvent {
         EXPANDING, COLLAPSING;
     }
 
-    private final TreeTableNode node;
+    private final TreeNode node;
     private final TreeTableEventType eventType;
 
     /**
@@ -58,7 +60,7 @@ public class TreeTableEvent {
      * @param node The node to which the event is happening.
      * @param eventType The type of event.
      */
-    public TreeTableEvent(TreeTableNode node, TreeTableEventType eventType) {
+    public TreeTableEvent(TreeNode node, TreeTableEventType eventType) {
         this.node = node;
         this.eventType = eventType;
     }
@@ -66,7 +68,7 @@ public class TreeTableEvent {
     /**
      * @return the node the event relates to.
      */
-    public TreeTableNode getNode() {
+    public TreeNode getNode() {
         return node;
     }
 

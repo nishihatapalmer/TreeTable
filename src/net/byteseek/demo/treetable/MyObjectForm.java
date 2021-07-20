@@ -29,21 +29,23 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.byteseek.swing.treetable.demo;
+package net.byteseek.demo.treetable;
 
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.MutableTreeNode;
+import javax.swing.tree.TreeNode;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 
-public class TestForm {
+public class MyObjectForm {
 
     private JPanel panel1;
     private JPanel rootPanel;
@@ -56,7 +58,7 @@ public class TestForm {
     TreeTableModel treeTableModel;
     boolean showRoot;
 
-    public TestForm() {
+    public MyObjectForm() {
         createTreeTable(buildRandomTree(5, 5));
         addNodes.addActionListener(new ActionListener() {
             @Override
@@ -69,16 +71,16 @@ public class TestForm {
     }
 
     public static void main(String[] args) {
-        setSystemLookAndFeel();
+       // setSystemLookAndFeel();
         JFrame frame = new JFrame("Test");
-        frame.setContentPane(new TestForm().rootPanel);
+        frame.setContentPane(new MyObjectForm().rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
         frame.setVisible(true);
     }
 
     private void createTreeTable(MyObject objectTree) {
-        final TreeTableNode rootNode = TreeTableNode.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
+        final TreeNode rootNode = TreeTableModel.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
         treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1, new RowSorter.SortKey(0, SortOrder.ASCENDING));
         /*
@@ -97,24 +99,24 @@ public class TestForm {
          */
     }
 
-    private TreeTableNode buildTree() {
-        TreeTableNode rootNode = new TreeTableNode(new MyObject("My first test class", 1000, false), true);
+    private MutableTreeNode buildTree() {
+        MutableTreeNode rootNode = new DefaultMutableTreeNode(new MyObject("My first test class", 1000, false), true);
 
-        rootNode.add(new TreeTableNode(new MyObject("First child test class", 256, true), false));
-        rootNode.add(new TreeTableNode(new MyObject("Second child test class", 32, false), false));
+        rootNode.insert(new DefaultMutableTreeNode(new MyObject("First child test class", 256, true), false), 0);
+        rootNode.insert(new DefaultMutableTreeNode(new MyObject("Second child test class", 32, false), false), 1);
 
-        TreeTableNode subchildrenNode = new TreeTableNode(new MyObject("Third child with children", 16, false), true);
+        MutableTreeNode subchildrenNode = new DefaultMutableTreeNode(new MyObject("Third child with children", 16, false), true);
 
-        subchildrenNode.add(new TreeTableNode(new MyObject("First sub child!", 9999, true), false));
-        subchildrenNode.add(new TreeTableNode(new MyObject("Second sub child!!", 1111, false), false));
-        rootNode.add(subchildrenNode);
+        subchildrenNode.insert(new DefaultMutableTreeNode(new MyObject("First sub child!", 9999, true), false), 0);
+        subchildrenNode.insert(new DefaultMutableTreeNode(new MyObject("Second sub child!!", 1111, false), false), 1);
+        rootNode.insert(subchildrenNode, 2);
 
-        rootNode.add(new TreeTableNode(new MyObject("Fourth child test class", 32, false), false));
+        rootNode.insert(new DefaultMutableTreeNode(new MyObject("Fourth child test class", 32, false), false), 3);
         return rootNode;
     }
 
     private MyObject buildRandomTree(int maxLevels, int chanceOutOfTenForChildren) {
-        random = new Random(999);
+        random = new Random(1086);
         readWordList();
         MyObject rootObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
         buildRandomChildren(rootObject, maxLevels, chanceOutOfTenForChildren, 0, true);
@@ -141,22 +143,8 @@ public class TestForm {
         }
     }
 
-
-    //TODO: we build a tree for the tree table, but we never build the actual tree of objects...
-    //      another option is to give a root node a root object, and tell it to build all its child nodes
-    //      given a mapping from MyObject.getChildren()...
-
-    private TreeTableNode randomTestObject(boolean allowsChildren) {
-        MyObject randomClass = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
-        return new TreeTableNode(randomClass, allowsChildren);
-    }
-
     private String getRandomDescription() {
         return wordList.get(random.nextInt(wordList.size())) + ' ' + wordList.get(random.nextInt(wordList.size()));
-    }
-
-    private File getFile(final String resourceName) {
-        return new File(getFilePath(resourceName));
     }
 
     private String getFilePath(final String resourceName) {

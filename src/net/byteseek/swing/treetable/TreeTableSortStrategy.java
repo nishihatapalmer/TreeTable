@@ -33,9 +33,28 @@ package net.byteseek.swing.treetable;
 
 import javax.swing.*;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
+/**
+ * A configurable class that decides what the next set of sort keys will be, given the current set and a request to sort on a column.
+ * It defaults to adding new sort columns to the end of current sorted columns, and removing the column and all subsequent sort columns
+ * if a column becomes unsorted.
+ * <p>
+ * This sort strategy allows a variety of configurable behaviour, for when a new column is to be sorted, or a column
+ * that is already being sorted is updated.  For new columns, we can choose to:
+ * <ul>
+ *     <li>Make the new column the first sort column</li
+ *     <li>Make the new column the first sort column, as long as we aren't already at the maximum number of sorts</li>
+ *     <li>Add the new column to the end of the current sort columns</li>
+ *     <li>Add the new column to the end of the current sort columns, as long as we aren't already at the maximum number of sorts</li>
+ * </ul>
+ * <p>For existing columns, the sort order will flip from ascending, to descending, to unsorted.  When a column becomes unsorted, we can choose to:
+ * <ul>
+ *     <li>Remove the unsorted column</li>
+ *     <li>Remove the unsorted column and all subsequent sort columns</li>
+ *     <li>Remove all sort columns.</li>
+ * </ul>
+ */
 public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
     public enum NewColumnAction { ADD_TO_START_IF_ROOM, ADD_TO_START, ADD_TO_END_IF_ROOM, ADD_TO_END }
@@ -43,7 +62,7 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
 
     private static final int DEFAULT_MAX_SORT_KEYS = 3;
     private static final NewColumnAction DEFAULT_NEW_COLUMN_ACTION = NewColumnAction.ADD_TO_END;
-    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE;
+    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE_SUBSEQUENT;
 
     private int maximumSortKeys;
     private NewColumnAction newColumnAction;
@@ -100,6 +119,11 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
 
     public void setMaximumSortKeys(final int maximumSortKeys) {
         this.maximumSortKeys = maximumSortKeys;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() + "(max keys: " + maximumSortKeys + ", new sort columns: " + newColumnAction + ", when unsorted: " + whenUnsortedAction + ')';
     }
 
     protected void processNewColumn(final List<RowSorter.SortKey> newKeys, final int columnToSort) {
