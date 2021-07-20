@@ -70,6 +70,7 @@ public class MyObjectTreeTableModel extends TreeTableModel {
         return Object.class;
     }
 
+    @Override
     public Object getColumnValue(final TreeTableNode node, final int column) {
         checkValidColumn(column);
         final Object o = node.getUserObject();
