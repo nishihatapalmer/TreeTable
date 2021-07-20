@@ -159,22 +159,16 @@ Custom comparators can be supplied for any column by overriding `TreeTableModel.
 ### Grouping
 If you want to group nodes by some feature of a node or its user object, you can set a node comparator that implements `Comparator<TreeNode>` by calling `model.setNodeComparator(comparator)`.  
 
-For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This could be achieved by setting a node comparator that makes folders "smaller than" files.
+For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This could be achieved by setting a node comparator that makes nodes that allow children "smaller than" nodes that don't.  There is a default comparator defined in the `TreeTableModel` which does this:
 ```java
-public class AllowsChildrenComparator implements Comparator<TreeNode> {
-    @Override
-    public int compare(final TreeNode o1, final TreeNode o2) {
+    public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN = (o1, o2) -> {
         final boolean allowsChildren = o1.getAllowsChildren();
-        if (allowsChildren == o2.getAllowsChildren()) {
-            return 0;
-        }
-        return allowsChildren ? -1 : 1;
-    }
-}
+        return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? -1 : 1;
+    };
 
 ...
         
-model.setNodeComparator(new AllowsChildrenComparator());
+    model.setNodeComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
 ```
 If a node comparator is set, nodes will always be grouped by the comparator, even if no other columns are being sorted on.
 
