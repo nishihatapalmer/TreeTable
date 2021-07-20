@@ -8,7 +8,6 @@ Treetable displays a tree of information, with additional columns for each item 
 This software is still in **alpha**.  It may change unexpectedly at any time.
 The parts that are implemented seem to work OK, but we have no unit tests.
 
-
 ## Getting started
 
 ### The object
@@ -29,8 +28,6 @@ We'll start with the object whose values you want to display in a tree table.  F
 First we need to subclass a `TreeTableModel`, which defines how to map a table to the `MyObject` class.
 
 ```java
-   import javax.swing.tree.DefaultMutableTreeNode;
-
 public class MyObjectTreeTableModel extends TreeTableModel {
 
     private static final int NUM_COLUMNS = 3;
@@ -43,12 +40,9 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     public Object getColumnValue(TreeNode node, int column) {
         MyObject myObject = (MyObject) ((DefaultMutableTreeNode) node).getUserObject();
         switch (column) {
-            case 0:
-                return myObject.getDescription();
-            case 1:
-                return myObject.getSize();
-            case 2:
-                return myObject.getEnabled();
+            case 0: return myObject.getDescription();
+            case 1: return myObject.getSize();
+            case 2: return myObject.getEnabled();
         }
         throw new IllegalArgumentException("Invalid column: " + column);
     }
@@ -56,16 +50,12 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     @Override
     public TableColumn getTableColumn(int column) {
         switch (column) {
-            case 0:
-                return createColumn(0, "Description");
-            case 1:
-                return createColumn(1, "Size");
-            case 2:
-                return createColumn(2, "Enabled");
+            case 0: return createColumn(0, "Description");
+            case 1: return createColumn(1, "Size");
+            case 2: return createColumn(2, "Enabled");
         }
-        throw new IllegalArgumentException("No column exists for " + column);
+        throw new IllegalArgumentException("Invalid column: " + column);
     }
-
 }
 ```
 
