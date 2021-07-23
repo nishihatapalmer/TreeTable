@@ -117,7 +117,7 @@ public class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public Comparator<?> getColumnComparator(int column) {
-        return null; //TODO: return comparator for column values to enable sorting.
+        return null; //TODO: test return comparator for column values to enable sorting.
     }
 
     @Override

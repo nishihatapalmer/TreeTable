@@ -49,9 +49,7 @@ public class MyObjectForm {
 
     private JPanel panel1;
     private JPanel rootPanel;
-    private JLabel topLabel;
     private JScrollPane scrollPane;
-    private JButton addNodes;
     private JTable table1;
     private Random random;
     private List<String> wordList;
@@ -60,19 +58,12 @@ public class MyObjectForm {
 
     public MyObjectForm() {
         createTreeTable(buildRandomTree(5, 5));
-        addNodes.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                showRoot = !showRoot;
-                treeTableModel.setShowRoot(showRoot);
-            }
-        });
         table1.setRowHeight(24);
     }
 
     public static void main(String[] args) {
-        //setSystemLookAndFeel();
-        JFrame frame = new JFrame("Test");
+        setSystemLookAndFeel();
+        JFrame frame = new JFrame("TreeTable");
         frame.setContentPane(new MyObjectForm().rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
@@ -127,7 +118,7 @@ public class MyObjectForm {
     private void buildRandomChildren(MyObject parent, int maxLevels, int chanceOutOfTenForChildren, int level, boolean forceChildren) {
         boolean hasChildren = level <= maxLevels && random.nextInt(10) < chanceOutOfTenForChildren;
         if (hasChildren || forceChildren) { // force children for root to ensure we get a tree and not a root without children.
-            int numChildren = random.nextInt(50);
+            int numChildren = random.nextInt(20) + 1;
             for (int child = 0; child < numChildren; child++) {
                 MyObject childObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
                 parent.addChild(childObject);
