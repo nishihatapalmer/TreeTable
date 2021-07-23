@@ -40,8 +40,7 @@ import java.util.List;
  * It defaults to adding new sort columns to the end of current sorted columns, and removing the column and all subsequent sort columns
  * if a column becomes unsorted.
  * <p>
- * This sort strategy allows a variety of configurable behaviour, for when a new column is to be sorted, or a column
- * that is already being sorted is updated.  For new columns, we can choose to:
+ * This sort strategy allows a variety of configurable behaviour. For new columns, we can choose to:
  * <ul>
  *     <li>Make the new column the first sort column</li
  *     <li>Make the new column the first sort column, as long as we aren't already at the maximum number of sorts</li>
