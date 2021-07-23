@@ -219,5 +219,4 @@ If you are not specifying `TableCellEditor` objects in each `TableColumn`, you m
     }
 
 ```
-JTable has default cell editors for Object (including String), Boolean, Number, Float, Double, Icon, IconImage and Date.  For other types you will need to implement your own `TableCellEditor`.
-//TODO: confirm default cell editors... does it have icon editors???
+JTable has default cell editors for Object (including String), Boolean, and Number.
