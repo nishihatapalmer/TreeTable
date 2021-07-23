@@ -96,9 +96,9 @@ If on dynamic expand there are no child nodes to be added, you can set the node 
 The tree column is the column in which the tree structure is rendered.
 
 ### Expanding and collapsing nodes
-Selected nodes can be expanded or collapsed by clicking to the left of the expand handle.
+Nodes can be expanded or collapsed by clicking to the left of the expand handle.
 
-Keyboard control defaults to using the `+` key for expand, the `-` key for collapse, and the space key to toggle between expand and collapse.  You can change what KeyStrokes are defined for these events, but you should change these before you bind to a JTable.
+Selected nodes can be expanded or collapsed with key presses, defaulting to using the `+` key for expand, the `-` key for collapse, and the space key to toggle between expand and collapse.  You can change what KeyStrokes are defined for these events, but you should change these before you bind to a JTable.
 
 When a node expands or collapses, the model fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
 
