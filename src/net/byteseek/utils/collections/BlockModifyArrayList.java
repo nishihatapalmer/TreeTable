@@ -66,15 +66,24 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return true;
     }
 
-    public boolean add(final List<E> elements) {
+    /**
+     * Adds a list of objects to the list.
+     *
+     * @param elements The elements to add.
+     */
+    public void add(final List<E> elements) {
         final int numToAdd = elements.size();
         checkResize(numToAdd);
         for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
             this.elements[size++] = elements.get(elementIndex);
         }
-        return true;
     }
 
+    /**
+     * Inserts an element into the list at the given index.
+     * @param element The element to add.
+     * @param index The index to add the element at.
+     */
     public void insert(final E element, final int index) {
         if (index == size) {
             add(element);
@@ -91,7 +100,12 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         }
     }
 
-    //TODO: Insert is called on view index, not model index when sorted.
+    /**
+     * Inserts a list of elements at the given index.
+     *
+     * @param elements the list of elements to insert.
+     * @param index the index to insert tham at.
+     */
     public void insert(final List<E> elements, final int index) {
         if (index == size) {
             add(elements);
@@ -125,6 +139,11 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return elementToRemove;
     }
 
+    /**
+     * Removes a block of elements between the from and to index (inclusive).
+     * @param from the first index of the block to remove.
+     * @param to the last index of the block to remove (inclusive).
+     */
     public void remove(final int from, final int to) {
         checkIndex(from);
         if (to < from) {
@@ -148,18 +167,29 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         size = 0;
     }
 
+    /**
+     * Checks the index is within bounds.
+     * @param index the index to check.
+     */
     private void checkIndex(final int index) {
         if (index >= size || index < 0) {
             throw new IndexOutOfBoundsException("Index = " + index + " size = " + size);
         }
     }
 
+    /**
+     * Checks whether the backing array needs to resise if we add more elements.
+     * @param numToAdd then number of elements to add.
+     */
     private void checkResize(final int numToAdd) {
         if (size + numToAdd >= elements.length) {
             growArray();
         }
     }
 
+    /**
+     * Grows the array up to the maximum array size.
+     */
     private void growArray() {
         if (elements.length == Integer.MAX_VALUE) {
             throw new OutOfMemoryError("Cannot increase the list size beyond Integer.MAX_VALUE: " + this);
@@ -168,7 +198,11 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         System.arraycopy(elements, 0, newArray, 0, elements.length);
         elements = newArray;
     }
-    
+
+    /**
+     * Returns the amount to grow to.  Grows faster initially, then slows down growth as we get a lot larger.
+     * @return A new size for the array.
+     */
     private int getGrowSize() {
         // We grow by a multiplier that gradually reduces.
         // This is because we want to grow faster when we're smaller (to avoid frequent re-sizes if large
