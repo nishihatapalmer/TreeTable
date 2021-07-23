@@ -92,12 +92,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     protected static final String TREE_TABLE_EXPAND_NODE = "treeTableExpandNode";
     protected static final String TREE_TABLE_COLLAPSE_NODE = "treeTableCollapseNode";
     protected static final String TREE_TABLE_TOGGLE_EXPAND_NODE = "treeTableToggleExpandNode";
-
-    protected static final char PLUS = '+';  // default node expand key char
-    protected static final char MINUS = '-'; // default node collapse key char
     protected static final int DEFAULT_COLUMN_WIDTH = 75;
-
-
 
     /*
      * Immutable on construction
