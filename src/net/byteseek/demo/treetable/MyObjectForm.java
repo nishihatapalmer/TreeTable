@@ -71,7 +71,7 @@ public class MyObjectForm {
     }
 
     public static void main(String[] args) {
-       // setSystemLookAndFeel();
+        //setSystemLookAndFeel();
         JFrame frame = new JFrame("Test");
         frame.setContentPane(new MyObjectForm().rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -83,14 +83,15 @@ public class MyObjectForm {
         final TreeNode rootNode = TreeTableModel.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
         treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1, new RowSorter.SortKey(0, SortOrder.ASCENDING));
+
         /*
         treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
             @Override
             public boolean actionTreeEvent(TreeTableEvent event) {
                 if (event.getEventType() == TreeTableEvent.TreeTableEventType.EXPANDING) {
-                    TreeTableNode node = event.getNode();
+                    TreeNode node = event.getNode();
                     if (node.getChildCount() == 0) {
-                        node.setAllowsChildren(false); //TODO: status not immediately reflecting in tree after event (no repaint...?)
+                        ((DefaultMutableTreeNode) node).setAllowsChildren(false);
                     }
                 }
                 return true;
@@ -125,7 +126,7 @@ public class MyObjectForm {
 
     private void buildRandomChildren(MyObject parent, int maxLevels, int chanceOutOfTenForChildren, int level, boolean forceChildren) {
         boolean hasChildren = level <= maxLevels && random.nextInt(10) < chanceOutOfTenForChildren;
-        if (hasChildren || forceChildren) {
+        if (hasChildren || forceChildren) { // force children for root to ensure we get a tree and not a root without children.
             int numChildren = random.nextInt(50);
             for (int child = 0; child < numChildren; child++) {
                 MyObject childObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
