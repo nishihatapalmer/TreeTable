@@ -34,6 +34,7 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableColumnModel;
 import javax.swing.tree.TreeNode;
 import java.awt.*;
 import java.awt.event.MouseEvent;
@@ -50,18 +51,15 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     protected final Insets insets = new Insets(0, 0, 0, 0);
 
     protected int pixelsPerLevel = DEFAULT_PIXELS_PER_LEVEL;
-
-    protected Icon expandedIcon;          // expand icon, dependent on the look and feel theme.
-    protected Icon collapsedIcon;         // collapse icon, dependent on the look and feel theme.
+    protected Icon expandedIcon;  // expand icon, dependent on the look and feel theme.
+    protected Icon collapsedIcon; // collapse icon, dependent on the look and feel theme.
 
     // We have labels for each of the icons, because for some reason GTK icons won't paint on Graphic objects,
     // but when embedded in a JLabel it paints fine.  They seem to be some kind of Icon proxy object...
     protected JLabel expandedIconLabel;
     protected JLabel collapsedIconLabel;
 
-    // Calculated max icon width of the expand and collapse icons, to get consistent indentation levels.
-    protected int maxIconWidth;
-
+    protected int maxIconWidth; // Calculated max icon width of the expand and collapse icons, to get consistent indentation levels.
     protected TreeNode currentNode; // The node about to be rendered.
 
     /**
@@ -92,13 +90,14 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
 
     @Override
     public boolean clickOnExpand(TreeNode node, int column, MouseEvent evt) {
-        TreeTableModel localModel = treeTableModel;
-        final int columnModelIndex = localModel.getTableColumnModel().getColumn(column).getModelIndex();
+        final TreeTableModel localModel = treeTableModel;
+        final TableColumnModel columnModel = localModel.getTableColumnModel();
+        final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
         if (columnModelIndex == localModel.getTreeColumn() && node != null & node.getAllowsChildren()) {
-            final int columnStart = localModel.calculateWidthToLeft(column);
-            final int expandEnd = getNodeIndent(node);
+            final int columnStart = calculateWidthToLeft(columnModel, column);
+            final int expandEnd = columnStart + getNodeIndent(node);
             final int mouseX = evt.getPoint().x;
-            if (mouseX > columnStart && mouseX < columnStart + expandEnd) {
+            if (mouseX > columnStart && mouseX < expandEnd) {
                 return true;
             }
         }
@@ -182,6 +181,20 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
             nodeLevel++;
         }
         return nodeLevel;
+    }
+
+    /**
+     * Calculates the space taken up by columns to the left of the column in the TableColumnModel.
+     *
+     * @param colIndex
+     * @return
+     */
+    protected final int calculateWidthToLeft(final TableColumnModel columnModel, final int colIndex) {
+        int width = 0;
+        for (int col = colIndex - 1; col >= 0; col--) {
+            width += columnModel.getColumn(col).getWidth();
+        }
+        return width;
     }
 
     /**
