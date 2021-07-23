@@ -130,7 +130,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
             throw new IllegalArgumentException("Must supply a non null TreeTableModel.");
         }
         this.model = model;
-        this.defaultSortKeys = defaultSortKeys == null ? Collections.EMPTY_LIST : defaultSortKeys;
+        this.defaultSortKeys = defaultSortKeys == null ? Collections.emptyList() : defaultSortKeys;
         sortKeys = new ArrayList<>(defaultSortKeys);
         buildSortIndexes(); // even if no columns are sorted, we might have node comparison sorts.
     }
@@ -234,7 +234,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Sets the ColumnSortStrategy for this RowSorter.  If set to null, it will revert to a {@link TreeTableRowSorter}.
      * @param sortStrategy The ColumnSortStrategy to use.
      */
-    public void setSortStrategy(ColumnSortStrategy sortStrategy) {
+    public void setSortStrategy(final ColumnSortStrategy sortStrategy) {
         this.sortStrategy = sortStrategy;
     }
 
@@ -251,7 +251,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param newDefaults The new default sort keys to use.
      */
     public void setDefaultSortKeys(final List<SortKey> newDefaults) {
-        this.defaultSortKeys = newDefaults == null? Collections.EMPTY_LIST : newDefaults;
+        this.defaultSortKeys = newDefaults == null? Collections.emptyList() : newDefaults;
         if (!defaultSortKeys.isEmpty()) {                    // If we have some keys as defaults
             if (sortKeys == null || sortKeys.isEmpty()) {    // And we currently have no sort keys defined:
                 setSortKeys(newDefaults);                    // Set the defaults as the new sort keys.
@@ -301,15 +301,6 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         return compareWithCommonParent(firstNode, secondNode, modelRowIndex1 - modelRowIndex2);
     }
 
-    private int getLevel(final TreeNode node) {
-        int nodeLevel = 0;
-        TreeNode currentNode = node;
-        while ((currentNode = currentNode.getParent()) != null) {
-            nodeLevel++;
-        }
-        return nodeLevel;
-    }
-
     /**
      * Compares two nodes (which must have a common parent),
      *
@@ -318,7 +309,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param unsortedCompare A comparison result if they are not sorted.
      * @return The result of comparing the first and second node.
      */
-    protected int compareWithCommonParent(final TreeNode firstNode, final TreeNode secondNode, final int unsortedCompare) {
+    protected final int compareWithCommonParent(final TreeNode firstNode, final TreeNode secondNode, final int unsortedCompare) {
         final int nodeGrouping = groupNodes(firstNode, secondNode);
         if (nodeGrouping != 0) { // if we have a result from grouping, apply it.
             return nodeGrouping;
@@ -336,8 +327,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
                 return order == SortOrder.ASCENDING? result: result * -1; // invert the result if not ascending
             }
         }
-        //TODO: If all comparisons are equal, should we just return equal?  Why give an order to them at all?  Giving a definite order might help some sort algorithms I guess.
-        return unsortedCompare;
+        return unsortedCompare; // if equal, fall back to model order.  This is the same behaviour as DefaultRowSorter.
     }
 
     protected int groupNodes(final TreeNode firstNode, final TreeNode secondNode) {
@@ -362,7 +352,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         if (columnComparator != null) {
             result = columnComparator.compare(value1, value2);            // Compare with provided comparator.
         } else {
-            if (value1 instanceof Comparable<?>) { //TODO: do we need to validate that value2 is also the same comparable (isAssignableFrom...?)
+            if (value1 instanceof Comparable<?>) { // We assume that all values in the same column will be equivalent/comparable if one is.
                 result = ((Comparable<Object>) value1).compareTo(value2); // Compare directly if Comparable<>
             } else {
                 result = value1.toString().compareTo(value2.toString());  // Compare on string values:
@@ -408,10 +398,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         // If we don't have an index, or the index is too small, create a new one.
         if (viewToModelIndex == null || viewToModelIndex.length < newRowCount) {
             viewToModelIndex = new SortRow[newRowCount];
-            //TODO: could also copy over old array when expanding, if we're optimising keeping the same general layout.
         }
-        //TODO: can we optimise this - if we already have a valid set of nodes inserted, then why rebuild them in model index order?
-        //      would have to implement rows inserted / deleted and fix up model indexes in viewToModelIndex and modelToViewIndex.
         createModelOrderRows(newRowCount);
         Arrays.sort(viewToModelIndex, 0, newRowCount); // The array can be bigger than the row count - only sort the valid rows.
         lastRowCount = newRowCount;
@@ -435,9 +422,6 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     /**
      * Builds a copy of the view to model index as an integer array.
      * This is needed by JTable to allow selection (other things?) to work properly when the model and sort changes.
-     * Feels like a huge kludgy hack, lots of work to enable very little it seems.
-     * TODO: test the practical effect of having this vs. not. Worked fine before, not sure what it's buying us
-     * except more work and complexity.
      *
      * @return An integer array containing the viewToModel index, or an empty array if there is no index.
      */
@@ -495,6 +479,20 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     }
 
     /**
+     * Returns the level of the node, zero being the root.
+     * @param node The node to get the level for.
+     * @return The level of the node.
+     */
+    private int getLevel(final TreeNode node) {
+        int nodeLevel = 0;
+        TreeNode currentNode = node;
+        while ((currentNode = currentNode.getParent()) != null) {
+            nodeLevel++;
+        }
+        return nodeLevel;
+    }
+
+    /**
      * Ensures the column index is within the bounds of the model.
      * @param column The column index to check.
      * @throws IllegalArgumentException if the column isn't within the bounds of the model.
@@ -513,17 +511,17 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         private final TreeTableRowSorter rowSorter;
         private int modelIndex;
 
-        public SortRow(TreeTableRowSorter sorter, int modelIndex) {
+        public SortRow(final TreeTableRowSorter sorter, final int modelIndex) {
             this.rowSorter = sorter;
             this.modelIndex = modelIndex;
         }
 
         @Override
-        public int compareTo(SortRow o) {
+        public int compareTo(final SortRow o) {
             return rowSorter.compare(modelIndex, o.modelIndex);
         }
 
-        public void setModelIndex(int modelIndex) {
+        public void setModelIndex(final int modelIndex) {
             this.modelIndex = modelIndex;
         }
     }
