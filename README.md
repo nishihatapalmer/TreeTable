@@ -96,7 +96,9 @@ If on dynamic expand there are no child nodes to be added, you can set the node 
 The tree column is the column in which the tree structure is rendered.
 
 ### Expanding and collapsing nodes
-Selected nodes can be expanded or collapsed by clicking to the left of the expand handle, or via the keyboard with the `+` and `-` keys.  The keys to use are configurable by calling `model.setExpandChar()` and `model.setCollapseChar()`.  You can set them both to be the same char if you prefer, e.g. space bar toggles expand/collapse.
+Selected nodes can be expanded or collapsed by clicking to the left of the expand handle.
+
+Keyboard control defaults to using the `+` key for expand, the `-` key for collapse, and the space key to toggle between expand and collapse.  You can change what KeyStrokes are defined for these events, but you should change these before you bind to a JTable.
 
 When a node expands or collapses, the model fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
 
@@ -168,8 +170,6 @@ If a node comparator is set, nodes will always be grouped by the comparator, eve
 When a column header is clicked on, if the column is already being sorted, it wlil flip from ascending to descending to unsorted.  If it's a new column, it will be added as an additional column to sort on, up to three maximum. 
 
 This behaviour can be customised by implementing a `ColumnSortStrategy` object and setting it on the `TreeTableRowSorter ` with `rowsorter.setSortStrategy(sortStrategy)`.
-
-//TODO: keyboard control of sorting?
 
 ## Editing
 If you want to edit cells in the tree table, you have to override the following method: `TreeTableModel.isCellEditable()` and return true if a particular cell is editable.
