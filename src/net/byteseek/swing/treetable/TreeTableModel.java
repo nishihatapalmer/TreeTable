@@ -34,14 +34,24 @@ package net.byteseek.swing.treetable;
 import net.byteseek.utils.collections.BlockModifyArrayList;
 
 import javax.swing.*;
+import javax.swing.event.TreeModelEvent;
+import javax.swing.event.TreeModelListener;
 import javax.swing.table.*;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.MutableTreeNode;
-import javax.swing.tree.TreeNode;
+import javax.swing.tree.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
+
+//TODO: multi selection - expand/collapse/toggle instead of only first selection.
+
+//TODO: refresh nodes
+
+//TODO: tree model listener methods.
+
+//TODO: explain using tree models to update the tree, or refresh() calls if you don't want to do it that way.
+
+//TODO: profile large trees, sorting, inserting/removing nodes dynamically, etc.
 
 /**
  * A tree table model which binds to a JTable as a TableModel given a root tree node.
@@ -54,7 +64,7 @@ import java.util.List;
  * <p><b>Usage</b></p>
  * To use it, instantiate a subclassed TreeTableModel with a root TreeNode, then bind it to a JTable.
  */
-public abstract class TreeTableModel extends AbstractTableModel {
+public abstract class TreeTableModel extends AbstractTableModel implements TreeModelListener {
 
     /**
      * Convenience static utility method to build a root MutableTreeNode and all sub children given the user object
@@ -93,11 +103,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
     protected static final String TREE_TABLE_COLLAPSE_NODE = "treeTableCollapseNode";
     protected static final String TREE_TABLE_TOGGLE_EXPAND_NODE = "treeTableToggleExpandNode";
     protected static final int DEFAULT_COLUMN_WIDTH = 75;
+    protected static final int TREE_COLUMN_INDEX = 0; // the index of the column which renders the tree - fixed at 0.
 
     /*
      * Immutable on construction
      */
-    protected final int numColumns;
+    protected final int numColumns; //TODO: should number of columns be configurable?  Adjustments to TableColumnModel?
     protected final TreeNode rootNode;
 
 
@@ -108,34 +119,38 @@ public abstract class TreeTableModel extends AbstractTableModel {
     /*
      * User modifiable properties of the model:
      */
-    protected boolean showRoot;
-    protected KeyStroke[] expandKeys = new KeyStroke[] {KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0, false),
-                                                        KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, 0, false),
-                                                        KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, KeyEvent.SHIFT_DOWN_MASK, false)};
-    protected KeyStroke[] collapseKeys = new KeyStroke[] {KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, 0, false),
-                                                          KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0, false)};
-    protected KeyStroke[] toggleKeys = new KeyStroke[] {KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, false)};
-    protected Comparator<TreeNode> nodeComparator;
-    protected int treeColumnModelIndex; // the model index of the column which renders the tree and provides click expansion handling.
+    protected JTable table; // the table currently bound to the tree model, or null if not currently bound.
+    protected boolean showRoot; // whether the root of the tree is shown.
+    protected KeyStroke[] expandKeys = new KeyStroke[] { // key presses that expand a node.
+                KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0, false),        // + on keypad
+                KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, 0, false),       // + on primary row
+                KeyStroke.getKeyStroke(KeyEvent.VK_EQUALS, KeyEvent.SHIFT_DOWN_MASK, false)}; // + above = on UK/US keyboards.
+    protected KeyStroke[] collapseKeys = new KeyStroke[] { // key presses that collapse a node.
+                KeyStroke.getKeyStroke(KeyEvent.VK_MINUS, 0, false),      // - on primary row
+                KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0, false)};  // - on keypad
+    protected KeyStroke[] toggleKeys = new KeyStroke[] { // key presses that toggle node expansion
+                KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, false)};
+    protected Comparator<TreeNode> nodeComparator; // used to group nodes together based on node properties.
 
     /*
      * Cached/calculated properties of the model:
      */
     protected TableColumnModel columnModel;
     protected BlockModifyArrayList<TreeNode> displayedNodes = new BlockModifyArrayList<>();
-    protected Set<TreeNode> expandedNodes = new HashSet<>();
+    //protected Set<TreeNode> expandedNodes = new HashSet<>();
+    protected Map<TreeNode, Integer> expandedNodeCounts = new HashMap<>();
     protected int expandNodeCheck; // a counter which we use to perform occasional housekeeping on the set of expanded nodes.
 
     /*
      * Keyboard, mouse and tree events
      */
-    protected Map<JTable, MouseListener> tableMouseListeners = new HashMap<>(); // tracks which JTable a listener is registered to.
-    protected List<TreeTableEvent.Listener> eventListeners = new ArrayList<>(2); // tree event listeners.
+    protected MouseListener tableMouseListener;
+    protected List<ExpandCollapseListener> eventListeners = new ArrayList<>(2); // tree event listeners.
     protected TreeClickHandler clickHandler; // the handler which processes expand/collapse click events.
 
 
     /******************************************************************************************************************
-     *                                         Constructors and initializers
+     *                                         Constructors
      */
 
     /**
@@ -164,31 +179,37 @@ public abstract class TreeTableModel extends AbstractTableModel {
         refreshTree(true);
     }
 
-    /**
-     * Refreshes the visible tree, rebuilding from the root upwards.
-     * If you require a rebuild from scratch, then reset expanded nodes as well, as none of the existing expanded
-     * nodes will be in the new tree. If you simply want to rebuild due to some node changes,
-     * but would like to preserve expanded state of existing nodes if possible, then pass false to resetExpanded.
-     *
-     * @param resetExpanded Whether to reset expanded nodes.
-     */
-    public void refreshTree(boolean resetExpanded) {
-        if (resetExpanded) {
-            expandedNodes.clear();
-            if (!showRoot) { // expand the root if it's not showing.
-                expandedNodes.add(rootNode);
-            }
-        }
-        buildVisibleNodes();
-    }
-
 
     /******************************************************************************************************************
-     *                        Convenience methods to bind and unbind this model to and from a JTable
+     *                             Abstract methods for subclasses to implement
      *
-     * To use a TreeTableModel, it must be bound to a JTable.  These are convenience methods to automate adding
-     * all the correct listeners and setting the correct properties.  It isn't necessary to use them - you can set
-     * up the bindings manually, this just makes it easier.
+     * These methods define how a particular model obtains data, sets data and defines the columns of the table.
+     * These are obviously user specific, and must be defined by the subclass.
+     */
+
+    /**
+     * Returns the value of a node for a given column.
+     * Subclasses should implement this to map a column to a node user object values.
+     *
+     * @param node The node to get a column value for.
+     * @param column The column to get the value for.
+     * @return The value of the column for the node.
+     */
+    public abstract Object getColumnValue(TreeNode node, int column);
+
+    /**
+     * Returns a TableColumn defining the column.
+     *
+     * @param column The column index to get the TableColumn for.
+     * @return a TableColumn defining the column.
+     */
+    public abstract TableColumn getTableColumn(int column);
+
+
+     /******************************************************************************************************************
+     *                        Methods to bind and unbind this model to and from a JTable
+     *
+     * To use a TreeTableModel, it must be bound to a JTable.
      */
 
     /**
@@ -274,13 +295,21 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * Binds a JTable to use this model and configures columns, sorters and listeners to
      * react to mouse and keyboard events.
      *
-     * @param table The JTable to bind to this TreeTableModel.
-     * @param rowSorter The row sorter to use with the table.
-     * @param headerRenderer The renderer to use to draw the table header.
+     * @param table The JTable to bind to this TreeTableModel.  Cannot be null.
+     * @param rowSorter The row sorter to use with the table.  Can be null if no sorting required.
+     * @param headerRenderer The renderer to use to draw the table header.  Can be null if no special header rendering required.
+     * @throws IllegalArgumentException if the table passed in is null.
      */
     public void bindTable(final JTable table,
                           final RowSorter<TreeTableModel> rowSorter,
                           final TableCellRenderer headerRenderer) {
+        if (table == null) {
+            throw new IllegalArgumentException("You cannot bind to a null table.");
+        }
+        if (this.table != null) {
+            unbindTable();
+        }
+        this.table = table;
         table.setAutoCreateColumnsFromModel(false);
         table.setModel(this);
         table.setColumnModel(getTableColumnModel());
@@ -290,53 +319,23 @@ public abstract class TreeTableModel extends AbstractTableModel {
         if (headerRenderer != null) {
             table.getTableHeader().setDefaultRenderer(headerRenderer);
         }
-        addKeyboardActions(table);
-        addMouseListener(table);
+        addKeyboardActions();
+        addMouseListener();
     }
 
     /**
-     * Unbinds a JTable from this model, and removes listeners and sorters.
-     * It replaces the table and column model with a default one with no data.
-     * Will do nothing if this object is not set to the table model of the JTable.
-     *
-     * @param table The JTable to unbind this model from.
+     * Unbinds the model from the JTable.  Does nothing if the Jtable isn't using this as its TableModel.     *
      */
-    public void unbindTable(final JTable table) {
-        if (table.getModel() == this) {
-            removeMouseListener(table);
-            removeKeyboardActions(table);
+    public void unbindTable() {
+        if (table != null && table.getModel() == this) {
+            removeMouseListener();
+            removeKeyboardActions();
             table.setRowSorter(null);
             table.setAutoCreateColumnsFromModel(true);
             table.setModel(new DefaultTableModel());
+            table = null;
         }
     }
-
-
-    /******************************************************************************************************************
-     *                             Abstract methods for subclasses to implement
-     *
-     * These methods define how a particular model obtains data, sets data and defines the columns of the table.
-     * These are obviously user specific, and must be defined by the subclass.
-     */
-
-    /**
-     * Returns the value of a node for a given column.
-     * Subclasses should implement this to map a column to a node user object values.
-     *
-     * @param node The node to get a column value for.
-     * @param column The column to get the value for.
-     * @return The value of the column for the node.
-     */
-    public abstract Object getColumnValue(TreeNode node, int column);
-
-    /**
-     * Returns a TableColumn defining the column.
-     *
-     * @param column The column index to get the TableColumn for.
-     * @return a TableColumn defining the column.
-     */
-    public abstract TableColumn getTableColumn(int column);
-
 
     /******************************************************************************************************************
      *                             Optional methods for subclasses to implement
@@ -352,7 +351,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * @return The icon for that node, or null if no icon is defined.
      */
     public Icon getNodeIcon(TreeNode node) {
-        return null;
+        return null; // Default is no icons - override this method to return the icon for a node.
     }
 
     /**
@@ -377,21 +376,22 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        return false;
+        return false; // Default is read-only.  Subclasses must override to set whether a cell is editable.
     }
 
     /**
      * Returns the class of objects for each column.  This allows the JTable to automatically pick appropriate
-     * cell renderers and cell editors for the types: Object, String, Double, Float, Number, Icon, IconImage and Date.
+     * cell renderers for the types: Object, String, Double, Float, Number, Icon, IconImage and Date, and default
+     * cell editors for Object, String, Boolean, and Number.
      * You can also return custom cell editors or renderers for a column by specifying them in the TableColumns you
-     * return in getColumn().
+     * return in {@link #getTableColumn(int)}
      *
      * @param column The column to return the object class for.
      * @return The class of object for values in the column.
      */
     @Override
     public Class<?> getColumnClass(final int column) {
-        return Object.class;
+        return Object.class; // Defaults to object, if renderers and editors not specified, JTable will not display or edit correctly.
     }
 
     /**
@@ -403,7 +403,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * @return A Comparator for the given column, or null if no special comparator is required.
      */
     public Comparator<?> getColumnComparator(int column) {
-        return null;
+        return null; // Defaults to no special column comparators.
     }
 
 
@@ -460,12 +460,127 @@ public abstract class TreeTableModel extends AbstractTableModel {
         setColumnValue(getNodeAtRow(rowIndex), columnIndex, aValue);
     }
 
+    /******************************************************************************************************************
+     *                                    TreeModelListener implementation
+     *
+     * Methods required for for this model to listen for TreeModelListener events.
+     * This class can be plugged into a DefaultTreeModel in order to respond to tree events.
+     */
+
+    @Override
+    public final void treeNodesChanged(final TreeModelEvent e) {
+        TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
+        if (isVisible(parentNode)) {
+            fireTableDataChanged(); // forces table to redraw, structure hasn't changed.
+        }
+    }
+
+    @Override
+    public final void treeNodesInserted(final TreeModelEvent e) {
+        TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
+        if (isVisible(parentNode)) {
+            final int[] childIndices = e.getChildIndices();
+
+            // option 1: wipe out all visible children of parent, and just rebuild.
+            //           + simpler
+            //           - less efficient potentially (WHY?)
+            //           + more efficient (removes a block
+
+            // option 2: insert each child node (and visible children) into the correct place in the display nodes.
+            //           + more efficient potentially
+            //           - more complex.
+            //           could optimise on consecutive inserts, but even more complexity.
+
+            // option 3: wipe out entire tree and just rebuild the damn thing from scratch.
+
+            // Trying option 1 first:
+            // final int visibleChildren =
+
+
+
+
+
+        }
+    }
+
+    @Override
+    public final void treeNodesRemoved(final TreeModelEvent e) {
+        TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
+        if (isVisible(parentNode)) {
+            //TODO: remove tree node handling.
+        }
+    }
+
+    @Override
+    public final void treeStructureChanged(final TreeModelEvent e) {
+        TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
+        if (isVisible(parentNode)) {
+            //TODO: structure change handling.
+        }
+    }
+
+    /******************************************************************************************************************
+     *                                             Refreshment
+     *
+     * When you change the tree nodes or children, you should refresh the model,
+     * or the changes won't be displayed immediately, if ever.
+     */
+
+    //TODO: do we need refresh methods with change methods above?
+
+    /**
+     * Refreshes the display of a node.  Call this when a node's displayable values have changed.
+     *
+     * @param node The node whose displayable values have changed.
+     */
+    public void refreshNode(final TreeNode node) {
+        if (isVisible(node)) {
+            //TODO: refresh this part of the table.
+        }
+    }
+
+    /**
+     * Notifies the TreeTableModel that the children of a node have changed.
+     * This must be called whenever children of nodes are modified outside of an expand or collapse event.
+     * It is not necessary to call this if you are a listener of TreeTableEvents
+     * and are dynamically adding or removing child nodes inside those events; these changes are already handled.
+     * @param parentNode The node whose children have changed.
+     */
+    public void refreshChildren(final TreeNode parentNode) {
+        if (isVisible(parentNode)) {
+            //TODO: refresh this part of the tree.
+        }
+    }
+
+    /**
+     * Refreshes the entire visible tree, rebuilding from the root upwards.
+     * If you require a rebuild from scratch, then reset expanded nodes as well, as none of the existing expanded
+     * nodes will be in the new tree. If you simply want to rebuild due to some node changes,
+     * but would like to preserve expanded state of existing nodes if possible, then pass false to resetExpanded.
+     *
+     * @param resetExpanded Whether to reset expanded nodes.
+     */
+    public void refreshTree(final boolean resetExpanded) {
+        if (resetExpanded) {
+            resetExpanded();   // wipe out any existing expansion, add the root as expanded if it's not visible.
+        } else {
+            removeDeadNodes(); // remove any expanded nodes which aren't part of the tree anymore.
+        }
+        buildVisibleNodes();
+    }
 
     /******************************************************************************************************************
      *                                          Node getters
      *
-     * Methods to get nodes from a JTable, converting between model and table indexes.
+     * Methods to get nodes, converting between model and table indexes.
      */
+
+    /**
+     * @return the root node of the tree.
+     */
+    public final TreeNode getRoot() {
+        return rootNode;
+    }
 
     /**
      * Gets the node at the model row.
@@ -481,12 +596,34 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * Gets the node in a bound JTable given a table row index.
      * The view row index can differ from the rows in this underlying model if the table is sorted or filtered.
      *
-     * @param table The JTable to get the node from at the row in the table.
      * @param tableIndex The row in the table to get the node from.
      * @return The node at the tableRow position in the JTable.
      */
-    public final TreeNode getNodeAtTableRow(final JTable table, final int tableIndex) {
-        return getNodeAtRow(getModelIndex(table, tableIndex));
+    public final TreeNode getNodeAtTableRow(final int tableIndex) {
+        return getNodeAtRow(getModelIndex(tableIndex));
+    }
+
+    /**
+     * Gets the first node which is currently selected in the JTable, or null if no row is selected.
+     *
+     * @return the node which is currently selected in the JTable, or null if no row is selected.
+     */
+    public final TreeNode getSelectedNode() {
+        return table == null? null : getNodeAtTableRow(table.getSelectedRow());
+    }
+
+    /**
+     * Gets a list of all the selected nodes in the JTable, or an empty list if no rows are selected.
+     * @return a list of all the selected nodes in the JTable, or an empty list if no rows are selected.
+     */
+    public final List<TreeNode> getSelectedNodes() {
+        List<TreeNode> nodes = new ArrayList<>();
+        if (table != null) {
+            for (int rowIndex : table.getSelectedRows()) {
+                nodes.add(getNodeAtTableRow(rowIndex));
+            }
+        }
+        return nodes;
     }
 
     /**
@@ -495,12 +632,11 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * If the table is sorted, then the row sorter can provide a mapping from the row in the visible table
      * to the row in this underlying model.
      *
-     * @param table The JTable to get the model index for.
      * @param tableIndex The row in the JTable to get the model index for.
      * @return the model index of a row in a bound JTable.
      */
-    public final int getModelIndex(final JTable table, final int tableIndex) {
-        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+    public final int getModelIndex(final int tableIndex) {
+        final RowSorter<? extends TableModel> rowSorter = table == null? null : table.getRowSorter();
         return rowSorter == null? tableIndex : rowSorter.convertRowIndexToModel(tableIndex);
     }
 
@@ -538,7 +674,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         if (this.showRoot != showRoot) {
             this.showRoot = showRoot;
             if (showRoot) {
-                displayedNodes.insert(rootNode, 0);
+                displayedNodes.add(0, rootNode);
                 fireTableRowsInserted(0, 0);
             } else {
                 displayedNodes.remove(0);
@@ -557,7 +693,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param listener The listener to be notified of tree expand or collapse events.
      */
-    public final void addTreeTableEventListener(final TreeTableEvent.Listener listener) {
+    public final void addTreeTableEventListener(final ExpandCollapseListener listener) {
         if (!eventListeners.contains(listener)) {
             eventListeners.add(listener);
         }
@@ -568,27 +704,22 @@ public abstract class TreeTableModel extends AbstractTableModel {
      *
      * @param listener The listener to remove.
      */
-    public final void removeTreeTableEventListener(final TreeTableEvent.Listener listener) {
+    public final void removeTreeTableEventListener(final ExpandCollapseListener listener) {
         eventListeners.remove(listener);
     }
 
     /**
      * Adds a mouse listener for expand / collapse events to a JTable
-     * and registers the listener in a map of JTable to MouseListeners.
-     *
-     * @param table The JTable to add the listener to.
-     */
-    public final void addMouseListener(final JTable table) {
-        MouseListener listener = tableMouseListeners.get(table);
-        if (listener == null) {
-            listener = new MouseAdapter() {
+     **/
+    protected final void addMouseListener() {
+        if (table != null) {
+            tableMouseListener = new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    toggleExpansion(table, e);
+                    toggleExpansion(e);
                 }
             };
-            tableMouseListeners.put(table, listener);
-            table.addMouseListener(listener);
+            table.addMouseListener(tableMouseListener);
         }
     }
 
@@ -596,56 +727,55 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * Removes a mouse listener for expand / collapse events
      * from a JTable previously registered by a call to addMouseListener().
      *
-     * @param table The JTable to remove registered listeners from.
      */
-    public final void removeMouseListener(final JTable table) {
-        MouseListener listener = tableMouseListeners.get(table);
-        if (listener != null) {
-            table.removeMouseListener(listener);
-            tableMouseListeners.remove(table);
+    protected final void removeMouseListener() {
+        if (table != null) {
+            table.removeMouseListener(tableMouseListener);
         }
     }
 
     /**
      * Adds keyboard actions for + (expand), - (collapse) and space (toggle) selected node expansion.
-     * @param table The table to add actions for.
      */
-    public final void addKeyboardActions(final JTable table) {
-        final InputMap inputMap = table.getInputMap(JComponent.WHEN_FOCUSED);
-        for (KeyStroke keyStroke : expandKeys) {
-            inputMap.put(keyStroke, TREE_TABLE_EXPAND_NODE);
+    protected final void addKeyboardActions() {
+        if (table != null) {
+            final InputMap inputMap = table.getInputMap(JComponent.WHEN_FOCUSED);
+            for (KeyStroke keyStroke : expandKeys) {
+                inputMap.put(keyStroke, TREE_TABLE_EXPAND_NODE);
+            }
+            for (KeyStroke keyStroke : collapseKeys) {
+                inputMap.put(keyStroke, TREE_TABLE_COLLAPSE_NODE);
+            }
+            for (KeyStroke keyStroke : toggleKeys) {
+                inputMap.put(keyStroke, TREE_TABLE_TOGGLE_EXPAND_NODE);
+            }
+            final ActionMap actionMap = table.getActionMap();
+            actionMap.put(TREE_TABLE_EXPAND_NODE, new TreeTableExpandAction());
+            actionMap.put(TREE_TABLE_COLLAPSE_NODE, new TreeTableCollapseAction());
+            actionMap.put(TREE_TABLE_TOGGLE_EXPAND_NODE, new TreeTableToggleExpandAction());
         }
-        for (KeyStroke keyStroke : collapseKeys) {
-            inputMap.put(keyStroke, TREE_TABLE_COLLAPSE_NODE);
-        }
-        for (KeyStroke keyStroke : toggleKeys) {
-            inputMap.put(keyStroke, TREE_TABLE_TOGGLE_EXPAND_NODE);
-        }
-        final ActionMap actionMap = table.getActionMap();
-        actionMap.put(TREE_TABLE_EXPAND_NODE, new TreeTableExpandAction());
-        actionMap.put(TREE_TABLE_COLLAPSE_NODE, new TreeTableCollapseAction());
-        actionMap.put(TREE_TABLE_TOGGLE_EXPAND_NODE, new TreeTableToggleExpandAction());
     }
 
     /**
      * Removes keyboard actions for + (expand), - (collapse) and space (toggle) selected node expansion.
-     * @param table The table to remove actions for.
      */
-    public final void removeKeyboardActions(final JTable table) {
-        final InputMap inputMap = table.getInputMap(JComponent.WHEN_FOCUSED);
-        for (KeyStroke keyStroke : expandKeys) {
-            inputMap.remove(keyStroke);
+    protected final void removeKeyboardActions() {
+        if (table != null) {
+            final InputMap inputMap = table.getInputMap(JComponent.WHEN_FOCUSED);
+            for (KeyStroke keyStroke : expandKeys) {
+                inputMap.remove(keyStroke);
+            }
+            for (KeyStroke keyStroke : collapseKeys) {
+                inputMap.remove(keyStroke);
+            }
+            for (KeyStroke keyStroke : toggleKeys) {
+                inputMap.remove(keyStroke);
+            }
+            final ActionMap actionMap = table.getActionMap();
+            actionMap.remove(TREE_TABLE_EXPAND_NODE);
+            actionMap.remove(TREE_TABLE_COLLAPSE_NODE);
+            actionMap.remove(TREE_TABLE_TOGGLE_EXPAND_NODE);
         }
-        for (KeyStroke keyStroke : collapseKeys) {
-            inputMap.remove(keyStroke);
-        }
-        for (KeyStroke keyStroke : toggleKeys) {
-            inputMap.remove(keyStroke);
-        }
-        final ActionMap actionMap = table.getActionMap();
-        actionMap.remove(TREE_TABLE_EXPAND_NODE);
-        actionMap.remove(TREE_TABLE_COLLAPSE_NODE);
-        actionMap.remove(TREE_TABLE_TOGGLE_EXPAND_NODE);
     }
 
     /**
@@ -665,30 +795,6 @@ public abstract class TreeTableModel extends AbstractTableModel {
      */
 
     /**
-     * Sets the model index of the column that will render the tree structure and respond to expand/collapse clicks.c
-     * Defaults to zero (first column) if not set.  It uses the model index, which each column has.
-     * Note that columns in the TableColumnModel can be re-arranged (if columns are dragged to new positions)
-     * so the index of a column in a TableColumnModel may be different to the model index of that column.
-     * <p>
-     * This should be set *before* binding to a table, as it is used to determine how to build the TableColumnModel.
-     * Changing this after it is bound to a table will affect which column responds to expand or collapse clicks, but
-     * won't change which cell renderers are assigned to which columns.
-     *
-     * @param treeColumnModelIndex the column that will render the tree structure and respond to expand/collapse clicks.
-     */
-    public final void setTreeColumn(final int treeColumnModelIndex) {
-        checkValidColumn(treeColumnModelIndex);
-        this.treeColumnModelIndex = treeColumnModelIndex;
-    }
-
-    /**
-     * @return The model index of the column that renders the tree structure.
-     */
-    public int getTreeColumn() {
-        return treeColumnModelIndex;
-    }
-
-    /**
      * @return the TableColumnModel for this TreeTableModel.
      */
     public final TableColumnModel getTableColumnModel() {
@@ -696,7 +802,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
             columnModel = new DefaultTableColumnModel();
             for (int column = 0; column < getColumnCount(); column++) {
                 TableColumn tcolumn = getTableColumn(column);
-                if (column == treeColumnModelIndex && tcolumn.getCellRenderer() == null) {
+                if (column == TREE_COLUMN_INDEX && tcolumn.getCellRenderer() == null) {
                     tcolumn.setCellRenderer(new TreeTableCellRenderer(this));
                 }
                 columnModel.addColumn(tcolumn);
@@ -710,27 +816,27 @@ public abstract class TreeTableModel extends AbstractTableModel {
      * @param column The model column index.
      * @throws IllegalArgumentException if the column index is not valid.
      */
-    public final void checkValidColumn(final int column) {
+    protected final void checkValidColumn(final int column) {
         if (column >= numColumns || column < 0) {
             throw new IllegalArgumentException("Columns must be between 0 and " + (numColumns - 1) + ". Column value was: " + column);
         }
     }
 
-    public final TableColumn createColumn(final int modelIndex, final Object headerValue) {
+    protected final TableColumn createColumn(final int modelIndex, final Object headerValue) {
         return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, null, null, headerValue);
     }
 
-    public final TableColumn createColumn(final int modelIndex, final TableCellRenderer cellRenderer, final Object headerValue) {
+    protected final TableColumn createColumn(final int modelIndex, final TableCellRenderer cellRenderer, final Object headerValue) {
         return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, cellRenderer, null, headerValue);
     }
 
-    public final TableColumn createColumn(final int modelIndex,
+    protected final TableColumn createColumn(final int modelIndex,
                                     final TableCellRenderer cellRenderer, final TableCellEditor cellEditor,
                                     final Object headerValue) {
         return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor, headerValue);
     }
 
-    public final TableColumn createColumn(final int modelIndex, final int width,
+    protected final TableColumn createColumn(final int modelIndex, final int width,
                                     final TableCellRenderer cellRenderer, final TableCellEditor cellEditor,
                                     final Object headerValue) {
         final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
@@ -739,7 +845,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
     }
 
     /******************************************************************************************************************
-     *                                    Key bindings for expand and collapse.
+     *                             Key bindings for expand and collapse and toggle.
      */
 
      public void setExpandKeys(final KeyStroke... expandKeys) {
@@ -766,13 +872,24 @@ public abstract class TreeTableModel extends AbstractTableModel {
          return toggleKeys;
      }
 
+
     /******************************************************************************************************************
-     *                           Node expansion and collapse and tree change.
+     *                                Node expansion and collapse and tree change.
      */
 
-
+    /**
+     * @param node The node to check.
+     * @return true if the node is expanded.
+     */
     public boolean isExpanded(final TreeNode node) {
-        return expandedNodes.contains(node);
+        return expandedNodeCounts.containsKey(node);
+    }
+
+    /**
+     * @return a read only set of tree nodes which are currently expanded.  This will change as expanded nodes change.
+     */
+    public Set<TreeNode> getExpandedNodes() {
+        return expandedNodeCounts.keySet();
     }
 
     /**
@@ -807,13 +924,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
     protected final void toggleExpansion(final TreeNode node, final int modelRow) {
         final boolean expanded = isExpanded(node);
         if (modelRow >= 0 && modelRow < displayedNodes.size()) { // a visible node: - have to track changes and notify table of data changes.
-            final int visibleChildrenBeforeListeners = expanded ? calculateVisibleChildNodes(node) : 0;
-            if (listenersApprove(node)) {
+            if (listenersApprove(node, expanded)) {
                 boolean tableNotified = false; // track whether we tell the table it's been changed yet.
 
                 // If we had some visible nodes before toggling to unexpanded, remove those children.
                 if (expanded) {
-                    tableNotified |= removeDisplayedChildren(modelRow, visibleChildrenBeforeListeners);
+                    tableNotified |= removeDisplayedChildren(modelRow, expandedNodeCounts.get(node));
                 }
 
                 // Toggle the expanded state of the node.
@@ -830,7 +946,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
                 }
             }
         } else { // toggling a node that isn't a visible row - just get approval from listeners, then toggle the expanded state.
-            if (listenersApprove(node)) {
+            if (listenersApprove(node, expanded)) {
                 setExpanded(node, !expanded);
             }
         }
@@ -838,26 +954,64 @@ public abstract class TreeTableModel extends AbstractTableModel {
 
     protected void setExpanded(final TreeNode node, final boolean expanded) {
         if (expanded) {
-            expandedNodes.add(node);
+            checkExpandedNodes();
+            expandVisibleChildCounts(node);
         } else {
-            expandedNodes.remove(node);
+            collapseVisibleChildCounts(node);
         }
-       checkExpandedNodes();
+    }
+
+    protected void expandVisibleChildCounts(TreeNode node) {
+        final Map<TreeNode, Integer> localTreeCounts = expandedNodeCounts;
+        final int newVisibleChildren = calculateVisibleChildNodes(node, true);
+        localTreeCounts.put(node, newVisibleChildren);
+        TreeNode parentNode = node.getParent();
+        while (parentNode != null) {
+            final int parentChildCount = localTreeCounts.get(parentNode);
+            localTreeCounts.put(parentNode, parentChildCount + newVisibleChildren);
+            parentNode = parentNode.getParent();
+        }
+    }
+
+    protected void collapseVisibleChildCounts(TreeNode node) {
+        final Map<TreeNode, Integer> localTreeCounts = expandedNodeCounts;
+        final int oldVisibleChildren = localTreeCounts.remove(node);
+        TreeNode parentNode = node.getParent();
+        while (parentNode != null) {
+            final int parentChildCount = localTreeCounts.get(parentNode);
+            localTreeCounts.put(parentNode, parentChildCount - oldVisibleChildren);
+            parentNode = parentNode.getParent();
+        }
     }
 
     /**
      * Finds previously expanded nodes which are no longer part of the tree and removes them from the set of expanded nodes.
-     * Does this every 50 expansions or contractions to avoid an unnecessary performance hit, but to reclaim
+     * A node is no longer part of the tree if the root of its tree is not the root of our tree.
+     * Nodes can be removed at any time, and this is not under control of the model.  If there were previously recorded
+     * as expanded, there will be a memory leak in our expanded node tracking set, and the set of expanded nodes will grow gradually forever.
+     * Does this every 50 expansions to avoid an unnecessary performance hit, but to reclaim
      * memory for nodes that were previously expanded but are no longer part of the tree.
      */
     protected final void checkExpandedNodes() {
         if (expandNodeCheck++ >= 50) {
             expandNodeCheck = 0;
-            final Iterator<TreeNode> iterator = expandedNodes.iterator();
-            while (iterator.hasNext()) {
-                if (!nodeInTree(iterator.next())) {
-                    iterator.remove();
-                }
+            removeDeadNodes();
+        }
+    }
+
+    protected final void resetExpanded() {
+        expandedNodeCounts.clear();
+        if (!showRoot) { // expand the root if it's not showing.
+            expandNode(rootNode);
+        }
+    }
+
+    protected final void removeDeadNodes() {
+        final Iterator<Map.Entry<TreeNode, Integer>> iterator = expandedNodeCounts.entrySet().iterator();
+        while (iterator.hasNext()) {
+            final TreeNode node = iterator.next().getKey();
+            if (!nodeInTree(node)) {
+                iterator.remove();
             }
         }
     }
@@ -886,14 +1040,21 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return currentNode;
     }
 
-    protected final void toggleExpansion(final JTable table, final MouseEvent evt) {
-        final Point point = evt.getPoint();
-        final int tableRow = table.rowAtPoint(point);
-        final int columnIndex = table.columnAtPoint(point);
-        final int modelRow = getModelIndex(table, tableRow);
-        final TreeNode node = displayedNodes.get(modelRow);
-        if (getClickHandler().clickOnExpand(node, columnIndex, evt)) {
-            toggleExpansion(node, modelRow);
+    /**
+     * Toggles expansion of nodes based on a mouse click.
+     *
+     * @param evt The mouse event to process.
+     */
+    protected final void toggleExpansion(final MouseEvent evt) {
+        if (table != null) {
+            final Point point = evt.getPoint();
+            final int tableRow = table.rowAtPoint(point);
+            final int columnIndex = table.columnAtPoint(point);
+            final int modelRow = getModelIndex(tableRow);
+            final TreeNode node = displayedNodes.get(modelRow);
+            if (getClickHandler().clickOnExpand(node, columnIndex, evt)) {
+                toggleExpansion(node, modelRow);
+            }
         }
     }
 
@@ -931,9 +1092,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
             final List<TreeNode> newVisibleNodes = new ArrayList<>();
             addVisibleChildren(node, newVisibleNodes);
             if (newVisibleNodes.size() == 1) {
-                displayedNodes.insert(newVisibleNodes.get(0), firstChildRow);
+                displayedNodes.add(firstChildRow, newVisibleNodes.get(0));
             } else {
-                displayedNodes.insert(newVisibleNodes, firstChildRow);
+                displayedNodes.addAll(firstChildRow, newVisibleNodes);
             }
             final int lastChildRow = firstChildRow + newVisibleNodes.size() - 1;
             fireTableRowsInserted(firstChildRow, lastChildRow);
@@ -952,12 +1113,21 @@ public abstract class TreeTableModel extends AbstractTableModel {
         }
     }
 
-    protected final int calculateVisibleChildNodes(final TreeNode node) {
+    /**
+     * Calculates how many child nodes will be visible given a parent node.
+     * If you want a count of the visible nodes of a parent before it is actually expanded,
+     * you can say to expand the parent (no matter what it's actual expanded status right now).
+     *
+     * @param node The node to get a count of visible children for.
+     * @param expandParent true if you want a count no matter whether it is currently expanded or not.
+     * @return A count of all children which would be visible in this parent.
+     */
+    protected final int calculateVisibleChildNodes(final TreeNode node, boolean expandParent) {
         int totalVisibleChildNodes = 0;
-        if (isExpanded(node)) { // if expanded, then add in the visible children.
+        if (expandParent || isExpanded(node)) {
             for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
                 final TreeNode child = node.getChildAt(childIndex);
-                totalVisibleChildNodes += (1 + calculateVisibleChildNodes(child));
+                totalVisibleChildNodes += (1 + calculateVisibleChildNodes(child, false));
             }
         }
         return totalVisibleChildNodes;
@@ -981,29 +1151,36 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return currentNode == rootNode;
     }
 
+
     /******************************************************************************************************************
      *                                            Listener management
      */
 
-    private boolean listenersApprove(final TreeNode node) {
-        final TreeTableEvent event = isExpanded(node) ?
-                new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.COLLAPSING) :
-                new TreeTableEvent(node, TreeTableEvent.TreeTableEventType.EXPANDING);
-        return listenersApprovedEvent(event);
+    protected final boolean listenersApprove(final TreeNode node, final boolean isCollapsing) {
+        return isCollapsing ? listenersApprovedCollapseEvent(node) : listenersApprovedExpandEvent(node);
     }
 
-    private boolean listenersApprovedEvent(final TreeTableEvent event) {
-        for (TreeTableEvent.Listener listener : eventListeners) {
-            if (!listener.actionTreeEvent(event)) {
+    protected final boolean listenersApprovedExpandEvent(final TreeNode node) {
+        for (ExpandCollapseListener listener : eventListeners) {
+            if (!listener.nodeExpanding(node)) {
                 return false;
             }
         }
         return true;
     }
 
-    private TreeClickHandler getClickHandler() {
+    protected final boolean listenersApprovedCollapseEvent(final TreeNode node) {
+        for (ExpandCollapseListener listener : eventListeners) {
+            if (!listener.nodeCollapsing(node)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    protected final TreeClickHandler getClickHandler() {
         if (clickHandler == null) {
-            final TableCellRenderer renderer = getColumnWithModelIndex(treeColumnModelIndex).getCellRenderer();
+            final TableCellRenderer renderer = getColumnWithModelIndex(TREE_COLUMN_INDEX).getCellRenderer();
             if (renderer instanceof TreeClickHandler) {
                 clickHandler = (TreeClickHandler) renderer;
             } else {
@@ -1013,7 +1190,7 @@ public abstract class TreeTableModel extends AbstractTableModel {
         return clickHandler;
     }
 
-    private TableColumn getColumnWithModelIndex(final int modelIndex) {
+    protected final TableColumn getColumnWithModelIndex(final int modelIndex) {
         TableColumnModel model = getTableColumnModel();
         for (int columnIndex = 0; columnIndex < model.getColumnCount(); columnIndex++) {
             final TableColumn column = model.getColumn(columnIndex);
@@ -1021,8 +1198,12 @@ public abstract class TreeTableModel extends AbstractTableModel {
                 return column;
             }
         }
-        return null; // should not happen if model index is valid.
+       throw new IllegalArgumentException("Invalid model index: " + modelIndex);
     }
+
+    /******************************************************************************************************************
+     *                            Action classes to bind to keyboard events.
+     */
 
     protected class TreeTableExpandAction extends AbstractAction {
         @Override
@@ -1030,9 +1211,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
             Object source = e.getSource();
             if (source instanceof JTable) {
                 final JTable table = (JTable) source;
-                final int modelIndexRow = getModelIndex(table, table.getSelectedRow());
+                final int modelIndexRow = getModelIndex(table.getSelectedRow());
                 final TreeNode node = getNodeAtRow(modelIndexRow);
-                if (node.getAllowsChildren() && !isExpanded(node)) {
+                if (node != null && node.getAllowsChildren() && !isExpanded(node)) {
                     toggleExpansion(node, modelIndexRow);
                 }
             }
@@ -1045,9 +1226,9 @@ public abstract class TreeTableModel extends AbstractTableModel {
             Object source = e.getSource();
             if (source instanceof JTable) {
                 final JTable table = (JTable) source;
-                final int modelIndexRow = getModelIndex(table, table.getSelectedRow());
+                final int modelIndexRow = getModelIndex(table.getSelectedRow());
                 final TreeNode node = getNodeAtRow(modelIndexRow);
-                if (node.getAllowsChildren() && isExpanded(node)) {
+                if (node != null && node.getAllowsChildren() && isExpanded(node)) {
                     toggleExpansion(node, modelIndexRow);
                 }
             }
@@ -1060,9 +1241,11 @@ public abstract class TreeTableModel extends AbstractTableModel {
             Object source = e.getSource();
             if (source instanceof JTable) {
                 final JTable table = (JTable) source;
-                final int modelIndexRow = getModelIndex(table, table.getSelectedRow());
+                final int modelIndexRow = getModelIndex(table.getSelectedRow());
                 final TreeNode node = getNodeAtRow(modelIndexRow);
-                toggleExpansion(node, modelIndexRow);
+                if (node != null) {
+                    toggleExpansion(node, modelIndexRow);
+                }
             }
         }
     }
@@ -1092,6 +1275,26 @@ public abstract class TreeTableModel extends AbstractTableModel {
          * @return true if there was a click on expand/collapse for this node.
          */
         boolean clickOnExpand(TreeNode node, int column, MouseEvent evt);
+    }
+
+    /**
+     * An interface for a listener to expand or collapse events in the tree.
+     */
+    public interface ExpandCollapseListener {
+
+        /**
+         * Notifies the listener that the tree node will expand.
+         * @param node the node that is about to expand
+         * @return true if you want to allow the expansion.
+         */
+        boolean nodeExpanding(TreeNode node);
+
+        /**
+         * Notifies the listener that the tree node will collapse.
+         * @param node the node that is about to collapse
+         * @return true if you want to allow the collapse.
+         */
+        boolean nodeCollapsing(TreeNode node);
     }
 
     /**

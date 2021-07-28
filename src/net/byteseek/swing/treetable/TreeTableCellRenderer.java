@@ -39,6 +39,8 @@ import javax.swing.tree.TreeNode;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 
+//TODO: what about rendering arbitrary data types *within* the tree cell?  Just subclass this renderer I guess.
+
 /**
  * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model
  */
@@ -82,7 +84,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
         setFont(table.getFont());
         setValue(value);
         setToolTipText(value.toString());
-        final TreeNode node = treeTableModel.getNodeAtTableRow(table, row);
+        final TreeNode node = treeTableModel.getNodeAtTableRow(row);
         setNode(node);
         setNodeIcon(node);
         return this;
@@ -93,7 +95,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
         final TreeTableModel localModel = treeTableModel;
         final TableColumnModel columnModel = localModel.getTableColumnModel();
         final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
-        if (columnModelIndex == localModel.getTreeColumn() && node != null & node.getAllowsChildren()) {
+        if (columnModelIndex == 0 && node != null & node.getAllowsChildren()) {
             final int columnStart = calculateWidthToLeft(columnModel, column);
             final int expandEnd = columnStart + getNodeIndent(node);
             final int mouseX = evt.getPoint().x;

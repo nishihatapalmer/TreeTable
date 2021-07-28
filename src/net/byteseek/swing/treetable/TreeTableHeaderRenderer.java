@@ -41,8 +41,6 @@ import javax.swing.table.TableModel;
 import java.awt.*;
 import java.util.List;
 
-//TODO: rendering in GTK again weird - grid lines are off by a bit, but not in Metal.
-
 //TODO: centering of header labels - no need for non sorted columns to have the left indent, makes them look lop-sided.
 
 /**
@@ -51,11 +49,12 @@ import java.util.List;
  */
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
 
-    private static final int ICON_AND_NUMBER_WIDTH = 32; // hard coded value for ascend/descend icon and text... should calculate?
+    private static final int ICON_AND_NUMBER_WIDTH = 32; //TODO: hard coded value for ascend/descend icon and text... should calculate?
     private static final int PADDING = 4; // white space padding at end of ascend/descend .
 
     private Icon sortAscendingIcon;
     private Icon sortDescendingIcon;
+    private int maxIconWidth;
     private JLabel sortAscendingIconLabel;
     private JLabel sortDescendingIconLabel;
     private Color gridColor;
@@ -137,7 +136,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         } else {
             sortAscendingIconLabel.setIcon(sortAscendingIcon);
         }
-        //TODO: calc icon widths...?
+        setMaxIconWidth();
     }
 
     public Icon getSortAscendingIcon() {
@@ -152,7 +151,13 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         } else {
             sortDescendingIconLabel.setIcon(sortDescendingIcon);
         }
-        //TODO: calc icon widths...?
+        setMaxIconWidth();
+    }
+
+    protected final void setMaxIconWidth() {
+        int descendingWidth = sortDescendingIcon == null? 0 : sortDescendingIcon.getIconWidth();
+        int ascendingWidth = sortAscendingIcon == null? 0 : sortAscendingIcon.getIconWidth();
+        maxIconWidth = Math.max(descendingWidth, ascendingWidth);
     }
 
     public Icon getSortDescendingIcon() {
@@ -211,7 +216,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      */
     protected class SortIconBorder implements Border {
 
-        private final Insets insets = new Insets(4, ICON_AND_NUMBER_WIDTH, 4, 0);
+        private final Insets insets = new Insets(PADDING, ICON_AND_NUMBER_WIDTH, PADDING, 0);
 
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {

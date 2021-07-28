@@ -60,6 +60,7 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     }
 }
 ```
+The first column (with model index 0) is always the column that renders the tree.
 
 ### Displaying the tree
 To display a `TreeTableModel`, instantiate a model with a root node, and bind it to a standard `JTable`:
@@ -88,12 +89,11 @@ You must supply the root object of the tree, and a lambda, or a class implementi
 If your object doesn't have a tree structure modelled within it already, you can build any static tree of `TreeNode` you like, but you'll have to write the code to do that.
 
 ### Dynamically building a tree
-You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableEvent.Listener` and responding to expand or collapse events.
+You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableModel.ExpandCollapseListener` interface, registering it as a listener, and responding to expand or collapse events.
 
-If on dynamic expand there are no child nodes to be added, you can set the node to not allow children `node.setAllowsChildren(false)` in the tree event.  The node will no longer display expand or collapse handles.
+//TODO: example code of listener.
 
-## The tree column
-The tree column is the column in which the tree structure is rendered.
+If on dynamic expand there are no child nodes to be added, you can set the node to not allow children.  The node will no longer display expand or collapse handles.
 
 ### Expanding and collapsing nodes
 Nodes can be expanded or collapsed by clicking to the left of the expand handle.
@@ -107,7 +107,7 @@ To supply icons for nodes in the tree column, override `TreeTableModel.getNodeIc
 
 ### Column
 
-The column which renders the tree defaults to the first column.  This can be changed by calling `model.setTreeColumn(columnIndex)` to the model index of the tree column in which the tree should appear.
+The column which renders the tree is always the first column.  
 
 ## Rendering
 

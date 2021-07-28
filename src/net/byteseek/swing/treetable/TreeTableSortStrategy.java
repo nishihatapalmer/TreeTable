@@ -35,6 +35,17 @@ import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 
+//TODO: sort strategy of remove subsequent combined with default sort column means you can only ever sort on the primary column.
+//      how to move to a new sort column when you're removing subsequent?  Getting to unsorted allows you to pick a new primary.
+//      If you can't get to unsorted, you can't change the primary sort column.
+//      You could if you only removed the column moving to unsorted, after picking the new column as a secondary sort.
+//      You also can if you make each column clicked the primary sort column (but this makes multi column sorting kind of
+//      pointless, because sorting secondarily on your prior primary isn't making a lot of sense to me in terms of
+//      a strategy to explore the data set.
+//      COULD introduce a Ctrl-click to set primary sort column.  Awkward, most people will never discover it.
+
+//TODO: re-investigate sort insert / delete rows optimisations after we've done tree model insert/delete notifications on the TreeTableModel.
+
 /**
  * A configurable class that decides what the next set of sort keys will be, given the current set and a request to sort on a column.
  * It defaults to adding new sort columns to the end of current sorted columns, and removing the column and all subsequent sort columns

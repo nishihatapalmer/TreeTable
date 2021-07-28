@@ -32,7 +32,9 @@
 package net.byteseek.utils.collections;
 
 import java.util.AbstractList;
+import java.util.Collection;
 import java.util.List;
+import java.util.ListIterator;
 
 /**
  * A List which provides efficient block operations for insert and remove of objects backed by an array.
@@ -66,25 +68,8 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return true;
     }
 
-    /**
-     * Adds a list of objects to the list.
-     *
-     * @param elements The elements to add.
-     */
-    public void add(final List<E> elements) {
-        final int numToAdd = elements.size();
-        checkResize(numToAdd);
-        for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
-            this.elements[size++] = elements.get(elementIndex);
-        }
-    }
-
-    /**
-     * Inserts an element into the list at the given index.
-     * @param element The element to add.
-     * @param index The index to add the element at.
-     */
-    public void insert(final E element, final int index) {
+    @Override
+    public void add(final int index, final E element) {
         if (index == size) {
             add(element);
         } else {
@@ -101,14 +86,27 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
     }
 
     /**
+     * Adds a list of objects to the list.
+     *
+     * @param elements The elements to add.
+     */
+    public void addAll(final List<? extends E> elements) {
+        final int numToAdd = elements.size();
+        checkResize(numToAdd);
+        for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
+            this.elements[size++] = elements.get(elementIndex);
+        }
+    }
+
+    /**
      * Inserts a list of elements at the given index.
      *
      * @param elements the list of elements to insert.
      * @param index the index to insert tham at.
      */
-    public void insert(final List<E> elements, final int index) {
+    public void addAll(final int index, final List<? extends E> elements) {
         if (index == size) {
-            add(elements);
+            addAll(elements);
         } else {
             checkIndex(index);
             final int numToAdd = elements.size();
@@ -126,6 +124,32 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             }
             size += numToAdd;
         }
+    }
+
+    @Override
+    public boolean addAll(final int index, final Collection<? extends E> c) {
+        final int numToAdd = c.size();
+        checkResize(numToAdd);
+        final int numToShift = size - index;
+        final int newPosition = index + numToAdd;
+        // move the existing elements up to create a gap
+        for (int position = numToShift - 1; position >= 0; position--) {
+            this.elements[newPosition + position] = this.elements[index + position];
+        }
+        // Insert the new elements
+        int insertPos = index;
+        for (E element : c) {
+            this.elements[insertPos++] = element;
+        }
+        size += numToAdd;
+        return true;
+    }
+
+    @Override
+    public E set(final int index, final E element) {
+        final E previousValue = elements[index];
+        elements[index] = element;
+        return previousValue;
     }
 
     @Override
@@ -160,6 +184,42 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             }
             size -= numToRemove;
         }
+    }
+
+    @Override
+    public int indexOf(Object o) {
+        if (o == null) {
+            for (int i = 0; i < size; i++) {
+                if (elements[i] == null) {
+                    return i;
+                }
+            }
+        } else {
+            for (int i = 0; i < size; i++) {
+                if (elements[i].equals(o)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        if (o == null) {
+            for (int i = size - 1; i >=0; i--) {
+                if (elements[i] == null) {
+                    return i;
+                }
+            }
+        } else {
+            for (int i = size - 1; i >=0; i--) {
+                if (elements[i].equals(o)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
     @Override

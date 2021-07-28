@@ -73,7 +73,7 @@ public class MyObjectForm {
     private void createTreeTable(MyObject objectTree) {
         final TreeNode rootNode = TreeTableModel.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
         treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
-        treeTableModel.bindTable(table1, new RowSorter.SortKey(0, SortOrder.ASCENDING));
+        treeTableModel.bindTable(table1); //, new RowSorter.SortKey(0, SortOrder.ASCENDING));
 
         /*
         treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
