@@ -121,7 +121,7 @@ In general, you probably don't want to implement your own tree renderer from scr
 If you do not specify a `TableCellRenderer` for each `TableColumn` in `TreeTableModel.getTableColumn()`, then the `JTable` will just use a default `Object` renderer for each column, which just calls `toString()`.  To make the `JTable` use better renderers appropriate to the type of the column, you can override the `TreeTableModel.getColumnClass()` method:
 ```java
     @Override
-    public Class<?> getColumnClass(final int columnIndex) {
+    public Class<?> getColumnClass(int columnIndex) {
         switch (columnIndex) {
             case 0: return String.class;
             case 1: return Long.class;
@@ -155,7 +155,7 @@ If you want to group nodes by some feature of a node or its user object, you can
 For example, some nodes represent files and some folders, and you'd like all the folders to be grouped together, and all the files, with column sorting within those groups.  This could be achieved by setting a node comparator that makes nodes that allow children "smaller than" nodes that don't.  There is a default comparator defined in the `TreeTableModel` which does this:
 ```java
     public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN = (o1, o2) -> {
-        final boolean allowsChildren = o1.getAllowsChildren();
+        boolean allowsChildren = o1.getAllowsChildren();
         return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? -1 : 1;
     };
 
@@ -174,18 +174,18 @@ This behaviour can be customised by implementing a `ColumnSortStrategy` object a
 If you want to edit cells in the tree table, you have to override the following method: `TreeTableModel.isCellEditable()` and return true if a particular cell is editable.
 ```java
     @Override
-    public boolean isCellEditable(final int rowIndex, final int columnIndex) {
+    public boolean isCellEditable(int rowIndex, int columnIndex) {
         return true;
     }
 ```
 You must also override `TreeTableModel.setColumnValue()` to write to the correct field for a column that's editable:
 ```java
  @Override
-    public void setColumnValue(final TreeNode node, final int column, final Object value) {
+    public void setColumnValue(TreeNode node, int column, Object value) {
         checkValidColumn(column);
-        final Object o = (DefaultMutableTreeNode) node.getUserObject();
+        Object o = (DefaultMutableTreeNode) node.getUserObject();
         if (o instanceof MyObject) {
-            final MyObject obj = (MyObject) o;
+            MyObject obj = (MyObject) o;
             switch (column) {
                 case 0: {      
                     obj.setDescription(String) value);
@@ -208,7 +208,7 @@ You must also override `TreeTableModel.setColumnValue()` to write to the correct
 If you are not specifying `TableCellEditor` objects in each `TableColumn`, you must override `TreeTableModel.getColumnClass()` to return the types of the objects in the column.  
 ```java
     @Override
-    public Class<?> getColumnClass(final int columnIndex) {
+    public Class<?> getColumnClass(int columnIndex) {
         switch (columnIndex) {
             case 0: return String.class;
             case 1: return Long.class;
