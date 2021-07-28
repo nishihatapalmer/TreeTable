@@ -1,6 +1,6 @@
 # TreeTable
 
-Treetable displays a tree of information, with additional columns for each item in the tree, in a standard Java Swing `JTable`.
+Treetable displays a tree of information, with additional columns for each item in the tree, in a standard Java Swing `JTable`.  The tree can be composed of any type of `TreeNode`, and you can use any `TreeModel` with it.
 
 ![TreeTable](treetable.png)
 
@@ -102,16 +102,15 @@ Selected nodes can be expanded or collapsed with key presses, defaulting to usin
 
 When a node expands or collapses, the model fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
 
-### Icons
-To supply icons for nodes in the tree column, override `TreeTableModel.getNodeIcon(node)`. 
-
-### Column
-
-The column which renders the tree is always the first column.  
+//TODO: programmatic expansion of nodes.
 
 ## Rendering
 
 ### Tree column
+To supply icons for nodes in the tree column, override `TreeTableModel.getNodeIcon(node)`.
+
+//TODO: code example.
+
 By default, the tree column uses a `TreeTableCellRenderer`.  You can use a different renderer (or a subclass) if you prefer, by specifying the renderer to use when you create the TableColumns in the `model.getTableColumn()` method.  TableColumns let you set the cell renderer and the cell editor to use for that column.
 
 If implementing a different tree renderer, you should also implement a `TreeClickHandler` which determines whether a click in this column is an expand or collapse event.  Then set the `TreeClickHandler` using `model.setTreeClickHandler()`
@@ -119,7 +118,7 @@ If implementing a different tree renderer, you should also implement a `TreeClic
 In general, you probably don't want to implement your own tree renderer from scratch, unless there is something particularly unusual.  You can easily subclass the `TreeTableCellRenderer` to add different formatting, and return your subclassed renderer in the appropriate TableColumn.
 
 ### Other columns
-If you do not specify TableCellRenderers for each TableColumn in `getTableColumn()`, then the JTable will just use a default Object renderer for each column, which calls toString().  To make the JTable use better renderers appropriate to the type of the column, you can override the `TableModel.getColumnClass()` method:
+If you do not specify a `TableCellRenderer` for each `TableColumn` in `TreeTableModel.getTableColumn()`, then the `JTable` will just use a default `Object` renderer for each column, which just calls `toString()`.  To make the `JTable` use better renderers appropriate to the type of the column, you can override the `TreeTableModel.getColumnClass()` method:
 ```java
     @Override
     public Class<?> getColumnClass(final int columnIndex) {
@@ -132,7 +131,7 @@ If you do not specify TableCellRenderers for each TableColumn in `getTableColumn
     }
 
 ```
-JTable has built-in TableCellRenderers for Object (including String), Boolean, Number, Float, Double, Icon, IconImage and Date. 
+`JTable` has built-in TableCellRenderers for `Object` (including `String`), `Boolean`, `Number`, `Float`, `Double`, `Icon`, `IconImage` and `Date`. 
 
 ### Table headers
 By default, a `TreeTableHeaderRenderer` is used to render the table header.  This displays multi-column sorts by adding the number of the sort column as well as the ascending/descending icons.
@@ -206,7 +205,7 @@ You must also override `TreeTableModel.setColumnValue()` to write to the correct
 ```
 
 
-If you are not specifying `TableCellEditor` objects in each `TableColumn`, you must override `TableModel.getColumnClass()` to return the types of the objects in the column.  
+If you are not specifying `TableCellEditor` objects in each `TableColumn`, you must override `TreeTableModel.getColumnClass()` to return the types of the objects in the column.  
 ```java
     @Override
     public Class<?> getColumnClass(final int columnIndex) {
@@ -219,4 +218,4 @@ If you are not specifying `TableCellEditor` objects in each `TableColumn`, you m
     }
 
 ```
-JTable has default cell editors for Object (including String), Boolean, and Number.
+`JTable` has default cell editors for `String`, `Boolean`, and `Number`.  
