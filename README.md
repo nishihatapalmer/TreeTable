@@ -113,6 +113,7 @@ If on dynamic expand there are no child nodes to be added, you can set the node 
 ```java 
     @Override
     public boolean nodeExpanding(TreeNode node) {
+        yourMethodToAddChildrenToNode(node);
         if (node.getChildCount() == 0) {
             ((DefaultMutableTreeNode) node).setAllowsChildren(false);
         }
