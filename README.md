@@ -76,26 +76,53 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 ## Building a tree
 
-In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeNode` structure, and assign the correct user objects to the nodes.  There are at least two ways to do that:
+In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeNode` structure, and assign the correct user objects to the nodes.  There are many ways to do that:
 
-### Statically building a tree
-If your objects already have a tree structure, you can build a mirrored tree of TreeNodes from them using the static utility method `TreeTableModel.buildTree()`.  For example:
+### Static copy
+If your objects already have a tree structure, you can build a mirrored tree of `DefaultMutableTreeNode` from them using the static utility method `TreeTableModel.buildTree()`.  For example:
 ```java
    MyObject rootObject = yourMethodToGetAnObjectTree();
    MutableTreeNode rootNode = TreeTableModel.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
 ```
-You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `MutableTreeNode` will be returned which is the root node of an identical tree of `DefaultMutableTreeNode`.  This method makes one assumption: that any node that doesn't have any children isn't allowed to have children.  So no expand or collapse handles will be shown for nodes with no children.  
+You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `MutableTreeNode` will be returned which is the root of the mirrored tree, with each node associated with the corresponding user object.
 
-If your object doesn't have a tree structure modelled within it already, you can build any static tree of `TreeNode` you like, but you'll have to write the code to do that.
+This won't keep the tree up to date if the object structure subsequently changes, but is easy to use if you have a static tree structure to start with.
 
-### Dynamically building a tree
+
+
+### Build on expand
 You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableModel.ExpandCollapseListener` interface, registering it as a listener, and responding to expand or collapse events.
 
-//TODO: example code of listener.
+```java
+model.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
+    @Override
+    public boolean nodeExpanding(TreeNode node) {
+        yourMethodToAddChildrenToNode(node);
+        return true;
+    }
 
-If on dynamic expand there are no child nodes to be added, you can set the node to not allow children.  The node will no longer display expand or collapse handles.
+    @Override
+    public boolean nodeCollapsing(TreeNode node) {
+        ((DefaultMutableTreeNode) node).removeAllChildren();
+        return true;
+    }
+});
+```
+If on dynamic expand there are no child nodes to be added, you can set the node to not allow children.  The node will no longer display expand or collapse handles.  For example, assuming `DefaultMutableTreeNode` is being used:
 
-### Expanding and collapsing nodes
+```java 
+    @Override
+    public boolean nodeExpanding(TreeNode node) {
+        if (node.getChildCount() == 0) {
+            ((DefaultMutableTreeNode) node).setAllowsChildren(false);
+        }
+        return true;
+    }
+```
+
+### Using a TreeModel
+
+## Expanding and collapsing nodes
 Nodes can be expanded or collapsed by clicking to the left of the expand handle.
 
 Selected nodes can be expanded or collapsed with key presses, defaulting to using the `+` key for expand, the `-` key for collapse, and the space key to toggle between expand and collapse.  You can change what KeyStrokes are defined for these events, but you should change these before you bind to a JTable.
