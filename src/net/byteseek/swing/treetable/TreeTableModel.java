@@ -137,7 +137,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected TableColumnModel columnModel;
     protected BlockModifyArrayList<TreeNode> displayedNodes = new BlockModifyArrayList<>();
-    //protected Set<TreeNode> expandedNodes = new HashSet<>();
     protected Map<TreeNode, Integer> expandedNodeCounts = new HashMap<>();
     protected int expandNodeCheck; // a counter which we use to perform occasional housekeeping on the set of expanded nodes.
 
@@ -218,7 +217,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *
      * @param table The JTable to bind to this TreeTableModel.
      */
-    public void bindTable(final JTable table) {
+    public final void bindTable(final JTable table) {
         bindTable(table, new TreeTableRowSorter(this), new TreeTableHeaderRenderer());
     }
 
@@ -229,10 +228,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      * @param defaultSortKey The default sort keys the table will have if no other sort defined.
      */
-    public void bindTable(final JTable table, final RowSorter.SortKey defaultSortKey) {
+    public final void bindTable(final JTable table, final RowSorter.SortKey defaultSortKey) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKey), new TreeTableHeaderRenderer());
     }
-
 
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
@@ -241,7 +239,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      */
-    public void bindTable(final JTable table, final List<RowSorter.SortKey> defaultSortKeys) {
+    public final void bindTable(final JTable table, final List<RowSorter.SortKey> defaultSortKeys) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), new TreeTableHeaderRenderer());
     }
 
@@ -252,7 +250,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      * @param rowSorter The row sorter to use with the table.
      */
-    public void bindTable(final JTable table, final RowSorter<TreeTableModel> rowSorter) {
+    public final void bindTable(final JTable table, final RowSorter<TreeTableModel> rowSorter) {
         bindTable(table, rowSorter, new TreeTableHeaderRenderer());
     }
 
@@ -263,7 +261,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      * @param headerRenderer The renderer to use to draw the table header.
      */
-    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer) {
+    public final void bindTable(final JTable table,  final TableCellRenderer headerRenderer) {
         bindTable(table, new TreeTableRowSorter(this), headerRenderer);
     }
 
@@ -275,7 +273,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      * @param headerRenderer The renderer to use to draw the table header.
      */
-    public void bindTable(final JTable table,  final List<RowSorter.SortKey> defaultSortKeys, final TableCellRenderer headerRenderer) {
+    public final void bindTable(final JTable table,  final List<RowSorter.SortKey> defaultSortKeys, final TableCellRenderer headerRenderer) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
     }
 
@@ -287,7 +285,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param defaultSortKey The default sort key the table will have if no other sort defined.
      * @param headerRenderer The renderer to use to draw the table header.
      */
-    public void bindTable(final JTable table,  final RowSorter.SortKey defaultSortKey, final TableCellRenderer headerRenderer) {
+    public final void bindTable(final JTable table,  final RowSorter.SortKey defaultSortKey, final TableCellRenderer headerRenderer) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKey), headerRenderer);
     }
 
@@ -298,35 +296,33 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.  Cannot be null.
      * @param rowSorter The row sorter to use with the table.  Can be null if no sorting required.
      * @param headerRenderer The renderer to use to draw the table header.  Can be null if no special header rendering required.
-     * @throws IllegalArgumentException if the table passed in is null.
      */
-    public void bindTable(final JTable table,
+    public final void bindTable(final JTable table,
                           final RowSorter<TreeTableModel> rowSorter,
                           final TableCellRenderer headerRenderer) {
-        if (table == null) {
-            throw new IllegalArgumentException("You cannot bind to a null table.");
-        }
         if (this.table != null) {
             unbindTable();
         }
         this.table = table;
-        table.setAutoCreateColumnsFromModel(false);
-        table.setModel(this);
-        table.setColumnModel(getTableColumnModel());
-        if (rowSorter != null) {
-            table.setRowSorter(rowSorter);
+        if (table != null) {
+            table.setAutoCreateColumnsFromModel(false);
+            table.setModel(this);
+            table.setColumnModel(getTableColumnModel());
+            if (rowSorter != null) {
+                table.setRowSorter(rowSorter);
+            }
+            if (headerRenderer != null) {
+                table.getTableHeader().setDefaultRenderer(headerRenderer);
+            }
+            addKeyboardActions();
+            addMouseListener();
         }
-        if (headerRenderer != null) {
-            table.getTableHeader().setDefaultRenderer(headerRenderer);
-        }
-        addKeyboardActions();
-        addMouseListener();
     }
 
     /**
      * Unbinds the model from the JTable.  Does nothing if the Jtable isn't using this as its TableModel.     *
      */
-    public void unbindTable() {
+    public final void unbindTable() {
         if (table != null && table.getModel() == this) {
             removeMouseListener();
             removeKeyboardActions();
@@ -460,10 +456,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         setColumnValue(getNodeAtRow(rowIndex), columnIndex, aValue);
     }
 
+
     /******************************************************************************************************************
-     *                                    TreeModelListener implementation
+     *                                    Tree Change methods
      *
-     * Methods required for for this model to listen for TreeModelListener events.
+     * Methods required for for this model to listen for TreeModelListener events, or to manually notify the
+     * model that a node has changed.
      * This class can be plugged into a DefaultTreeModel in order to respond to tree events.
      */
 
@@ -475,39 +473,155 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
-    @Override
-    public final void treeNodesInserted(final TreeModelEvent e) {
-        TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
-        if (isVisible(parentNode)) {
-            final int[] childIndices = e.getChildIndices();
-
-            // option 1: wipe out all visible children of parent, and just rebuild.
-            //           + simpler
-            //           - less efficient potentially (WHY?)
-            //           + more efficient (removes a block
-
-            // option 2: insert each child node (and visible children) into the correct place in the display nodes.
-            //           + more efficient potentially
-            //           - more complex.
-            //           could optimise on consecutive inserts, but even more complexity.
-
-            // option 3: wipe out entire tree and just rebuild the damn thing from scratch.
-
-            // Trying option 1 first:
-            // final int visibleChildren =
-
-
-
-
-
+    public final void treeNodeInserted(final TreeNode parentNode, final int insertionIndex) {
+        final int numChildren = parentNode.getChildCount();
+        if (numChildren > 0 && insertionIndex >= 0 && insertionIndex < numChildren && isVisible(parentNode)) {
+            final int numInserted = insertVisibleNode(parentNode, insertionIndex);
+            updateVisibleChildCounts(parentNode, numInserted);
         }
     }
+
+    @Override
+    public final void treeNodesInserted(final TreeModelEvent e) {
+        final TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
+        final int[] childIndices = e.getChildIndices();
+        treeNodesInserted(parentNode, childIndices);
+    }
+
+    public final void treeNodesInserted(final TreeNode parentNode, final int[] childIndices) {
+        final int numChildren = parentNode.getChildCount();
+        if (numChildren > 0 && isVisible(parentNode)) {
+            final int numInserted;
+            if (childIndices.length == 1) {
+                final int index = childIndices[0];
+                numInserted = index >= 0 && index < numChildren ? insertVisibleNode(parentNode, index) : 0;
+            } else {
+                numInserted = insertVisibleNodes(parentNode, childIndices);
+            }
+            updateVisibleChildCounts(parentNode, numInserted);
+        }
+    }
+
+    protected final int insertVisibleNode(final TreeNode parentNode, final int childIndex) {
+        final int insertPosition = getModelIndexAtInsertPosition(parentNode, childIndex, 1);
+        if (insertPosition >= 0) {
+            final TreeNode insertedNode = parentNode.getChildAt(childIndex); // The node that was inserted.
+            final List<TreeNode> newNodes = new ArrayList<>();
+            newNodes.add(insertedNode);
+            buildVisibleChildren(insertedNode, newNodes);
+            displayedNodes.addAll(insertPosition, newNodes);
+            fireTableRowsInserted(insertPosition, insertPosition + newNodes.size() - 1);
+            return newNodes.size();
+        }
+        return 0;
+    }
+
+    protected final int insertVisibleNodes(final TreeNode parentNode, final int[] childIndices) {
+        final int length = childIndices.length;
+        int from = 0;
+        int numInserted = 0;
+        while (from < length) {
+            final int to = findLastConsecutiveIndex(from, childIndices); // process all consecutive insertions together.
+            if (from == to) { // just inserting a single node (that potentially also has children, so numinserted may be bigger than one).
+                numInserted += insertVisibleNode(parentNode, childIndices[from]);
+            } else {          // inserting a block of nodes.
+                numInserted += insertVisibleNodes(parentNode, childIndices, from, to);
+            }
+            from = to + 1;
+        }
+        return numInserted;
+    }
+
+    protected final int insertVisibleNodes(final TreeNode parentNode, final int[] childIndices, final int from, final int to) {
+        final int insertPosition = getModelIndexAtInsertPosition(parentNode, childIndices[from], to - from + 1);
+        if (insertPosition > 0) {
+            final List<TreeNode> newNodes = new ArrayList<>();
+            for (int index = from; index <= to; index++) {
+                final int childIndex = childIndices[index];
+                final TreeNode insertedNode = parentNode.getChildAt(childIndex); // The node that was inserted.
+                newNodes.add(insertedNode);
+                buildVisibleChildren(insertedNode, newNodes);
+            }
+            displayedNodes.addAll(insertPosition, newNodes);
+            fireTableRowsInserted(insertPosition, insertPosition + newNodes.size() - 1);
+            return newNodes.size();
+        }
+        return 0;
+    }
+
+    protected final int getModelIndexAtInsertPosition(final TreeNode parentNode, final int firstInsertedIndex, final int numInsertions) {
+        final int lastInsertedIndex = firstInsertedIndex + numInsertions - 1;
+        final int numChildren = parentNode.getChildCount();
+        final int modelIndex;
+        if (numChildren == numInsertions) {                        // No previous nodes (inserted into parent with no prior children):
+            modelIndex = getModelIndex(parentNode) + 1;                                             //  - insert at the position just after the parent node.
+        } else if (lastInsertedIndex == numChildren - 1) {         // If inserted at the end of existing children:
+            final TreeNode previousChild = parentNode.getChildAt(firstInsertedIndex - 1);           //  previous last child is the one before the first inserted..
+            modelIndex = getModelIndex(previousChild) + expandedNodeCounts.get(previousChild) + 1;  // - insert one after last previous child and all its visible children.
+        } else {                                                   // Inserting before the end of existing children:
+            modelIndex = getModelIndex(parentNode.getChildAt(lastInsertedIndex + 1));               // - insert at the index of the child the last inserted node displaced one on.
+        }
+        return modelIndex;
+    }
+
+    protected final int findLastConsecutiveIndex(final int from, final int[] indices) {
+        int lastConsecutiveIndex = from;
+        for (int i = from + 1; i < indices.length; i++) {
+            if (indices[i] - indices[i - 1] == 1) {
+                lastConsecutiveIndex = i; // one apart - update last consecutive index.
+            } else {
+                break; // not consecutive - cease processing.
+            }
+        }
+        return lastConsecutiveIndex;
+    }
+
+    /*
+    private int getModelIndexAtInsertPosition(final TreeNode parentNode, final int[] childIndices, final int from, final int to) {
+        final int numInsertions = to - from + 1;
+        final int lastInsertedIndex = childIndices[to];
+        final int firstInsertedIndex = lastInsertedIndex - numInsertions + 1;
+        final int numChildren = parentNode.getChildCount();
+        final int modelIndex;
+        if (numChildren == numInsertions) {                        // No previous nodes (inserted into parent with no prior children):
+            modelIndex = getModelIndex(parentNode) + 1;                                             //  - insert at the position just after the parent node.
+        } else if (lastInsertedIndex == numChildren - 1) {         // If inserted at the end of existing children:
+            final TreeNode previousChild = parentNode.getChildAt(firstInsertedIndex - 1);           //  previous last child is the one before the first inserted..
+            modelIndex = getModelIndex(previousChild) + expandedNodeCounts.get(previousChild) + 1;  // - insert one after last previous child and all its visible children.
+        } else {                                                   // Inserting before the end of existing children:
+            modelIndex = getModelIndex(parentNode.getChildAt(lastInsertedIndex + 1));               // - insert at the index of the child the last inserted node displaced one on.
+        }
+        return modelIndex;
+    }
+
+    protected final int getModelIndexAtInsertPosition(final TreeNode parentNode, final int childIndex) {
+        final int lastChildIndex = parentNode.getChildCount() - 1;
+        final int modelIndex;
+        if (lastChildIndex == 0) {                         // No previous node (inserted into parent with no children):
+            modelIndex = getModelIndex(parentNode) + 1;                                             //  - insert at the position just after the parent node.
+        } else if (childIndex == lastChildIndex) {         // If inserting at the end of existing children:
+            final TreeNode previousChild = parentNode.getChildAt(childIndex - 1);                   //  previous last child is the one before it now.
+            modelIndex = getModelIndex(previousChild) + expandedNodeCounts.get(previousChild) + 1;  // - insert one after last previous child and all its visible children.
+        } else {                                           // Inserting before the end of existing children:
+            modelIndex = getModelIndex(parentNode.getChildAt(childIndex + 1));                      // - insert at the index of the child this node displaced one on.
+        }
+        return modelIndex;
+    }
+
+     */
+
+
 
     @Override
     public final void treeNodesRemoved(final TreeModelEvent e) {
         TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
         if (isVisible(parentNode)) {
-            //TODO: remove tree node handling.
+            final int previouslyVisibleChildren = expandedNodeCounts.get(parentNode);
+            final int modelIndex = getModelIndex(parentNode);
+            displayedNodes.replace(modelIndex + 1, modelIndex + previouslyVisibleChildren,
+                    parentNode.children(), parentNode.getChildCount());
+
+            //TODO: fire table change events.
         }
     }
 
@@ -516,6 +630,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         TreeNode parentNode = (TreeNode) e.getTreePath().getLastPathComponent();
         if (isVisible(parentNode)) {
             //TODO: structure change handling.
+            //      refresh entire tree, or a subset?
         }
     }
 
@@ -640,6 +755,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return rowSorter == null? tableIndex : rowSorter.convertRowIndexToModel(tableIndex);
     }
 
+    //TODO: could also track index of each expanded node, then could ask for index of a node given the index of the parent node to start from.
     /**
      * Gets the index in the model of a node, or -1 if it isn't visible or part of the current tree.
      *
@@ -693,7 +809,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *
      * @param listener The listener to be notified of tree expand or collapse events.
      */
-    public final void addTreeTableEventListener(final ExpandCollapseListener listener) {
+    public final void addExpandCollapseListener(final ExpandCollapseListener listener) {
         if (!eventListeners.contains(listener)) {
             eventListeners.add(listener);
         }
@@ -704,7 +820,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *
      * @param listener The listener to remove.
      */
-    public final void removeTreeTableEventListener(final ExpandCollapseListener listener) {
+    public final void removeExpandCollapseListener(final ExpandCollapseListener listener) {
         eventListeners.remove(listener);
     }
 
@@ -954,14 +1070,14 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     protected void setExpanded(final TreeNode node, final boolean expanded) {
         if (expanded) {
-            checkExpandedNodes();
             expandVisibleChildCounts(node);
+            checkExpandedNodes();
         } else {
             collapseVisibleChildCounts(node);
         }
     }
 
-    protected void expandVisibleChildCounts(TreeNode node) {
+    protected void expandVisibleChildCounts(final TreeNode node) {
         final Map<TreeNode, Integer> localTreeCounts = expandedNodeCounts;
         final int newVisibleChildren = calculateVisibleChildNodes(node, true);
         localTreeCounts.put(node, newVisibleChildren);
@@ -969,6 +1085,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         while (parentNode != null) {
             final int parentChildCount = localTreeCounts.get(parentNode);
             localTreeCounts.put(parentNode, parentChildCount + newVisibleChildren);
+            parentNode = parentNode.getParent();
+        }
+    }
+
+    protected void updateVisibleChildCounts(final TreeNode node, final int delta) {
+        final Map<TreeNode, Integer> localTreeCounts = expandedNodeCounts;
+        final int newVisibleChildren = localTreeCounts.get(node) + delta;
+        localTreeCounts.put(node, newVisibleChildren);
+        TreeNode parentNode = node.getParent();
+        while (parentNode != null) {
+            final int parentChildCount = localTreeCounts.get(parentNode);
+            localTreeCounts.put(parentNode, parentChildCount + delta);
             parentNode = parentNode.getParent();
         }
     }
@@ -1067,7 +1195,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         if (showRoot) {
             displayedNodes.add(rootNode);
         }
-        addVisibleChildren(rootNode, displayedNodes);
+        buildVisibleChildren(rootNode, displayedNodes);
     }
 
     protected final boolean removeDisplayedChildren(final int modelRow, final int numberToRemove) {
@@ -1089,8 +1217,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         final int childCount = node.getChildCount();
         if (childCount > 0) {
             final int firstChildRow = modelRow + 1;
-            final List<TreeNode> newVisibleNodes = new ArrayList<>();
-            addVisibleChildren(node, newVisibleNodes);
+            final List<TreeNode> newVisibleNodes = buildVisibleChildren(node);
             if (newVisibleNodes.size() == 1) {
                 displayedNodes.add(firstChildRow, newVisibleNodes.get(0));
             } else {
@@ -1103,12 +1230,21 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return false;
     }
 
-    protected final void addVisibleChildren(final TreeNode node, final List<TreeNode> visibleNodes) {
+    protected final List<TreeNode> buildVisibleChildren(final TreeNode node) {
+        if (node.getChildCount() > 0) {
+            final List<TreeNode> children = new ArrayList<>();
+            buildVisibleChildren(node, children);
+            return children;
+        }
+        return Collections.emptyList();
+    }
+
+    protected final void buildVisibleChildren(final TreeNode node, final List<TreeNode> visibleNodes) {
         if (isExpanded(node)) { // if expanded, then add in the visible children.
             for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
                 final TreeNode child = node.getChildAt(childIndex);
                 visibleNodes.add(child);
-                addVisibleChildren(child, visibleNodes); // And the children of the child if they're visible...
+                buildVisibleChildren(child, visibleNodes); // And the children of the child if they're visible...
             }
         }
     }
