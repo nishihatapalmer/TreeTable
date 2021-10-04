@@ -31,10 +31,7 @@
  */
 package net.byteseek.utils.collections;
 
-import java.util.AbstractList;
-import java.util.Collection;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.*;
 
 /**
  * A List which provides efficient block operations for insert and remove of objects backed by an array.
@@ -163,6 +160,8 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return elementToRemove;
     }
 
+
+    //TODO: examine use of *inclusive* from and to.  most other interfaces use exclusive to.
     /**
      * Removes a block of elements between the from and to index (inclusive).
      * @param from the first index of the block to remove.
@@ -170,9 +169,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      */
     public void remove(final int from, final int to) {
         checkIndex(from);
-        if (to < from) {
-            throw new IllegalArgumentException("to:" + to + " cannot be less than from:" + from);
-        }
+        checkFromTo(from, to);
         if (to >= size) { // If we're removing everything up to or past the end, just set the size down.
             size = from;
         } else { // got some stuff at the end we have to move over to cover the gap:
@@ -185,6 +182,47 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             size -= numToRemove;
         }
     }
+
+    public void replace(final int from, final int to, final List<? extends E> newValues) {
+        final int numNewValues = newValues.size();
+        moveElementsForReplace(from, to, numNewValues);
+        int listIndex = 0;
+        for (int position = from; position < from + numNewValues; position++) {
+            elements[position] = newValues.get(listIndex++);
+        }
+    }
+
+    public void replace(final int from, final int to, final Enumeration<? extends E> newValues, final int numNewValues) {
+        moveElementsForReplace(from, to, numNewValues);
+        for (int position = from; position < from + numNewValues; position++) {
+            elements[position] = newValues.nextElement();
+        }
+    }
+
+    //TODO: what about zero width insertion (from = to)?
+    //TODO: test!!!
+    private void moveElementsForReplace(final int from, final int to, final int numNewValues) {
+        checkFromTo(from, to);
+        final int safeTo = to < size ? to : size - 1;
+        final int numExistingValues = safeTo - from + 1;
+        final int delta = numNewValues - numExistingValues;
+        if (delta > 0) { // more new values than already exist - shift the elements after to over to make room.
+            checkResize(delta);
+            final int startPos = size - 1 + delta;
+            final int endPos = safeTo + delta;
+            for (int position = startPos; position >= endPos; position--) {
+                elements[position] = elements[position - delta];
+            }
+        } else if (delta < 0) { // fewer new values than existing values - shift the elements after to over to fill the gap.
+            final int startPos = safeTo + delta; // delta is negative.
+            final int endPos = size - 1 + delta;
+            for (int position = startPos; position <= endPos; position++) {
+                elements[position] = elements[position - delta]; // delta is negative.
+            }
+        }
+        size += delta;
+    }
+
 
     @Override
     public int indexOf(Object o) {
@@ -225,6 +263,12 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
     @Override
     public void clear() {
         size = 0;
+    }
+
+    private void checkFromTo(int from, int to) {
+        if (to < from) {
+            throw new IllegalArgumentException("to:" + to + " cannot be less than from:" + from);
+        }
     }
 
     /**

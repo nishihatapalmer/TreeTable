@@ -83,4 +83,8 @@ public class MyObject {
     public List<MyObject> getChildren() {
         return children;
     }
+
+    public String toString() {
+        return getClass().getSimpleName() + '(' + description + ')';
+    }
 }

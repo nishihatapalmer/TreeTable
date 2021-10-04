@@ -34,9 +34,7 @@ package net.byteseek.demo.treetable;
 import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.MutableTreeNode;
-import javax.swing.tree.TreeNode;
+import javax.swing.tree.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
@@ -45,20 +43,53 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 
+//TODO: insert at top of tree (not showing root) causes NullPointerException in updateVisibleChildCounts.
+
 public class MyObjectForm {
 
     private JPanel panel1;
     private JPanel rootPanel;
     private JScrollPane scrollPane;
     private JTable table1;
+    private JButton showRootButton;
+    private JButton insertButton;
+    private JButton deleteButton;
     private Random random;
     private List<String> wordList;
     TreeTableModel treeTableModel;
     boolean showRoot;
+    private DefaultTreeModel treeModel;
 
     public MyObjectForm() {
         createTreeTable(buildRandomTree(5, 5));
+        treeModel = new DefaultTreeModel(treeTableModel.getRoot());
+        treeModel.addTreeModelListener(treeTableModel);
         table1.setRowHeight(24);
+
+        showRootButton.addActionListener(e -> treeTableModel.setShowRoot(!treeTableModel.getShowRoot()));
+
+        insertButton.addActionListener(e -> {
+            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeTableModel.getSelectedNode();
+            MyObject newObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
+            DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(newObject, random.nextBoolean());
+            if (selectedNode.getAllowsChildren()) {
+                treeModel.insertNodeInto(newNode, selectedNode, selectedNode.getChildCount());
+            } else {
+                DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
+                if (parentNode != null) {
+                    int selectedIndex = treeModel.getIndexOfChild(parentNode, selectedNode);
+                    treeModel.insertNodeInto(newNode, parentNode, selectedIndex);
+                }
+            }
+        });
+
+        deleteButton.addActionListener(e -> {
+            //TODO: deal with multi-selections...
+            DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeTableModel.getSelectedNode();
+            if (selectedNode != treeTableModel.getRoot()) { // can't remove root node - will get illegal argument exception from a tree model.  use set root to change to a new root.
+                treeModel.removeNodeFromParent(selectedNode);
+            }
+        });
     }
 
     public static void main(String[] args) {
@@ -75,20 +106,20 @@ public class MyObjectForm {
         treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
         treeTableModel.bindTable(table1); //, new RowSorter.SortKey(0, SortOrder.ASCENDING));
 
-        /*
-        treeTableModel.addTreeTableEventListener(new TreeTableEvent.Listener() {
+        treeTableModel.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
             @Override
-            public boolean actionTreeEvent(TreeTableEvent event) {
-                if (event.getEventType() == TreeTableEvent.TreeTableEventType.EXPANDING) {
-                    TreeNode node = event.getNode();
-                    if (node.getChildCount() == 0) {
-                        ((DefaultMutableTreeNode) node).setAllowsChildren(false);
-                    }
+            public boolean nodeExpanding(TreeNode node) {
+                if (node.getChildCount() == 0) {
+                    ((DefaultMutableTreeNode) node).setAllowsChildren(false);
                 }
                 return true;
             }
+
+            @Override
+            public boolean nodeCollapsing(TreeNode node) {
+                return true;
+            }
         });
-         */
     }
 
     private MutableTreeNode buildTree() {

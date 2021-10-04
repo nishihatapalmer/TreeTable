@@ -116,7 +116,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param model The tree table model to sort.
      * @param defaultSortKeys The default sort if no other sort is defined.
      */
-    public TreeTableRowSorter(final TreeTableModel model, final SortKey... defaultSortKeys) {
+    public TreeTableRowSorter(final TreeTableModel model, final SortKey defaultSortKeys) {
         this(model, Arrays.asList(defaultSortKeys));
     }
 

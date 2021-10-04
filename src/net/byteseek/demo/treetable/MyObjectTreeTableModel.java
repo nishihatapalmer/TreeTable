@@ -39,7 +39,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.Comparator;
 
-public class MyObjectTreeTableModel extends TreeTableModel {
+public final class MyObjectTreeTableModel extends TreeTableModel {
 
     private static final int NUM_COLUMNS = 3;
 
@@ -52,7 +52,7 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     public MyObjectTreeTableModel(final TreeNode rootNode, final boolean showRoot) {
         super(rootNode, NUM_COLUMNS, showRoot);
         setIcons();
-        setNodeComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        //setNodeComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
         buildColumns();
     }
 

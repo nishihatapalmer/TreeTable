@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="net.byteseek.demo.treetable.MyObjectForm">
-  <grid id="27dc6" binding="panel1" default-binding="true" layout-manager="GridLayoutManager" row-count="1" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+  <grid id="27dc6" binding="panel1" default-binding="true" layout-manager="GridLayoutManager" row-count="2" column-count="1" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
     <margin top="0" left="0" bottom="0" right="0"/>
     <constraints>
-      <xy x="20" y="20" width="500" height="404"/>
+      <xy x="20" y="20" width="500" height="439"/>
     </constraints>
     <properties/>
     <border type="none"/>
     <children>
-      <grid id="6ff38" binding="rootPanel" layout-manager="GridLayoutManager" row-count="1" column-count="2" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+      <grid id="6ff38" binding="rootPanel" layout-manager="GridLayoutManager" row-count="2" column-count="2" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
         <margin top="0" left="0" bottom="0" right="0"/>
         <constraints>
-          <grid row="0" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false">
+          <grid row="1" column="0" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false">
             <minimum-size width="400" height="400"/>
             <preferred-size width="400" height="400"/>
           </grid>
@@ -21,7 +21,7 @@
         <children>
           <scrollpane id="dd0b7" binding="scrollPane">
             <constraints>
-              <grid row="0" column="0" row-span="1" col-span="2" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+              <grid row="1" column="0" row-span="1" col-span="2" vsize-policy="7" hsize-policy="7" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
             </constraints>
             <properties/>
             <border type="none"/>
@@ -32,6 +32,37 @@
               </component>
             </children>
           </scrollpane>
+          <toolbar id="66044">
+            <constraints>
+              <grid row="0" column="0" row-span="1" col-span="2" vsize-policy="0" hsize-policy="6" anchor="0" fill="1" indent="0" use-parent-layout="false">
+                <preferred-size width="-1" height="20"/>
+              </grid>
+            </constraints>
+            <properties>
+              <floatable value="false"/>
+            </properties>
+            <border type="none"/>
+            <children>
+              <component id="f1c6d" class="javax.swing.JButton" binding="showRootButton">
+                <constraints/>
+                <properties>
+                  <text value="toggle root"/>
+                </properties>
+              </component>
+              <component id="af38f" class="javax.swing.JButton" binding="insertButton">
+                <constraints/>
+                <properties>
+                  <text value="insert"/>
+                </properties>
+              </component>
+              <component id="e3fe2" class="javax.swing.JButton" binding="deleteButton">
+                <constraints/>
+                <properties>
+                  <text value="delete"/>
+                </properties>
+              </component>
+            </children>
+          </toolbar>
         </children>
       </grid>
     </children>
