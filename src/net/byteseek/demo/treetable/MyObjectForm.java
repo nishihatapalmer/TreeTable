@@ -35,15 +35,11 @@ import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
 import javax.swing.tree.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
-
-//TODO: insert at top of tree (not showing root) causes NullPointerException in updateVisibleChildCounts.
 
 public class MyObjectForm {
 
@@ -61,35 +57,48 @@ public class MyObjectForm {
     private DefaultTreeModel treeModel;
 
     public MyObjectForm() {
-        createTreeTable(buildRandomTree(5, 5));
-        treeModel = new DefaultTreeModel(treeTableModel.getRoot());
-        treeModel.addTreeModelListener(treeTableModel);
-        table1.setRowHeight(24);
+        configureTable();
+        MyObject myObjectTree = buildRandomTree(5, 5);
+        TreeNode rootNode = TreeTableModel.buildTree( myObjectTree, parent -> ((MyObject) parent).getChildren());
+        treeTableModel = createTreeTableModel( rootNode);
+        treeModel = createTreeModel( rootNode);
+        addButtonActionListeners();
+    }
 
+    private void addButtonActionListeners() {
         showRootButton.addActionListener(e -> treeTableModel.setShowRoot(!treeTableModel.getShowRoot()));
 
         insertButton.addActionListener(e -> {
             DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeTableModel.getSelectedNode();
-            MyObject newObject = new MyObject(getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
+            MyObject newObject = new MyObject( getRandomDescription(), random.nextInt(100000000), random.nextBoolean());
             DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(newObject, random.nextBoolean());
-            if (selectedNode.getAllowsChildren()) {
-                treeModel.insertNodeInto(newNode, selectedNode, selectedNode.getChildCount());
-            } else {
+            if (treeTableModel.isExpanded(selectedNode)) { // If expanded, insert as first child:
+                treeModel.insertNodeInto(newNode, selectedNode, 0);
+            } else { // Insert as next sibling of selected node.
                 DefaultMutableTreeNode parentNode = (DefaultMutableTreeNode) selectedNode.getParent();
                 if (parentNode != null) {
-                    int selectedIndex = treeModel.getIndexOfChild(parentNode, selectedNode);
-                    treeModel.insertNodeInto(newNode, parentNode, selectedIndex);
+                    int insertIndex = parentNode.getIndex(selectedNode) + 1;
+                    treeModel.insertNodeInto(newNode, parentNode, insertIndex);
                 }
             }
         });
 
         deleteButton.addActionListener(e -> {
-            //TODO: deal with multi-selections...
             DefaultMutableTreeNode selectedNode = (DefaultMutableTreeNode) treeTableModel.getSelectedNode();
             if (selectedNode != treeTableModel.getRoot()) { // can't remove root node - will get illegal argument exception from a tree model.  use set root to change to a new root.
                 treeModel.removeNodeFromParent(selectedNode);
             }
         });
+    }
+
+    private void configureTable() {
+        table1.setRowHeight(24);
+    }
+
+    private DefaultTreeModel createTreeModel(TreeNode rootNode) {
+        DefaultTreeModel model = new DefaultTreeModel(rootNode);
+        model.addTreeModelListener(treeTableModel);
+        return model;
     }
 
     public static void main(String[] args) {
@@ -101,25 +110,23 @@ public class MyObjectForm {
         frame.setVisible(true);
     }
 
-    private void createTreeTable(MyObject objectTree) {
-        final TreeNode rootNode = TreeTableModel.buildTree(objectTree, parent -> ((MyObject) parent).getChildren());
-        treeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
-        treeTableModel.bindTable(table1); //, new RowSorter.SortKey(0, SortOrder.ASCENDING));
-
-        treeTableModel.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
+    private TreeTableModel createTreeTableModel(TreeNode rootNode) {
+        TreeTableModel localTreeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
+        localTreeTableModel.bindTable(table1); //, new RowSorter.SortKey(0, SortOrder.ASCENDING));
+        localTreeTableModel.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
             @Override
             public boolean nodeExpanding(TreeNode node) {
-                if (node.getChildCount() == 0) {
+                if (node.getChildCount() == 0) { // if a node is expanding but has no children, set it to allow no children.
                     ((DefaultMutableTreeNode) node).setAllowsChildren(false);
                 }
                 return true;
             }
-
             @Override
             public boolean nodeCollapsing(TreeNode node) {
                 return true;
             }
         });
+        return localTreeTableModel;
     }
 
     private MutableTreeNode buildTree() {
@@ -177,19 +184,10 @@ public class MyObjectForm {
     private static void setSystemLookAndFeel() {
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // String os = System.getProperty("os.name").toLowerCase();
-            // if (os.indexOf("windows") != -1 || os.indexOf("mac os x") != -1)
-            // {
-            // UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            // }
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | IllegalAccessException | UnsupportedLookAndFeelException e) {
             throw new RuntimeException(e);
         } catch (InstantiationException e) {
             e.printStackTrace();
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedLookAndFeelException e) {
             throw new RuntimeException(e);
         }
     }
