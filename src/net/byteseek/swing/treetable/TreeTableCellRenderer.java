@@ -39,7 +39,7 @@ import javax.swing.tree.TreeNode;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 
-//TODO: what about rendering arbitrary data types *within* the tree cell?  Just subclass this renderer I guess.
+//TODO: what about rendering arbitrary data types *within* the tree cell?  Just subclass this renderer and replace it in the model?
 
 /**
  * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model

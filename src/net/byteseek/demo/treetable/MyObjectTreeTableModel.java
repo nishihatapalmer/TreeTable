@@ -41,16 +41,17 @@ import java.util.Comparator;
 
 public final class MyObjectTreeTableModel extends TreeTableModel {
 
-    private static final int NUM_COLUMNS = 3;
+    //private static final int NUM_COLUMNS = 3;
 
-    private final TableColumn[] TABLE_COLUMNS = new TableColumn[NUM_COLUMNS];
+    private final TableColumn[] TABLE_COLUMNS = new TableColumn[3];
 
     private Icon leafIcon;              // tree node that allows no children.
     private Icon openIcon;              // tree node displaying children.
     private Icon closedIcon;            // tree node not displaying children.
 
     public MyObjectTreeTableModel(final TreeNode rootNode, final boolean showRoot) {
-        super(rootNode, NUM_COLUMNS, showRoot);
+       // super(rootNode, NUM_COLUMNS, showRoot);
+        super(rootNode, showRoot);
         setIcons();
         //setNodeComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
         buildColumns();
@@ -73,7 +74,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public Object getColumnValue(final TreeNode node, final int column) {
-        checkValidColumn(column);
+        //checkValidColumn(column);
         final Object o = ((DefaultMutableTreeNode) node).getUserObject();
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
@@ -88,7 +89,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public void setColumnValue(final TreeNode node, final int column, final Object value) {
-        checkValidColumn(column);
+        //checkValidColumn(column);
         final Object o = ((DefaultMutableTreeNode) node).getUserObject();
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
@@ -111,13 +112,13 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public TableColumn getTableColumn(int column) {
-        checkValidColumn(column);
+       // checkValidColumn(column);
         return TABLE_COLUMNS[column];
     }
 
     @Override
     public Comparator<?> getColumnComparator(int column) {
-        return null; //TODO: test return comparator for column values to enable sorting.
+        return null; //TODO: test return special comparator for column values to enable sorting with that comparator.
     }
 
     @Override
