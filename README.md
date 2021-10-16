@@ -33,11 +33,9 @@ Assuming the tree is composed of `DefaultMutableTreeNode` objects, and each `MyO
 
 ```java
 public class MyObjectTreeTableModel extends TreeTableModel {
-
-    private static final int NUM_COLUMNS = 3;
-
+    
     public MyObjectTreeTableModel(TreeNode rootNode, boolean showRoot) {
-        super(rootNode, NUM_COLUMNS, showRoot);
+        super(rootNode, showRoot);
     }
 
     @Override
