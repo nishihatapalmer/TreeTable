@@ -52,13 +52,12 @@ public class MyObjectTreeTableModel extends TreeTableModel {
     }
 
     @Override
-    public TableColumn getTableColumn(int column) {
-        switch (column) {
-            case 0: return createColumn(0, "Description");
-            case 1: return createColumn(1, "Size");
-            case 2: return createColumn(2, "Enabled");
-        }
-        throw new IllegalArgumentException("Invalid column: " + column);
+    public TableColumnModel createTableColumnModel() {
+        TableColumnModel result = new DefaultTableColumnModel();
+        result.addColumn(createColumn(0, "description"));
+        result.addColumn(createColumn(1, "size"));
+        result.addColumn(createColumn(2, "enabled"));
+        return result;
     }
 }
 ```
