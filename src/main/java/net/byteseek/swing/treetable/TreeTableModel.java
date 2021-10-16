@@ -773,20 +773,48 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     protected int getModelIndexAtInsertPosition(final TreeNode parentNode, final int firstInsertedIndex, final int numInsertions) {
-        final int lastInsertedIndex = firstInsertedIndex + numInsertions - 1; //TODO: validate last inserted index is correct.
+        final int afterInsertionIndex = firstInsertedIndex + numInsertions;
         final int numChildren = parentNode.getChildCount();
-        final int modelIndex;
-        if (numChildren == numInsertions) {                // No previous nodes (inserted into parent with no prior children):
-            modelIndex = getModelIndex(parentNode) + 1;    //  - insert at the position just after the parent node.
-        } else if (lastInsertedIndex == numChildren - 1) {                                         // If inserted at the end of existing children:
-            final TreeNode previousChild = parentNode.getChildAt(firstInsertedIndex - 1);          //  previous last child is the one before the first inserted..
-            modelIndex = getModelIndex(previousChild) + getVisibleChildCount(previousChild) + 1;   // - insert one after last previous child and all its visible children. //TODO: null pointer exception.
-        } else {                                                                         // Inserting before the end of existing children:
-            modelIndex = getModelIndex(parentNode.getChildAt(lastInsertedIndex + 1));   // - insert at the index of the child the last inserted node displaced one on.
+        final int modelIndexToInsertAt;
+
+        //TODO: error conditions check here?  Like if the number of children doesn't match the insertions being claimed...
+
+        // No previous nodes (inserted into parent with no prior children):
+        if (numInsertions == numChildren) {
+            // Insert at the position just after the parent node.
+            modelIndexToInsertAt = getModelIndex(parentNode) + 1;
+
+        // If inserted at the end of existing children (after the last insertion is the size of the children)
+        } else if (afterInsertionIndex == numChildren) {
+            // previous last child is the one before the first inserted..
+            final TreeNode previousChild = parentNode.getChildAt(firstInsertedIndex - 1);
+            // insert one after last previous child and all its visible children. //TODO: null pointer exception.
+            modelIndexToInsertAt = getModelIndex(previousChild) + getVisibleChildCount(previousChild) + 1;
+
+        // Inserting before the end of existing children:
+        } else {
+            // insert at the index of the child the last inserted node displaced one on.
+            modelIndexToInsertAt = getModelIndex(parentNode.getChildAt(afterInsertionIndex));
         }
-        return modelIndex;
+        return modelIndexToInsertAt;
     }
 
+    /**
+     * Given an array of indices, and a position to start looking in them,
+     * it returns the index of the last consecutive index, or the from index passed in if none exist.
+     * For example, if we have [1, 2, 5, 6, 7, 8, 10], then calling this from 0, would return 1, as we have 1 and 2
+     * consecutive, so the index of 2 is returned.  If we call it on 1, we get 1 returned, as the next index isn't 3.
+     * If we call it on index 2, we get get 5 returned, the index of 8 which is the last in a consecutive run of indexes
+     * from 5.
+     * <p>
+     * This is used to optimise notifying the table when multiple child nodes are inserted or removed.  We can translate
+     * the table notification messages for consecutive indices, as that maps to the table structure.  So we group
+     * consecutive updates together.
+     *
+     * @param from The position in the indices to start looking in.
+     * @param indices An array of index positions, some of which may be consecutive.
+     * @return The index of the last consecutive index in the array, or from if there are no others.
+     */
     protected int findLastConsecutiveIndex(final int from, final int[] indices) {
         int lastConsecutiveIndex = from;
         for (int i = from + 1; i < indices.length; i++) {
@@ -1161,8 +1189,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public void expandNode(final TreeNode node) {
         if (!isExpanded(node)) {
-            // A node can be expanded even though it is not currently visible (if a parent node is not expanded).
-            toggleExpansion(node, isVisible(node) ? getModelIndex(node) : -1);
+            toggleExpansion(node, getModelIndexCheckVisible(node));
         }
     }
 
@@ -1181,14 +1208,23 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
+    public void expandAllChildren(final TreeNode parentNode, final int depth) {
+        if (depth > 0) {
+            for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+                TreeNode child = parentNode.getChildAt(childIndex);
+                expandNode(child);
+                expandAllChildren(child, depth - 1);
+            }
+        }
+    }
+
     /**
      * Collapses a node if it is already expanded.
      * @param node The node to collapse.
      */
     public void collapseNode(final TreeNode node) {
         if (isExpanded(node)) {
-            //TODO: A node can be collapsed even though it is not currently visible (if a parent node is not expanded).
-            toggleExpansion(node, getModelIndex(node)); // if node is not visible, will have index of -1.
+            toggleExpansion(node, getModelIndexCheckVisible(node));
         }
     }
 
@@ -1215,54 +1251,43 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param modelRow The row in the model the node exists at.
      */
     protected void toggleExpansion(final TreeNode node, final int modelRow) {
-        final boolean initialExpandedState = isExpanded(node);
+        final boolean currentlyExpanded = isExpanded(node);
         if (node.getAllowsChildren()) {  //TODO check how get allows children affects tree building - can nodes have children but not allow them?
-            if (listenersApprove(node, initialExpandedState)) {
+            if (listenersApprove(node, currentlyExpanded)) {
                 if (modelRow >= 0 && modelRow < displayedNodes.size()) {
-                    updateVisibleToggleNodeExpansion(node, modelRow, initialExpandedState); // deal with changes to visible nodes.
+                    toggleVisibleExpansion(node, modelRow, currentlyExpanded); // deal with changes to visible nodes.
                 } else {
-                    setInvisibleExpanded(node, !initialExpandedState); // node not visible - just toggle it's expanded state.
+                    toggleInvisibleExpansion(node, currentlyExpanded); // node not visible - just toggle it's expanded state.
                 }
             }
         }
     }
 
-    protected void updateVisibleToggleNodeExpansion(final TreeNode node, final int modelRow, final boolean initialExpandedState) {
-        final int oldChildren, newChildren;
-        if (initialExpandedState) {
-            newChildren = 0;
-            oldChildren = getVisibleChildCount(node);
-            removeDisplayedChildren(modelRow, oldChildren);
+    protected void toggleVisibleExpansion(final TreeNode node, final int modelRow, final boolean currentlyExpanded) {
+        final int childrenChanged;
+        if (currentlyExpanded) {
+            childrenChanged = getVisibleChildCount(node);
+            removeDisplayedChildren(modelRow, childrenChanged);
+            expandedNodeCounts.remove(node);
+            updateTreeChildCounts(node.getParent(), -childrenChanged);
         } else {
-            oldChildren = 0;
-            newChildren = addChildrenToDisplay(modelRow, node);
+            childrenChanged = addChildrenToDisplay(modelRow, node);
+            expandedNodeCounts.put(node, childrenChanged);
+            updateTreeChildCounts(node.getParent(), childrenChanged);
         }
-
-        // Toggle the expanded state of the node.
-        setVisibleExpanded(node, !initialExpandedState, newChildren);
 
         // If we haven't removed or added any children, notify the table this one node may have changed.
         // This forces a visual refresh which may alter the rendering of the expand or collapse handles.
-        if (oldChildren == 0 && newChildren == 0) {
+        if (childrenChanged == 0) {
             fireTableRowsUpdated(modelRow, modelRow);
         }
     }
 
-    protected void setVisibleExpanded(final TreeNode node, final boolean expanded, final int newVisibleChildren) {
-        if (expanded) {
-            expandedNodeCounts.put(node, newVisibleChildren);
-            updateTreeChildCounts(node.getParent(), newVisibleChildren);
-        } else {
-            final int oldVisibleChildren = expandedNodeCounts.remove(node);
-            updateTreeChildCounts(node.getParent(), -oldVisibleChildren);
-        }
-    }
-
-    protected void setInvisibleExpanded(final TreeNode node, final boolean expanded) {
-        if (expanded) {
-            expandedNodeCounts.put(node, 0); //TODO: what happens to child counts if we don't actually count them, then they become visible later?
-        } else {
+    protected void toggleInvisibleExpansion(final TreeNode node, final boolean currentlyExpanded) {
+        if (currentlyExpanded) {
             expandedNodeCounts.remove(node);
+        } else {
+            expandedNodeCounts.put(node, calculateVisibleChildNodes(node, true));
         }
     }
 
