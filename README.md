@@ -121,6 +121,31 @@ If on dynamic expand there are no child nodes to be added, you can set the node 
 ```
 
 ### Using a TreeModel
+If you use a standard TreeModel to manage insertions and removals of nodes in your tree, then the TreeTableModel can register as a listener for TreeModelEvents and update itself automatically as the tree is altered.
+
+```java
+    // Initialize the TreeTableModel, TreeModel and register for TreeModelEvents
+    TreeTableModel treeTableModel = new TreeTableModel(rootNode);
+    DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
+    treeModel.addTreeModelListener(treeTableModel);
+        ...
+    // Use the TreeModel to update the tree. The TreeTableModel will update itself automotically.
+     MutableTreeNode newChild = new DefaultMutableTreeNode(newChildObject);       
+     treeModel.insertNodeInto(newChild, parentNode, 0);
+```
+
+### Notifying the model of changes
+If you're just changing a tree directly via the nodes, then you can call the appropriate update methods on the TreeTableModel when you make changes to the tree.
+```java
+   // Insert a new child node at index 0
+   MutableTreeNode newChild = new DefaultMutableTreeNode(newChildObject);    
+   parentNode.insert(newChild, 0);
+   treeTableModel.treeNodeInserted(parentNode, 0);
+   
+   // Remove a child node
+   parentNode.remove(childToRemove);
+   treeTableModel.treeNodeRemoved(parentNode, childToRemove);
+```
 
 ## Expanding and collapsing nodes
 Nodes can be expanded or collapsed by clicking to the left of the expand handle.
