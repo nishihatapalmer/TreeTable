@@ -63,12 +63,15 @@ class TreeTableModelTest {
         MutableTreeNode rootNode = createTree("root", "child");
         TreeTableModel model = new SimpleTreeTableModel(rootNode, false);
         assertFalse(model.isVisible(rootNode));
+        assertFalse(model.getShowRoot());
 
         model.setShowRoot(true);
         assertTrue(model.isVisible(rootNode));
+        assertTrue(model.getShowRoot());
 
         model.setShowRoot(false);
         assertFalse(model.isVisible(rootNode));
+        assertFalse(model.getShowRoot());
     }
 
     @Test

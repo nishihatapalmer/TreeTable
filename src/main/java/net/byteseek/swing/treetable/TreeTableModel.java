@@ -1034,6 +1034,15 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *                                          Column methods
      */
 
+    /**
+     * Returns the table column model telling JTable what columns to display and their order.
+     *
+     * It calls createTableModel() if one has not yet been set, which is an abstract method which subclasses must implement.
+     * It will also automatically set a TreeCellRenderer on the TableColumn with model index zero, if a renderer is not
+     * already set on it.
+     *
+     * @return The TableColumnModel telling JTable what columns to display and their order.
+     */
     public TableColumnModel getTableColumnModel() {
         if (columnModel == null) {
             columnModel = createTableColumnModel();
@@ -1060,22 +1069,30 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     protected TableColumn createColumn(final int modelIndex, final Object headerValue) {
-        return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, null, null, headerValue);
+        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, null, null);
     }
 
-    protected TableColumn createColumn(final int modelIndex, final TableCellRenderer cellRenderer, final Object headerValue) {
-        return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, cellRenderer, null, headerValue);
+    protected TableColumn createColumn(final int modelIndex, final Object headerValue, final int width) {
+        return createColumn(modelIndex, headerValue, width, null, null);
     }
 
-    protected TableColumn createColumn(final int modelIndex,
-                                    final TableCellRenderer cellRenderer, final TableCellEditor cellEditor,
-                                    final Object headerValue) {
-        return createColumn(modelIndex, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor, headerValue);
+    protected TableColumn createColumn(final int modelIndex, final Object headerValue,
+                                       final TableCellRenderer cellRenderer) {
+        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, null);
     }
 
-    protected TableColumn createColumn(final int modelIndex, final int width,
-                                    final TableCellRenderer cellRenderer, final TableCellEditor cellEditor,
-                                    final Object headerValue) {
+    protected TableColumn createColumn(final int modelIndex, final Object headerValue, final int width,
+                                       final TableCellRenderer cellRenderer) {
+        return createColumn(modelIndex, headerValue, width, cellRenderer, null);
+    }
+
+    protected TableColumn createColumn(final int modelIndex, final Object headerValue,
+                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
+        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor);
+    }
+
+    protected TableColumn createColumn(final int modelIndex,  final Object headerValue, final int width,
+                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
         final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
         column.setHeaderValue(headerValue);
         return column;
@@ -1513,19 +1530,22 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return true;
     }
 
-    //TODO: click handler methods - can be abstracted into inner class along with key board handler methods?
-    //TODO: bug?  assumes there *is* a column with the tree column index.  If it's hidden (removed from the model),
-    //      then don't we simply have a null click handler?
     protected TreeClickHandler getClickHandler() {
         if (clickHandler == null) {
-            final TableCellRenderer renderer = getColumnWithModelIndex(TREE_COLUMN_INDEX).getCellRenderer();
+            clickHandler = getOrCreateTreeClickHandler();
+        }
+        return clickHandler;
+    }
+
+    protected TreeClickHandler getOrCreateTreeClickHandler() {
+        final TableColumn column = getColumnWithModelIndex(TREE_COLUMN_INDEX);
+        if (column != null) {
+            TableCellRenderer renderer = column.getCellRenderer();
             if (renderer instanceof TreeClickHandler) {
-                clickHandler = (TreeClickHandler) renderer;
-            } else {
-                clickHandler = new TreeTableCellRenderer(this); // implements click handler.
+                return (TreeClickHandler) renderer;
             }
         }
-        return clickHandler; //TODO: This caches the click handler.  Can it change if the tree column is hidden (removed from TableColumnModel)?
+        return new TreeTableCellRenderer(this); // set a default click handler.
     }
 
     protected TableColumn getColumnWithModelIndex(final int modelIndex) {
@@ -1536,7 +1556,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 return column;
             }
         }
-       throw new IllegalArgumentException("Invalid model index: " + modelIndex);
+        return null;
     }
 
     /* *****************************************************************************************************************
