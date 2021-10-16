@@ -1216,50 +1216,45 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected void toggleExpansion(final TreeNode node, final int modelRow) {
         final boolean initialExpandedState = isExpanded(node);
-        if (node.getAllowsChildren()) { // If the node allows children at all...
-            if (modelRow >= 0 && modelRow < displayedNodes.size()) { // a visible node: - have to track changes and notify table of data changes.
-                if (listenersApprove(node, initialExpandedState)) {
-                    // If we had some visible nodes before toggling to unexpanded, remove those children.
-                    final int visibleChildren = getVisibleChildCount(node);
-                    removeDisplayedChildren(modelRow, visibleChildren);
-                    boolean tableNotified = visibleChildren > 0;
-
-                    // Toggle the expanded state of the node.
-                    setExpanded(node, !initialExpandedState, true);
-
-                    // If we weren't already expanded before toggling to expanded, add the new children.
-                    if (!initialExpandedState) {
-                        tableNotified |= (addChildrenToDisplay(modelRow, node) > 0);
-                    }
-
-                    // If we haven't removed or added any children, notify the table this one node may have changed:
-                    if (!tableNotified) {
-                        fireTableRowsUpdated(modelRow, modelRow);
-                    }
-                }
-            } else { // toggling a node that isn't a visible row - just get approval from listeners, then toggle the expanded state.
-                if (listenersApprove(node, initialExpandedState)) {
-                    setExpanded(node, !initialExpandedState, false); //TODO: do we have to fire table update events?
+        if (node.getAllowsChildren()) {  //TODO check how get allows children affects tree building - can nodes have children but not allow them?
+            if (listenersApprove(node, initialExpandedState)) {
+                if (modelRow >= 0 && modelRow < displayedNodes.size()) {
+                    updateVisibleToggleNodeExpansion(node, modelRow, initialExpandedState); // deal with changes to visible nodes.
+                } else {
+                    setInvisibleExpanded(node, !initialExpandedState); // node not visible - just toggle it's expanded state.
                 }
             }
-        } else if (initialExpandedState) { // node doesn't allow children - but if it's currently expanded, remove the expansion to tidy up.
-            expandedNodeCounts.remove(node); //TODO: check how getALlowsChildren() is checked and where.  can we build trees with children that don't allow them?  what happens?
         }
     }
 
-    protected void setExpanded(final TreeNode node, final boolean expanded, final boolean visible) {
-        if (visible) {
-            setVisibleExpanded(node, expanded);
+    protected void updateVisibleToggleNodeExpansion(final TreeNode node, final int modelRow, final boolean initialExpandedState) {
+        final int oldChildren, newChildren;
+        if (initialExpandedState) {
+            newChildren = 0;
+            oldChildren = getVisibleChildCount(node);
+            removeDisplayedChildren(modelRow, oldChildren);
         } else {
-            setInvisibleExpanded(node, expanded);
+            oldChildren = 0;
+            newChildren = addChildrenToDisplay(modelRow, node);
+        }
+
+        // Toggle the expanded state of the node.
+        setVisibleExpanded(node, !initialExpandedState, newChildren);
+
+        // If we haven't removed or added any children, notify the table this one node may have changed.
+        // This forces a visual refresh which may alter the rendering of the expand or collapse handles.
+        if (oldChildren == 0 && newChildren == 0) {
+            fireTableRowsUpdated(modelRow, modelRow);
         }
     }
 
-    protected void setVisibleExpanded(final TreeNode node, final boolean expanded) {
+    protected void setVisibleExpanded(final TreeNode node, final boolean expanded, final int newVisibleChildren) {
         if (expanded) {
-            expandVisibleChildCounts(node);
+            expandedNodeCounts.put(node, newVisibleChildren);
+            updateTreeChildCounts(node.getParent(), newVisibleChildren);
         } else {
-            collapseVisibleChildCounts(node);
+            final int oldVisibleChildren = expandedNodeCounts.remove(node);
+            updateTreeChildCounts(node.getParent(), -oldVisibleChildren);
         }
     }
 
@@ -1269,32 +1264,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         } else {
             expandedNodeCounts.remove(node);
         }
-    }
-
-    /**
-     * Expands visible child counts for a visible parent by calculating all visible children for it,
-     * then updating all the parent nodes with the additional children.
-     *
-     * Do not call if parent node is not visible.
-     * @param node The node which is expanding.
-     */
-    protected void expandVisibleChildCounts(final TreeNode node) {
-        final Map<TreeNode, Integer> nodeCounts = expandedNodeCounts;
-        final int newVisibleChildren = calculateVisibleChildNodes(node, true);
-        nodeCounts.put(node, newVisibleChildren);
-        updateTreeChildCounts(node.getParent(), newVisibleChildren);
-    }
-
-    /**
-     * Collapses visible child counts for a visible parent by removing the collapsing node from the expanded list,
-     * and updating all the parent nodes to remove its child counts from them.
-     *
-     * @param collapsingNode The node which is collapsing.
-     */
-    protected void collapseVisibleChildCounts(TreeNode collapsingNode) {
-        final Map<TreeNode, Integer> nodeCounts = expandedNodeCounts;
-        final int oldVisibleChildren = nodeCounts.remove(collapsingNode);
-        updateTreeChildCounts(collapsingNode.getParent(), -oldVisibleChildren);
     }
 
     /**
@@ -1448,7 +1417,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected List<TreeNode> buildVisibleChildren(final TreeNode node) {
         if (node.getChildCount() > 0) {
             final List<TreeNode> children = new ArrayList<>();
-            buildVisibleChildren(node, children);
+            for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
+                TreeNode child = node.getChildAt(childIndex);
+                children.add(child);
+                buildVisibleChildren(node.getChildAt(childIndex), children);
+            }
             return children;
         }
         return Collections.emptyList();
