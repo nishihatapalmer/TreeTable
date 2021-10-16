@@ -5,8 +5,10 @@ Treetable displays a tree of information, with additional columns for each item 
 ![TreeTable](treetable.png)
 
 ### Software status
-This software is still in **alpha**.  It may change unexpectedly at any time.
-It seems to work OK, but we have no unit tests, and there's still a few issues which are being worked through.
+This software is in **beta**.  
+It is feature complete and seems to work.  A lot of tests need to be written.
+The overall code shouldn't change too much, but methods may be refactored a lot.
+The demo code will probably be extended a bit and the help expanded.
 
 ## Getting started
 
