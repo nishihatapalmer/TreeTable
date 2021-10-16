@@ -85,19 +85,10 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
     @Override
     public TableColumnModel createTableColumnModel() {
         TableColumnModel result = new DefaultTableColumnModel();
-        for (int column = 0; column < 3; column++) {
-            result.addColumn(createTableColumn(column));
-        }
+        result.addColumn(createColumn(0, "description"));
+        result.addColumn(createColumn(1, "size"));
+        result.addColumn(createColumn(2, "enabled"));
         return result;
-    }
-
-    private TableColumn createTableColumn(int column) {
-        switch (column) {
-            case 0: return createColumn(0, "description");
-            case 1: return createColumn(1, "size");
-            case 2: return createColumn(2, "enabled");
-        }
-        return null;
     }
 
     @Override
