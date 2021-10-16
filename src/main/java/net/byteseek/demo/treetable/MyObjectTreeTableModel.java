@@ -34,27 +34,23 @@ package net.byteseek.demo.treetable;
 import net.byteseek.swing.treetable.TreeTableModel;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.Comparator;
 
 public final class MyObjectTreeTableModel extends TreeTableModel {
 
-    //private static final int NUM_COLUMNS = 3;
-
-    private final TableColumn[] TABLE_COLUMNS = new TableColumn[3];
-
     private Icon leafIcon;              // tree node that allows no children.
     private Icon openIcon;              // tree node displaying children.
     private Icon closedIcon;            // tree node not displaying children.
 
     public MyObjectTreeTableModel(final TreeNode rootNode, final boolean showRoot) {
-       // super(rootNode, NUM_COLUMNS, showRoot);
         super(rootNode, showRoot);
         setIcons();
         //setNodeComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
-        buildColumns();
     }
 
     @Override
@@ -74,7 +70,6 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public Object getColumnValue(final TreeNode node, final int column) {
-        //checkValidColumn(column);
         final Object o = ((DefaultMutableTreeNode) node).getUserObject();
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
@@ -83,6 +78,24 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
                 case 1: return obj.getSize();
                 case 2: return obj.isEnabled();
             }
+        }
+        return null;
+    }
+
+    @Override
+    public TableColumnModel createTableColumnModel() {
+        TableColumnModel result = new DefaultTableColumnModel();
+        for (int column = 0; column < 3; column++) {
+            result.addColumn(createTableColumn(column));
+        }
+        return result;
+    }
+
+    private TableColumn createTableColumn(int column) {
+        switch (column) {
+            case 0: return createColumn(0, "description");
+            case 1: return createColumn(1, "size");
+            case 2: return createColumn(2, "enabled");
         }
         return null;
     }
@@ -108,12 +121,6 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
                 }
             }
         }
-    }
-
-    @Override
-    public TableColumn getTableColumn(int column) {
-       // checkValidColumn(column);
-        return TABLE_COLUMNS[column];
     }
 
     @Override
@@ -157,10 +164,5 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
         this.openIcon = openIcon;
     }
 
-    private void buildColumns() {
-        TABLE_COLUMNS[0] = createColumn(0, "description");
-        TABLE_COLUMNS[1] = createColumn(1, "size");
-        TABLE_COLUMNS[2] = createColumn(2, "enabled");
-    }
 
 }

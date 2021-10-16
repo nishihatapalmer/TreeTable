@@ -41,6 +41,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 
+//TODO: toggle button for group by.
+
 public class MyObjectForm {
 
     private JPanel panel1;
