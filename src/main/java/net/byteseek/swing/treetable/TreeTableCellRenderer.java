@@ -61,7 +61,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     protected JLabel expandedIconLabel;
     protected JLabel collapsedIconLabel;
 
-    protected int maxIconWidth; // Calculated max icon width of the expand and collapse icons, to get consistent indentation levels.
+    protected int maxIconWidth; // Calculated max icon width of expand and collapse icons, to get consistent indentation levels.
     protected TreeNode currentNode; // The node about to be rendered.
 
     /**
@@ -92,16 +92,13 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
 
     @Override
     public boolean clickOnExpand(TreeNode node, int column, MouseEvent evt) {
-        final TreeTableModel localModel = treeTableModel;
-        final TableColumnModel columnModel = localModel.getTableColumnModel();
+        final TableColumnModel columnModel = treeTableModel.getTableColumnModel();
         final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
-        if (columnModelIndex == 0 && node != null & node.getAllowsChildren()) {
+        if (columnModelIndex == 0 && node != null && node.getAllowsChildren()) {
             final int columnStart = calculateWidthToLeft(columnModel, column);
             final int expandEnd = columnStart + getNodeIndent(node);
             final int mouseX = evt.getPoint().x;
-            if (mouseX > columnStart && mouseX < expandEnd) {
-                return true;
-            }
+            return mouseX > columnStart && mouseX < expandEnd;
         }
         return false;
     }
@@ -188,8 +185,9 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     /**
      * Calculates the space taken up by columns to the left of the column in the TableColumnModel.
      *
-     * @param colIndex
-     * @return
+     * @param columnModel The table column model
+     * @param colIndex The column index
+     * @return the space taken up by columns to the left of the column with colIndex in the TableColumnModel.
      */
     protected final int calculateWidthToLeft(final TableColumnModel columnModel, final int colIndex) {
         int width = 0;

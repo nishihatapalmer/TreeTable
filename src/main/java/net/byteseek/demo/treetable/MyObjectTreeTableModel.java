@@ -35,7 +35,6 @@ import net.byteseek.swing.treetable.TreeTableModel;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableColumnModel;
-import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;

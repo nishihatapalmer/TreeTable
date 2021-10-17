@@ -43,7 +43,8 @@ import java.util.List;
 //      pointless, because sorting secondarily on your prior primary isn't making a lot of sense to me in terms of
 //      a strategy to explore the data set.
 
-//      COULD introduce a Ctrl-click to set additional sort column.  Awkward, most people will never discover it, but multi column sort not massively useful on small data anyway.
+//      COULD introduce a Ctrl-click to set additional sort column.  Awkward, most people will never discover it,
+//      but multi-column sort not massively useful on small data anyway.
 //      CTRL - click to set additional column OR to set primary column?
 
 //TODO: re-investigate sort insert / delete rows optimisations after we've done tree model insert/delete notifications on the TreeTableModel.

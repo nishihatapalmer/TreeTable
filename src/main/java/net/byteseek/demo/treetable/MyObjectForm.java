@@ -45,6 +45,8 @@ import java.util.Random;
 
 public class MyObjectForm {
 
+    private final DefaultTreeModel treeModel;
+
     private JPanel panel1;
     private JPanel rootPanel;
     private JScrollPane scrollPane;
@@ -56,7 +58,6 @@ public class MyObjectForm {
     private List<String> wordList;
     TreeTableModel treeTableModel;
     boolean showRoot;
-    private DefaultTreeModel treeModel;
 
     public MyObjectForm() {
         configureTable();

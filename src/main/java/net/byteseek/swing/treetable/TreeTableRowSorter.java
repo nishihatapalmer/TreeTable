@@ -79,7 +79,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * The sort strategy to use to build new sort keys after sort is requested on a column.
      * This lets us change the behaviour when a column is clicked on to sort.  For example,
      * we could make it the primary sort column, or add it to the existing sort columns, or remove other columns.
-     * Defaults to the {@link }TreeTableSortStrategy} if not supplied.
+     * Defaults to the {@link TreeTableSortStrategy} if not supplied.
      */
     protected ColumnSortStrategy sortStrategy;
 
@@ -108,7 +108,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param model The TreeTableModel to sort.
      */
     public TreeTableRowSorter(final TreeTableModel model) {
-        this(model, Collections.EMPTY_LIST);
+        this(model, Collections.emptyList());
     }
 
     /**
@@ -117,7 +117,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param defaultSortKeys The default sort if no other sort is defined.
      */
     public TreeTableRowSorter(final TreeTableModel model, final SortKey defaultSortKeys) {
-        this(model, Arrays.asList(defaultSortKeys));
+        this(model, List.of(defaultSortKeys));
     }
 
     /**
@@ -131,7 +131,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
         this.model = model;
         this.defaultSortKeys = defaultSortKeys == null ? Collections.emptyList() : defaultSortKeys;
-        sortKeys = new ArrayList<>(defaultSortKeys);
+        sortKeys = defaultSortKeys == null? new ArrayList<>() : new ArrayList<>(defaultSortKeys);
         buildSortIndexes(); // even if no columns are sorted, we might have node comparison sorts.
     }
 
@@ -281,7 +281,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         // If the nodes don't already share a parent, we have to find two comparable parent nodes that do.
         if (firstNode.getParent() != secondNode.getParent()) {
 
-            // If the nodes are at different levels, walk one of them back so they are at the same level as each other.
+            // If the nodes are at different levels, walk one of them back, so they are at the same level as each other.
             final int firstLevel = getLevel(firstNode);
             final int secondLevel = getLevel(secondNode);
             if (firstLevel < secondLevel) {
@@ -410,7 +410,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      */
     private void buildModelToViewIndex() {
         final int numRows = model.getRowCount();
-        // if we don't have an index, or the the existing array is less than the size we need, create a new one.
+        // if we don't have an index, or the existing array is less than the size we need, create a new one.
         if (modelToViewIndex == null || modelToViewIndex.length < numRows) {
             modelToViewIndex = new int[numRows];
         }

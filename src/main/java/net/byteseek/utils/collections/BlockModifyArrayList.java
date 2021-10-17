@@ -65,6 +65,9 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return true;
     }
 
+    //TODO: investigate whether systemcopy is safe copying around same array and performance of it.
+    //      almost certainly better than my attempts, but profile it maybe.
+
     @Override
     public void add(final int index, final E element) {
         if (index == size) {
@@ -99,7 +102,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      * Inserts a list of elements at the given index.
      *
      * @param elements the list of elements to insert.
-     * @param index the index to insert tham at.
+     * @param index the index to insert them at.
      */
     public void addAll(final int index, final List<? extends E> elements) {
         if (index == size) {
@@ -282,7 +285,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
     }
 
     /**
-     * Checks whether the backing array needs to resise if we add more elements.
+     * Checks whether the backing array needs to resize if we add more elements.
      * @param numToAdd then number of elements to add.
      */
     private void checkResize(final int numToAdd) {

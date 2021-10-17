@@ -36,10 +36,11 @@ import java.util.List;
 
 public class MyObject {
 
+    private final List<MyObject> children;
+
     private String description;
     private long   size;
     private boolean enabled;
-    private List<MyObject> children;
 
     public MyObject(String description, long size, boolean enabled) {
         this.description = description;
