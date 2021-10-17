@@ -162,11 +162,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected JTable table; // the table currently bound to the tree model, or null if not currently bound.
 
     /**
-     * Holds on to the previous header renderer for a JTable.  When unbinding, the original renderer is replaced.
-     */
-    protected TableCellRenderer oldHeaderRenderer;
-
-    /**
      * Whether the root of the tree is visible in the tree or not.  Can be changed with setShowRoot().
      */
     protected boolean showRoot; // whether the root of the tree is shown.
@@ -189,6 +184,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected TableColumnModel columnModel;
     protected final BlockModifyArrayList<TreeNode> displayedNodes = new BlockModifyArrayList<>(); // has block operations which are more efficient than inserting or removing individually.
     protected final Map<TreeNode, Integer> expandedNodeCounts = new WeakHashMap<>(); // If a TreeNode is removed and no longer used, it will be garbage collected.
+    protected TableCellRenderer oldHeaderRenderer; // Holds on to the previous header renderer for a JTable.  When unbinding, the original renderer is replaced.
 
     /*
      * Keyboard, mouse and tree events

@@ -315,7 +315,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         // This is because we want to grow faster when we're smaller (to avoid frequent re-sizes if large
         // numbers of elements are being added), but to grow proportionally a bit slower once we're getting quite big
         // (or we will waste a lot of space on average).
-        long newSize = elements.length * growMultiplierPercent / 100;
+        long newSize = (long) elements.length * growMultiplierPercent / 100;
         if (growMultiplierPercent > 120) {
             growMultiplierPercent -= 17; // the next time we grow, it will be by a smaller proportion (more absolute).
         }

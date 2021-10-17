@@ -45,6 +45,7 @@ import java.util.Random;
 
 public class MyObjectForm {
 
+    private final TreeTableModel treeTableModel;
     private final DefaultTreeModel treeModel;
 
     private JPanel panel1;
@@ -56,8 +57,7 @@ public class MyObjectForm {
     private JButton deleteButton;
     private Random random;
     private List<String> wordList;
-    TreeTableModel treeTableModel;
-    boolean showRoot;
+    private boolean showRoot;
 
     public MyObjectForm() {
         configureTable();
@@ -172,7 +172,8 @@ public class MyObjectForm {
         try {
             wordList = Files.readAllLines(Paths.get(getFilePath("/wordlist.txt")));
         } catch (IOException e) {
-            System.out.println(e);
+            JOptionPane.showMessageDialog(panel1, e.getMessage());
+            System.exit(1);
         }
     }
 
