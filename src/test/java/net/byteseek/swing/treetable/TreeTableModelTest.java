@@ -10,6 +10,9 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreeNode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class TreeTableModelTest {
@@ -18,6 +21,10 @@ class TreeTableModelTest {
     private MutableTreeNode child1;
     private MutableTreeNode child2;
     private MutableTreeNode child3;
+    private RowSorter.SortKey key1;
+    private RowSorter.SortKey key2;
+    private RowSorter.SortKey key3;
+    List<RowSorter.SortKey> bindKeys;
 
     private TreeTableModel model;
     private JTable table;
@@ -28,6 +35,13 @@ class TreeTableModelTest {
         child1 = (MutableTreeNode) rootNode.getChildAt(0);
         child2 = (MutableTreeNode) rootNode.getChildAt(1);
         child3 = (MutableTreeNode) rootNode.getChildAt(2);
+        key1 = new RowSorter.SortKey(0, SortOrder.DESCENDING);
+        key2 = new RowSorter.SortKey(1, SortOrder.ASCENDING);
+        key3 = new RowSorter.SortKey(2, SortOrder.DESCENDING);
+        bindKeys = new ArrayList<>();
+        bindKeys.add(key1);
+        bindKeys.add(key2);
+        bindKeys.add(key3);
         model = new SimpleTreeTableModel(rootNode, true);
         table = new JTable();
     }
@@ -95,40 +109,102 @@ class TreeTableModelTest {
      */
 
     @Test
-    public void testBindTable() {
+    public void testDefaultBindTable() {
         assertNull(model.getTable());
         assertNull(table.getRowSorter());
         assertNotEquals(table.getColumnModel(), model.getTableColumnModel());
         assertNull(model.tableMouseListener);
 
         model.bindTable(table);
+        testDefaultTableBinding();
 
-        assertNotNull(model.tableMouseListener);
-        assertEquals(table, model.getTable());
-        assertEquals(model, table.getModel());
+        assertTrue(table.getRowSorter().getSortKeys().isEmpty());
         assertEquals(TreeTableHeaderRenderer.class, table.getTableHeader().getDefaultRenderer().getClass());
-        assertEquals(TreeTableRowSorter.class, table.getRowSorter().getClass());
-        assertEquals(model.getTableColumnModel(), table.getColumnModel());
+    }
 
-        InputMap inputMap = table.getInputMap();
-        for (KeyStroke keyStroke : model.getExpandKeys()) {
-            assertEquals(TreeTableModel.EXPAND_NODE_KEYSTROKE_KEY, inputMap.get(keyStroke));
-        }
-        for (KeyStroke keyStroke : model.getCollapseKeys()) {
-            assertEquals(TreeTableModel.COLLAPSE_NODE_KEYSTROKE_KEY, inputMap.get(keyStroke));
-        }
-        for (KeyStroke keyStroke : model.getToggleKeys()) {
-            assertEquals(TreeTableModel.TOGGLE_EXPAND_NODE_KEYSTROKE_KEY, inputMap.get(keyStroke));
-        }
+    //TODO: test different bind variants for accuracy...
 
-        ActionMap actionMap = table.getActionMap();
-        assertEquals(TreeTableModel.TreeTableExpandAction.class, actionMap.get(TreeTableModel.EXPAND_NODE_KEYSTROKE_KEY).getClass());
-        assertEquals(TreeTableModel.TreeTableCollapseAction.class, actionMap.get(TreeTableModel.COLLAPSE_NODE_KEYSTROKE_KEY).getClass());
-        assertEquals(TreeTableModel.TreeTableToggleExpandAction.class, actionMap.get(TreeTableModel.TOGGLE_EXPAND_NODE_KEYSTROKE_KEY).getClass());
+    @Test
+    public void testBindTableWithSortKeys() {
+        // Test single sort key
+        model.bindTable(table, key1);
+        testDefaultTableBinding();
+        testOneSortKey();
+
+        // Test multi key parameters
+        model.bindTable(table, key1, key2);
+        testDefaultTableBinding();
+        testTwoSortKeys();
+
+        // Test list method
+        model.bindTable(table, bindKeys);
+        testDefaultTableBinding();
+        testListOfKeys();
+    }
+
+    private void testOneSortKey() {
+        List<? extends RowSorter.SortKey> sortKeyList = table.getRowSorter().getSortKeys();
+        assertEquals(1, sortKeyList.size());
+        assertEquals(key1, sortKeyList.get(0));
+
+    }
+
+    private void testTwoSortKeys() { //TODO: difference between ? extends RowSorter and List<RowSorter.sortkey>
+        List<? extends RowSorter.SortKey> sortKeyList = table.getRowSorter().getSortKeys();
+        assertEquals(2, sortKeyList.size());
+        assertEquals(key1, sortKeyList.get(0));
+        assertEquals(key2, sortKeyList.get(1));
+    }
+
+    private void testListOfKeys() {
+        List<? extends RowSorter.SortKey>sortKeyList = table.getRowSorter().getSortKeys();
+        assertEquals(3, sortKeyList.size());
+        assertEquals(key1, sortKeyList.get(0));
+        assertEquals(key2, sortKeyList.get(1));
+        assertEquals(key3, sortKeyList.get(2));
     }
 
     @Test
-    public void bindToAnotherTable() {
+    public void testBindTableWithCustomRowSorter() {
+        RowSorter<TreeTableModel> sorter = new TableRowSorter<>();
+        model.bindTable(table, sorter);
+        testDefaultTableBinding();
+        assertEquals(sorter, table.getRowSorter());
+    }
+
+    @Test
+    public void testBindTableWithCustomHeaderRenderer() {
+        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+        model.bindTable(table, headerRenderer);
+        testDefaultTableBinding();
+        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
+    }
+
+    @Test
+    public void testBindTableWithCustomHeaderAndSortKeys() {
+        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+
+        // Test single sort key
+        model.bindTable(table, headerRenderer, key1);
+        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
+        testDefaultTableBinding();
+        testOneSortKey();
+
+        // Test multi key parameters
+        model.bindTable(table, headerRenderer, key1, key2);
+        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
+        testDefaultTableBinding();
+        testTwoSortKeys();
+
+        // Test list method
+        model.bindTable(table, headerRenderer, bindKeys);
+        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
+        testDefaultTableBinding();
+        testListOfKeys();
+    }
+
+    @Test
+    public void testBindToAnotherTable() {
         model.bindTable(table);
         assertEquals(table, model.getTable());
         assertEquals(model, table.getModel());
@@ -142,7 +218,7 @@ class TreeTableModelTest {
 
 
     @Test
-    public void unbindTable() {
+    public void testUnbindTable() {
         model.bindTable(table);
         assertEquals(table, model.getTable());
         assertEquals(model, table.getModel());
@@ -171,12 +247,37 @@ class TreeTableModelTest {
         assertNull(actionMap.get(TreeTableModel.TOGGLE_EXPAND_NODE_KEYSTROKE_KEY));
     }
 
-    //TODO: test different bind variants for accuracy...
-    @Test
-    public void bindTableWithSortKey() {
-        
+    private void testDefaultTableBinding() {
+        assertNotNull(model.tableMouseListener);
+        assertEquals(table, model.getTable());
+        assertEquals(model, table.getModel());
+        assertEquals(model.getTableColumnModel(), table.getColumnModel());
+
+        InputMap inputMap = table.getInputMap();
+        for (KeyStroke keyStroke : model.getExpandKeys()) {
+            assertEquals(TreeTableModel.EXPAND_NODE_KEYSTROKE_KEY, inputMap.get(keyStroke));
+        }
+        for (KeyStroke keyStroke : model.getCollapseKeys()) {
+            assertEquals(TreeTableModel.COLLAPSE_NODE_KEYSTROKE_KEY, inputMap.get(keyStroke));
+        }
+        for (KeyStroke keyStroke : model.getToggleKeys()) {
+            assertEquals(TreeTableModel.TOGGLE_EXPAND_NODE_KEYSTROKE_KEY, inputMap.get(keyStroke));
+        }
+
+        ActionMap actionMap = table.getActionMap();
+        assertEquals(TreeTableModel.TreeTableExpandAction.class, actionMap.get(TreeTableModel.EXPAND_NODE_KEYSTROKE_KEY).getClass());
+        assertEquals(TreeTableModel.TreeTableCollapseAction.class, actionMap.get(TreeTableModel.COLLAPSE_NODE_KEYSTROKE_KEY).getClass());
+        assertEquals(TreeTableModel.TreeTableToggleExpandAction.class, actionMap.get(TreeTableModel.TOGGLE_EXPAND_NODE_KEYSTROKE_KEY).getClass());
     }
 
+
+
+    /* *****************************************************************************************************************
+     *                                          Test build static tree
+     */
+    //TODO: test static tree build utility method.
+
+    //TODO: test using a TreeModel to update nodes while inside an expand or collapse event.
 
     /* *****************************************************************************************************************
      *                                          Node visibility

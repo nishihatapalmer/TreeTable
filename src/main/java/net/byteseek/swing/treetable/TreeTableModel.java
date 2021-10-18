@@ -279,10 +279,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * react to mouse and keyboard events.
      *
      * @param table The JTable to bind to this TreeTableModel.
-     * @param defaultSortKey The default sort keys the table will have if no other sort defined.
+     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      */
-    public void bindTable(final JTable table, final RowSorter.SortKey defaultSortKey) {
-        bindTable(table, new TreeTableRowSorter(this, defaultSortKey), new TreeTableHeaderRenderer());
+    public void bindTable(final JTable table, final RowSorter.SortKey... defaultSortKeys) {
+        bindTable(table, new TreeTableRowSorter(this, Arrays.asList(defaultSortKeys)), new TreeTableHeaderRenderer());
     }
 
     /**
@@ -323,11 +323,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * react to mouse and keyboard events.
      *
      * @param table The JTable to bind to this TreeTableModel.
-     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
+     * @param defaultSortKey The default sort key the table will have if no other sort defined.
      * @param headerRenderer The renderer to use to draw the table header.
      */
-    public void bindTable(final JTable table,  final List<RowSorter.SortKey> defaultSortKeys, final TableCellRenderer headerRenderer) {
-        bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
+    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final RowSorter.SortKey... defaultSortKey) {
+        bindTable(table, new TreeTableRowSorter(this, Arrays.asList(defaultSortKey)), headerRenderer);
     }
 
     /**
@@ -335,12 +335,16 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * react to mouse and keyboard events.
      *
      * @param table The JTable to bind to this TreeTableModel.
-     * @param defaultSortKey The default sort key the table will have if no other sort defined.
      * @param headerRenderer The renderer to use to draw the table header.
+     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      */
-    public void bindTable(final JTable table,  final RowSorter.SortKey defaultSortKey, final TableCellRenderer headerRenderer) {
-        bindTable(table, new TreeTableRowSorter(this, defaultSortKey), headerRenderer);
+    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final List<RowSorter.SortKey> defaultSortKeys) {
+        bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
     }
+
+
+
+    //TODO: do we need choice in setting up the TreeTableCellRenderer for the tree?  Composition of renderers?
 
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
