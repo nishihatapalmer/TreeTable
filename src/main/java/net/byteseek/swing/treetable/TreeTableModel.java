@@ -1145,30 +1145,66 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return column;
     }
 
-    /******************************************************************************************************************
+    /* *****************************************************************************************************************
      *                             Key bindings for expand and collapse and toggle.
      */
 
-     public void setExpandKeys(final KeyStroke... expandKeys) {
-         this.expandKeys = expandKeys;
+    /**
+     * Sets the key strokes used to expand a selected node in the tree.
+     * If null or empty, no key strokes will be assigned.
+     *
+     * @param newExpandKeys The new set of keystrokes which will trigger an expand event on a selected node.
+     */
+     public void setExpandKeys(final KeyStroke... newExpandKeys) {
+         final KeyStroke[] newStrokes = newExpandKeys == null? new KeyStroke[0] : expandKeys.clone();
+         removeKeyboardActions();
+         this.expandKeys = newStrokes;
+         addKeyboardActions();
      }
 
-     public void setCollapseKeys(final KeyStroke... collapseKeys) {
-         this.collapseKeys = collapseKeys;
+    /**
+     * Sets the key strokes used to collapse a selected node in the tree.
+     * If null or empty, no key strokes will be assigned.
+     *
+     * @param newCollapseKeys The new set of keystrokes which will trigger a collapse event on a selected node.
+     */
+     public void setCollapseKeys(final KeyStroke... newCollapseKeys) {
+         final KeyStroke[] newStrokes = newCollapseKeys == null? new KeyStroke[0] : newCollapseKeys.clone();
+         removeKeyboardActions();
+         this.collapseKeys = newStrokes;
+         addKeyboardActions();
      }
 
-     public void setToggleKeys(final KeyStroke... toggleKeys) {
-         this.toggleKeys = toggleKeys;
+    /**
+     * Sets the keystrokes used to toggle expansion of a selected node in the tree.
+     * If null or empty, no key strokes will be assigned.
+     *
+     * @param newToggleKeys The new set of keystrokes which will trigger a toggle expansion event on a selected node.
+     */
+     public void setToggleKeys(final KeyStroke... newToggleKeys) {
+         final KeyStroke[] newStrokes = newToggleKeys == null? new KeyStroke[0] : newToggleKeys.clone();
+         removeKeyboardActions();
+         this.toggleKeys = newStrokes;
+         addKeyboardActions();
      }
 
+    /**
+     * @return An array of KeyStrokes which will trigger an expansion event on the selected node.
+     */
      public KeyStroke[] getExpandKeys() {
          return expandKeys;
      }
 
+    /**
+     * @return An array of KeyStrokes which will trigger a collapse event on the selected node.
+     */
      public KeyStroke[] getCollapseKeys() {
          return collapseKeys;
      }
 
+    /**
+     * @return An array of KeyStrokes which will trigger a toggle expansion event on the selected node.
+     */
      public KeyStroke[] getToggleKeys() {
          return toggleKeys;
      }
