@@ -66,7 +66,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     protected final TreeTableModel model;
 
     /**
-     * The list of sort keys.  This must not be null.
+     * The list of current sort keys.  This must not be null but it can be empty.
      */
     protected List<SortKey> sortKeys;
 
@@ -143,7 +143,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     //TODO: check column index is same if columns are re-ordered.
     @Override
     public void toggleSortOrder(final int column) {
-        checkColumnIndex(column);
+        checkColumnIndex(column); //TODO: why is this the only method to check the column index?
         setSortKeys(getSortStrategy().buildNewSortKeys(column, sortKeys));
     }
 
@@ -275,8 +275,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @return Whether node 1 is less than (<0), equal to (=0) or greater than (>0) node 2.
      */
     protected int compare(final int modelRowIndex1, final int modelRowIndex2) {
-        TreeNode firstNode = model.getNodeAtRow(modelRowIndex1);
-        TreeNode secondNode = model.getNodeAtRow(modelRowIndex2);
+        TreeNode firstNode = model.getNodeAtModelIndex(modelRowIndex1);
+        TreeNode secondNode = model.getNodeAtModelIndex(modelRowIndex2);
 
         // If the nodes don't already share a parent, we have to find two comparable parent nodes that do.
         if (firstNode.getParent() != secondNode.getParent()) {

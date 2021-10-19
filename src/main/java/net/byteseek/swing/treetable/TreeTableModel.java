@@ -80,7 +80,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * obtain a parallel tree of TreeNodes.
      *
      * <p>
-     * It will build a root MutableTreeNode and all sub children given the user object which is the parent,
+     * It will build a root DefaultMutableTreeNode and all sub children given the user object which is the parent,
      * and a ChildProvider method which returns the list of children for user objects in the tree.
      * This can be provided as a one line lambda expression, or by implementing the TreeTableModel.ChildProvider interface.
      * <p>
@@ -91,9 +91,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param provider An object which provides a list of user objects from the parent user object.
      * @return A DefaultMutableTreeNode with all child nodes built and associated with their corresponding user objects.
      */
-    public static MutableTreeNode buildTree(final Object parent, final TreeTableModel.ChildProvider provider) {
+    public static DefaultMutableTreeNode buildTree(final Object parent, final TreeTableModel.ChildProvider provider) {
         final List<?> children = provider.getChildren(parent);
-        final MutableTreeNode parentNode = new DefaultMutableTreeNode(parent, children.size() > 0);
+        final DefaultMutableTreeNode parentNode = new DefaultMutableTreeNode(parent, children.size() > 0);
         int indexToInsert = 0;
         for (Object child : children) {
             parentNode.insert(buildTree(child, provider), indexToInsert++);
@@ -404,8 +404,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* *****************************************************************************************************************
      *                             Optional methods for subclasses to implement
      *
-     * These methods don't have to be subclassed, but you should override them if you need the features they provide.
-     * They currently have blank implementations.
+     * These methods currently have blank implementations.  Override the ones you need.
      */
 
     /**
@@ -414,7 +413,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param node The node to get an icon for.
      * @return The icon for that node, or null if no icon is defined.
      */
-    public Icon getNodeIcon(TreeNode node) {
+    public Icon getNodeIcon(final TreeNode node) {
         return null; // Default is no icons - override this method to return the icon for a node.
     }
 
@@ -427,7 +426,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param column The column to set the value for.
      * @param value The value to set.
      */
-    public void setColumnValue(TreeNode node, int column, Object value) {
+    public void setColumnValue(final TreeNode node, final int column, final Object value) {
         // Default is read-only.  Subclasses must override to set column values.
     }
 
@@ -439,7 +438,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *  @return false
      */
     @Override
-    public boolean isCellEditable(int rowIndex, int columnIndex) {
+    public boolean isCellEditable(final int rowIndex, final int columnIndex) {
         return false; // Default is read-only.  Subclasses must override to set whether a cell is editable.
     }
 
@@ -464,7 +463,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param column The column to return a Comparator for, or null if the default comparison is OK.
      * @return A Comparator for the given column, or null if no special comparator is required.
      */
-    public Comparator<?> getColumnComparator(int column) {
+    public Comparator<?> getColumnComparator(final int column) {
         return null; // Defaults to no special column comparators.
     }
 
@@ -492,9 +491,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param nodeComparator the node comparator to use, or null if no node comparisons are required.
      */
     public void setNodeComparator(final Comparator<TreeNode> nodeComparator) {
-        this.nodeComparator = nodeComparator;
+        if (this.nodeComparator != nodeComparator) {
+            this.nodeComparator = nodeComparator;
+            fireTableDataChanged();
+        }
     }
-
 
     /* *****************************************************************************************************************
      *                                    TableModel interface methods.
@@ -514,14 +515,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     @Override
     public Object getValueAt(final int row, final int column) {
-        return getColumnValue( getNodeAtRow(row), column);
+        return getColumnValue( getNodeAtTableRow(row), column);
     }
 
     @Override
     public void setValueAt(final Object aValue, final int rowIndex, final int columnIndex) {
-        setColumnValue( getNodeAtRow(rowIndex), columnIndex, aValue);
+        setColumnValue( getNodeAtTableRow(rowIndex), columnIndex, aValue);
     }
-
 
     /* *****************************************************************************************************************
      *                                    Tree Change methods
@@ -551,7 +551,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     @Override
     public void treeNodesChanged(final TreeModelEvent e) {
-        treeNodesChanged(getLastPathNode(e));
+        treeNodesChanged( getLastPathNode(e));
     }
 
     public void treeNodesChanged(final TreeNode nodeChanged) {
@@ -559,7 +559,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         if (visibleChildren > 0 && isVisible(nodeChanged)) {
             final int parentIndex = getModelIndex(nodeChanged); // has to do a linear scan of the visible nodes to locate the parent.
             fireTableRowsUpdated(parentIndex + 1, parentIndex + visibleChildren);
-            //TODO: it may even be more efficient to just redraw the table than locate model indexes and notify of updates?  Profile.
+                       //TODO: it may even be more efficient to just redraw the table than locate model indexes and notify of updates?  Profile.
             //fireTableDataChanged(); // forces table to redraw, structure hasn't changed.
         }
     }
@@ -849,7 +849,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return lastConsecutiveIndex;
     }
 
-
     /* *****************************************************************************************************************
      *                                          Node getters
      *
@@ -869,7 +868,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param modelIndex The row in the display model to get the node for.
      * @return The node for the row in the (unsorted) model index.
      */
-    public TreeNode getNodeAtRow(final int modelIndex) {
+    public TreeNode getNodeAtModelIndex(final int modelIndex) {
         return modelIndex >= 0 && modelIndex < displayedNodes.size() ? displayedNodes.get(modelIndex) : null;
     }
 
@@ -881,7 +880,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return The node at the tableRow position in the JTable.
      */
     public TreeNode getNodeAtTableRow(final int tableIndex) {
-        return getNodeAtRow(getModelIndex(tableIndex));
+        return getNodeAtModelIndex(getModelIndex(tableIndex));
     }
 
     /**
@@ -1077,7 +1076,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param clickHandler The TreeClickHandler to process expand/collapse events for the primary tree column.
      */
     public void setTreeClickHandler(final TreeClickHandler clickHandler) {
-        this.clickHandler = clickHandler;
+        this.clickHandler = clickHandler; //TODO: what happens if this is updated after binding to a tree...?
     }
 
 
@@ -1642,7 +1641,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             if (source instanceof JTable) {
                 final JTable table = (JTable) source;
                 final int modelIndexRow = getModelIndex(table.getSelectedRow());
-                final TreeNode node = getNodeAtRow(modelIndexRow);
+                final TreeNode node = getNodeAtModelIndex(modelIndexRow);
                 if (node != null && node.getAllowsChildren() && !isExpanded(node)) {
                     toggleExpansion(node, modelIndexRow);
                 }
@@ -1657,7 +1656,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             if (source instanceof JTable) {
                 final JTable table = (JTable) source;
                 final int modelIndexRow = getModelIndex(table.getSelectedRow());
-                final TreeNode node = getNodeAtRow(modelIndexRow);
+                final TreeNode node = getNodeAtModelIndex(modelIndexRow);
                 if (node != null && node.getAllowsChildren() && isExpanded(node)) {
                     toggleExpansion(node, modelIndexRow);
                 }
@@ -1672,7 +1671,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             if (source instanceof JTable) {
                 final JTable table = (JTable) source;
                 final int modelIndexRow = getModelIndex(table.getSelectedRow());
-                final TreeNode node = getNodeAtRow(modelIndexRow);
+                final TreeNode node = getNodeAtModelIndex(modelIndexRow);
                 if (node != null) {
                     toggleExpansion(node, modelIndexRow);
                 }
