@@ -353,8 +353,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
     }
 
-
-
     //TODO: do we need choice in setting up the TreeTableCellRenderer for the tree?  Composition of renderers?
 
     /**
@@ -480,11 +478,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
 
     /* *****************************************************************************************************************
-     *                                         Node grouping
+     *                                         Node grouping and sorting
      *
-     * Getter and setter for a node comparator.  If set, nodes will be grouped by that comparator, even if no
-     * other sort columns are defined.  This allows different categories of node (e.g. files or folders) to be
-     * grouped in the tree, with sorting of columns within them.
+     * Gets and sets node grouping and sorting.
      */
 
     /**
@@ -553,6 +549,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             table.setRowSorter(rowSorter);
         }
     }
+
 
     /* *****************************************************************************************************************
      *                                    TableModel interface methods.
@@ -919,10 +916,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return lastConsecutiveIndex;
     }
 
+
     /* *****************************************************************************************************************
-     *                                          Node getters
+     *                                          Node and index getters
      *
-     * Methods to get nodes, converting between model and table indexes.
+     * Methods to get nodes, selected nodes, converting between model and table indexes.
      */
 
     /**
@@ -982,12 +980,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * If the table is sorted, then the row sorter can provide a mapping from the row in the visible table
      * to the row in this underlying model.
      *
-     * @param tableIndex The row in the JTable to get the model index for.
+     * @param tableRow The row in the JTable to get the model index for.
      * @return the model index of a row in a bound JTable.
      */
-    public int getModelIndex(final int tableIndex) {
+    public int getModelIndex(final int tableRow) {
         final RowSorter<? extends TableModel> rowSorter = table == null? null : table.getRowSorter();
-        return rowSorter == null? tableIndex : rowSorter.convertRowIndexToModel(tableIndex);
+        return rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
     }
 
     /**
@@ -1091,7 +1089,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return isVisible(node) ? getModelIndex(node) : NOT_LOCATED;
     }
 
-
     protected List<TreeNode> buildPath(final TreeNode node) {
         final List<TreeNode> path = new ArrayList<>();
         TreeNode currentNode = node;
@@ -1100,36 +1097,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             currentNode = currentNode.getParent();
         }
         return path;
-    }
-
-
-    /* *****************************************************************************************************************
-     *                                          Root node visibility
-     */
-
-    /**
-     * @return true if the root node will be displayed, false if not.
-     */
-    public boolean getShowRoot() {
-        return showRoot;
-    }
-
-    /**
-     * Sets whether the root node should be displayed or not, and updates the display model if the state changes.
-     *
-     * @param showRoot whether the root node should be displayed or not.
-     */
-    public void setShowRoot(final boolean showRoot) {
-        if (this.showRoot != showRoot) {
-            this.showRoot = showRoot;
-            if (showRoot) {
-                displayedNodes.add(0, rootNode);
-                fireTableRowsInserted(0, 0);
-            } else {
-                displayedNodes.remove(0);
-                fireTableRowsDeleted(0, 0);
-            }
-        }
     }
 
 
@@ -1308,70 +1275,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return column;
     }
 
-    /* *****************************************************************************************************************
-     *                             Key bindings for expand and collapse and toggle.
-     */
-
-    /**
-     * Sets the key strokes used to expand a selected node in the tree.
-     * If null or empty, no key strokes will be assigned.
-     *
-     * @param newExpandKeys The new set of keystrokes which will trigger an expand event on a selected node.
-     */
-     public void setExpandKeys(final KeyStroke... newExpandKeys) {
-         final KeyStroke[] newStrokes = newExpandKeys == null? new KeyStroke[0] : expandKeys.clone();
-         removeKeyboardActions();
-         this.expandKeys = newStrokes;
-         addKeyboardActions();
-     }
-
-    /**
-     * Sets the key strokes used to collapse a selected node in the tree.
-     * If null or empty, no key strokes will be assigned.
-     *
-     * @param newCollapseKeys The new set of keystrokes which will trigger a collapse event on a selected node.
-     */
-     public void setCollapseKeys(final KeyStroke... newCollapseKeys) {
-         final KeyStroke[] newStrokes = newCollapseKeys == null? new KeyStroke[0] : newCollapseKeys.clone();
-         removeKeyboardActions();
-         this.collapseKeys = newStrokes;
-         addKeyboardActions();
-     }
-
-    /**
-     * Sets the keystrokes used to toggle expansion of a selected node in the tree.
-     * If null or empty, no key strokes will be assigned.
-     *
-     * @param newToggleKeys The new set of keystrokes which will trigger a toggle expansion event on a selected node.
-     */
-     public void setToggleKeys(final KeyStroke... newToggleKeys) {
-         final KeyStroke[] newStrokes = newToggleKeys == null? new KeyStroke[0] : newToggleKeys.clone();
-         removeKeyboardActions();
-         this.toggleKeys = newStrokes;
-         addKeyboardActions();
-     }
-
-    /**
-     * @return An array of KeyStrokes which will trigger an expansion event on the selected node.
-     */
-     public KeyStroke[] getExpandKeys() {
-         return expandKeys;
-     }
-
-    /**
-     * @return An array of KeyStrokes which will trigger a collapse event on the selected node.
-     */
-     public KeyStroke[] getCollapseKeys() {
-         return collapseKeys;
-     }
-
-    /**
-     * @return An array of KeyStrokes which will trigger a toggle expansion event on the selected node.
-     */
-     public KeyStroke[] getToggleKeys() {
-         return toggleKeys;
-     }
-
 
     /* *****************************************************************************************************************
      *                                Node expansion and collapse and tree change.
@@ -1534,14 +1437,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Collapse all expansions in the tree.
-     */
-    public void collapseTree() {
-        clearExpansions();
-        fireTableDataChanged();
-    }
-
-    /**
      * Collapses a node if it is already expanded.
      * @param node The node to collapse.
      */
@@ -1552,29 +1447,41 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Collapses expansion of all children (and sub children) of a parent node.
+     * Collapse all expansions in the tree.
+     * If the root is not showing, it will be expanded (or nothing in the tree could be visible).
+     */
+    public void collapseTree() {
+        clearExpansions();
+        fireTableDataChanged();
+    }
+
+    /**
+     * Collapses expansion of the parent node and all children (and sub children) of a parent node.
      *
      * @param parentNode The node to collapse all children.
      */
-    public void collapseAllChildren(final TreeNode parentNode) {
+    public void collapseChildren(final TreeNode parentNode) {
+        collapseNode(parentNode);
         for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
-            TreeNode child = parentNode.getChildAt(childIndex);
-            collapseNode(child);
-            collapseAllChildren(child);
+            collapseChildren(parentNode.getChildAt(childIndex));
         }
     }
 
+    /**
+     * Collapses expansion of the parent node andy any children that meet the node predicate.
+     * It will not continue collapsing children of any node that fails the predicate.
+     *
+     * @param parentNode The node and all children to collapse that meet the node predicate
+     * @param nodePredicate The predicate a node must meet to collapse.
+     */
     public void collapseChildren(final TreeNode parentNode, final Predicate<TreeNode> nodePredicate) {
-        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
-            TreeNode child = parentNode.getChildAt(childIndex);
-            if (nodePredicate.test(child)) {
-                collapseNode(child);
-                collapseAllChildren(child);
+        if (nodePredicate.test(parentNode)) {
+            collapseNode(parentNode);
+            for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+                collapseChildren(parentNode.getChildAt(childIndex));
             }
         }
     }
-
-    //TODO: are there any use cases for collapse to depth?  So you leave sub-sub-sub-children expanded, but a block of them are collapsed?
 
     /**
      * Listeners may change the node structure (e.g. dynamically add, remove or change nodes).
@@ -1716,9 +1623,35 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
+
     /* *****************************************************************************************************************
      *                                         Visible node management.
      */
+
+    /**
+     * @return true if the root node will be displayed, false if not.
+     */
+    public boolean getShowRoot() {
+        return showRoot;
+    }
+
+    /**
+     * Sets whether the root node should be displayed or not, and updates the display model if the state changes.
+     *
+     * @param showRoot whether the root node should be displayed or not.
+     */
+    public void setShowRoot(final boolean showRoot) {
+        if (this.showRoot != showRoot) {
+            this.showRoot = showRoot;
+            if (showRoot) {
+                displayedNodes.add(0, rootNode);
+                fireTableRowsInserted(0, 0);
+            } else {
+                displayedNodes.remove(0);
+                fireTableRowsDeleted(0, 0);
+            }
+        }
+    }
 
     /**
      * Returns true if the node is currently visible in the tree, or false otherwise.
@@ -1730,6 +1663,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public boolean isVisible(final TreeNode node) {
         return node != null && (node == rootNode ? showRoot : parentsAreExpandedAndPartOfTree(node));
+    }
+
+    /**
+     * @return An unmodifiable list view of all visible nodes in the model.
+     */
+    public List<TreeNode> getVisibleNodes() {
+        return Collections.unmodifiableList(displayedNodes);
     }
 
     /**
@@ -1834,7 +1774,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return totalVisibleChildNodes;
     }
 
-
     /**
      * @param node The node to check.
      * @return true if the node is in a visible chain of expanded parents and in the same tree as this model.
@@ -1909,6 +1848,72 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return null;
     }
 
+
+    /* *****************************************************************************************************************
+     *                             Key bindings for expand and collapse and toggle.
+     */
+
+    /**
+     * Sets the key strokes used to expand a selected node in the tree.
+     * If null or empty, no key strokes will be assigned.
+     *
+     * @param newExpandKeys The new set of keystrokes which will trigger an expand event on a selected node.
+     */
+    public void setExpandKeys(final KeyStroke... newExpandKeys) {
+        final KeyStroke[] newStrokes = newExpandKeys == null? new KeyStroke[0] : expandKeys.clone();
+        removeKeyboardActions();
+        this.expandKeys = newStrokes;
+        addKeyboardActions();
+    }
+
+    /**
+     * Sets the key strokes used to collapse a selected node in the tree.
+     * If null or empty, no key strokes will be assigned.
+     *
+     * @param newCollapseKeys The new set of keystrokes which will trigger a collapse event on a selected node.
+     */
+    public void setCollapseKeys(final KeyStroke... newCollapseKeys) {
+        final KeyStroke[] newStrokes = newCollapseKeys == null? new KeyStroke[0] : newCollapseKeys.clone();
+        removeKeyboardActions();
+        this.collapseKeys = newStrokes;
+        addKeyboardActions();
+    }
+
+    /**
+     * Sets the keystrokes used to toggle expansion of a selected node in the tree.
+     * If null or empty, no key strokes will be assigned.
+     *
+     * @param newToggleKeys The new set of keystrokes which will trigger a toggle expansion event on a selected node.
+     */
+    public void setToggleKeys(final KeyStroke... newToggleKeys) {
+        final KeyStroke[] newStrokes = newToggleKeys == null? new KeyStroke[0] : newToggleKeys.clone();
+        removeKeyboardActions();
+        this.toggleKeys = newStrokes;
+        addKeyboardActions();
+    }
+
+    /**
+     * @return An array of KeyStrokes which will trigger an expansion event on the selected node.
+     */
+    public KeyStroke[] getExpandKeys() {
+        return expandKeys;
+    }
+
+    /**
+     * @return An array of KeyStrokes which will trigger a collapse event on the selected node.
+     */
+    public KeyStroke[] getCollapseKeys() {
+        return collapseKeys;
+    }
+
+    /**
+     * @return An array of KeyStrokes which will trigger a toggle expansion event on the selected node.
+     */
+    public KeyStroke[] getToggleKeys() {
+        return toggleKeys;
+    }
+
+
     /* *****************************************************************************************************************
      *                            Action classes to bind to keyboard events.
      */
@@ -1957,6 +1962,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             }
         }
     }
+
 
     /* *****************************************************************************************************************
      *                                              Interfaces
