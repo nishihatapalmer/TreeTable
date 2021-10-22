@@ -42,6 +42,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
+import java.util.function.Predicate;
 
 //TODO: review protected status of some methods - should they be public?
 //      Just decided isVisible() was a good candidate.  Info methods should be
@@ -109,7 +110,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
      * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
      *
-     * Can set in {@link #setNodeComparator(Comparator)}.
+     * Can set in {@link #setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN = (o1, o2) -> {
         final boolean allowsChildren = o1.getAllowsChildren();
@@ -142,6 +143,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected static final int DEFAULT_COLUMN_WIDTH = 75;
 
+    /**
+     * Value returned by find methods if not found.
+     */
+    protected static final int NOT_LOCATED = -1;
 
     /* *****************************************************************************************************************
      *                                         Variables
@@ -166,7 +171,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected boolean showRoot; // whether the root of the tree is shown.
 
-
     protected KeyStroke[] expandKeys = new KeyStroke[] { // key presses that expand a node.
                 KeyStroke.getKeyStroke(KeyEvent.VK_ADD, 0, false),        // + on keypad
                 KeyStroke.getKeyStroke(KeyEvent.VK_PLUS, 0, false),       // + on primary row
@@ -176,7 +180,14 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0, false)};  // - on keypad
     protected KeyStroke[] toggleKeys = new KeyStroke[] { // key presses that toggle node expansion
                 KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, false)};
-    protected Comparator<TreeNode> nodeComparator; // used to group nodes together based on node properties.
+    protected Comparator<TreeNode> groupingComparator; // used to group nodes together based on node properties.
+
+    /**
+     * The threshold number of nodes below which a linear scan will be used to find a node in the tree rather than
+     * a tree scan.  Defaults to 100 after profiling with the jmh tool, which showed tree scans outperformed linear
+     * scans at around that size of visible nodes in the tree.
+     */
+    protected final int linearScanThreshold = 100;
 
     /*
      * Cached/calculated properties of the model:
@@ -477,10 +488,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
 
     /**
-     * @return a Comparator for a node, or null if not set.
+     * @return a grouping Comparator for a node, or null if not set.
      */
-    public Comparator<TreeNode> getNodeComparator() {
-        return nodeComparator;
+    public Comparator<TreeNode> getGroupingComparator() {
+        return groupingComparator;
     }
 
     /**
@@ -490,10 +501,56 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *
      * @param nodeComparator the node comparator to use, or null if no node comparisons are required.
      */
-    public void setNodeComparator(final Comparator<TreeNode> nodeComparator) {
-        if (this.nodeComparator != nodeComparator) {
-            this.nodeComparator = nodeComparator;
+    public void setGroupingComparator(final Comparator<TreeNode> nodeComparator) {
+        if (this.groupingComparator != nodeComparator) {
+            this.groupingComparator = nodeComparator;
             fireTableDataChanged();
+        }
+    }
+
+    /**
+     * This is a convenience method to obtain the current sort keys, if bound to table using a row sorter.
+     *
+     * @return if bound to a table, returns any sort keys defined on its row sorter, or an empty list if none are defined or available.
+     */
+    public List<? extends RowSorter.SortKey> getSortKeys() {
+        final RowSorter<? extends TableModel> rowSorter = table == null? null : table.getRowSorter();
+        return rowSorter == null? Collections.emptyList() : rowSorter.getSortKeys();
+    }
+
+    /**
+     * This method sets sort keys if bound to a table, using a list of SortKeys.  It does nothing if the model is not bound to a table.
+     * It will also create a TreeTableRowSorter and assign it to the table if a row sorter is not currently defined.
+     *
+     * @param keys the sort keys to use in the table.
+     */
+    public void setSortKeys(final List<? extends RowSorter.SortKey> keys) {
+        if (table != null) {
+            RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+            if (rowSorter == null) {
+                rowSorter = new TreeTableRowSorter(this);
+                rowSorter.setSortKeys(keys);
+                table.setRowSorter(rowSorter);
+            } else {
+                rowSorter.setSortKeys(keys);
+            }
+        }
+    }
+
+    /**
+     * This method sets sort keys if bound to a table, using sort key parameters.  It does nothing if the model is not bound to a table.
+     * It will also create a TreeTableRowSorter and assign it to the table if a row sorter is not currently defined.
+     *
+     * @param keys the sort keys to use in the table.
+     */
+    public void setSortKeys(final RowSorter.SortKey... keys) {
+        if (table != null) {
+            RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+            if (rowSorter == null) {
+                rowSorter = new TreeTableRowSorter(this);
+            }
+            rowSorter.setSortKeys(Arrays.asList(keys));
+            table.setRowSorter(rowSorter);
         }
     }
 
@@ -519,8 +576,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     @Override
-    public void setValueAt(final Object aValue, final int rowIndex, final int columnIndex) {
-        setColumnValue( getNodeAtTableRow(rowIndex), columnIndex, aValue);
+    public void setValueAt(final Object aValue, final int row, final int column) {
+        setColumnValue( getNodeAtTableRow(row), column, aValue);
     }
 
     /* *****************************************************************************************************************
@@ -551,17 +608,30 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     @Override
     public void treeNodesChanged(final TreeModelEvent e) {
-        treeNodesChanged( getLastPathNode(e));
+        treeNodesChanged( getLastPathNode(e), e.getChildIndices());
     }
 
-    public void treeNodesChanged(final TreeNode nodeChanged) {
-        final int visibleChildren = getVisibleChildCount(nodeChanged);
-        if (visibleChildren > 0 && isVisible(nodeChanged)) {
-            final int parentIndex = getModelIndex(nodeChanged); // has to do a linear scan of the visible nodes to locate the parent.
-            fireTableRowsUpdated(parentIndex + 1, parentIndex + visibleChildren);
-                       //TODO: it may even be more efficient to just redraw the table than locate model indexes and notify of updates?  Profile.
-            //fireTableDataChanged(); // forces table to redraw, structure hasn't changed.
+    public void treeNodeChanged(final TreeNode nodeChanged) {
+        if (isVisible(nodeChanged)) {
+            final int modelIndex  = getModelIndex(nodeChanged);
+            fireTableRowsUpdated(modelIndex, modelIndex); //TODO: model index or table row?
         }
+    }
+
+    public void treeNodesChanged(final TreeNode parentNode, final int[] childIndices) {
+        if (isExpanded(parentNode) && isVisible(parentNode)) {
+            for (int i = 0; i < childIndices.length; i++) {
+                final int modelIndex  = getModelIndex(parentNode.getChildAt(childIndices[i]));
+                fireTableRowsUpdated(modelIndex, modelIndex); //TODO: model index or table row?
+            }
+        }
+        /*
+        final int visibleChildren = getVisibleChildCount(nodeChanged);
+        if (visibleChildren > 0 && isVisible(nodeChanged)) { //TODO: bug?  even if no visible children, the node itself may require a table update.
+            final int parentIndex = getModelIndex(nodeChanged);
+            fireTableRowsUpdated(parentIndex + 1, parentIndex + visibleChildren);
+        }
+         */
     }
 
     @Override
@@ -656,7 +726,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     //      structure change.
 
     protected void rebuildVisibleChildren(final TreeNode changedNode) {
-        int firstChildModelIndex = -1;
+        int firstChildModelIndex = NOT_LOCATED;
 
         // 1. remove any prior visible children:
         final int numOldChildren = getVisibleChildCount(changedNode);
@@ -927,11 +997,90 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return The index in the model of displayed nodes, or -1 if it isn't being displayed.
      */
     public int getModelIndex(final TreeNode node) {
+        return displayedNodes.size() < linearScanThreshold ? getModelIndexLinearScan(node) : getModelIndexTreeScan(node);
+    }
+
+    /**
+     * Gets the index in the model of a node, or -1 if it isn't visible or part of the current tree.
+     * Uses a simple linear scan of the visible node array list to find the node.
+     *
+     * @param node The node to get the model index for.
+     * @return The index in the model of displayed nodes, or -1 if it isn't being displayed.
+     */
+    public int getModelIndexLinearScan(final TreeNode node) {
         return displayedNodes.indexOf(node);
     }
 
+    /**
+     * Gets the index in the model of a node, or -1 if it isn't visible or part of the current tree.
+     * Uses a tree scanning algorithm, walking back up the path of the node we're looking for and
+     * locating each ancestor, adding up how many visible nodes precede it, until we reach the
+     * node we want to find, or not.
+     * <p>
+     * This is quite fast since we already track how many visible child nodes (including all sub nodes) each expanded
+     * folder contains.  So we can just walk the children of each ancestor adding up how many nodes will actually appear,
+     * and don't have to actually scan most of them.
+     * This will be a considerably smaller set of nodes than looking in all of them.
+     * <p>
+     * There are almost certainly faster ways to obtain the model index, but we are re-using existing data
+     * structures in this method to obtain a significant speed up.
+     *
+     * @param node The node to get the model index for.
+     * @return The index in the model of displayed nodes, or -1 if it isn't being displayed.
+     */
+    public int getModelIndexTreeScan(final TreeNode node) {
+        //TODO: is there a more elegant way of dealing with root than an edge case test?
+        if (node == rootNode) {
+            return showRoot? 0 : NOT_LOCATED;
+        }
+
+        // Work up the path from the first child of the root through parents up to the node we want to get the index for.
+        // building the cumulative model index as the sum of all children and visible children that precede it in the path.
+        final List<TreeNode> parentPath = buildPath(node);
+        final TreeNode ancestorRoot = parentPath.get(parentPath.size() - 1);
+        if (ancestorRoot == rootNode) {
+            int modelIndexCount = showRoot ? 0 : -1;
+            for (int pathIndex = parentPath.size() - 2; pathIndex >= 0; pathIndex--) {
+                // As long as the parent node is expanded (so children will be visible), look for the ancestor:
+                final TreeNode parentNode = parentPath.get(pathIndex + 1);
+                if (isExpanded(parentNode)) {
+                    final TreeNode ancestorNode = parentPath.get(pathIndex);
+                    final int precedingVisibleNodes = addUpVisiblePrecedingChildren(parentNode, ancestorNode);
+                    if (precedingVisibleNodes < 0) {
+                        return NOT_LOCATED;
+                    }
+                    modelIndexCount += precedingVisibleNodes;
+                } else {
+                    return NOT_LOCATED;
+                }
+            }
+            return modelIndexCount;
+        }
+        return NOT_LOCATED;
+    }
+
+    protected int addUpVisiblePrecedingChildren(TreeNode parentNode, TreeNode nodeToFind) {
+        boolean located = false;
+        int visibleNodeCount = 0;
+        for (int child = 0; child < parentNode.getChildCount(); child++) {
+            final TreeNode childNode = parentNode.getChildAt(child);
+            visibleNodeCount++; // add one for the child.
+
+            // Have we found an ancestor parent node?
+            if (childNode == nodeToFind) {
+                located = true;
+                break; // stop looking for more at this level, move up the ancestor path to the next level.
+            }
+
+            // Add how many nodes this child has as visible children and sub-children.
+            // This is just a lookup in a hash map at worst, so it is fast.
+            visibleNodeCount += getVisibleChildCount(childNode);
+        }
+        return located ? visibleNodeCount : NOT_LOCATED;
+    }
+
     //TODO: does visibility checking in get Model Index cause problems?  Why have two methods?  Review getModelIndex.
-    //      remember we took out a bunch of checking logic and just asked for whether it was in the displayed list.
+
     /**
      * Gets the index in the model of a node, or -1 if it isn't visible or part of the current tree.
      *
@@ -939,7 +1088,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return index of a node in the tree or -1 if not in the tree.
      */
     public int getModelIndexCheckVisible(final TreeNode node) {
-        return isVisible(node) ? getModelIndex(node) : -1;
+        return isVisible(node) ? getModelIndex(node) : NOT_LOCATED;
+    }
+
+
+    protected List<TreeNode> buildPath(final TreeNode node) {
+        final List<TreeNode> path = new ArrayList<>();
+        TreeNode currentNode = node;
+        while (currentNode != null ) {
+            path.add(currentNode);
+            currentNode = currentNode.getParent();
+        }
+        return path;
     }
 
 
@@ -1217,6 +1377,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      *                                Node expansion and collapse and tree change.
      */
 
+    //TODO: auto expand on insert?
+
+    //TODO: always expanded option?  (no expand / collapse handles, key strokes or mouse clicks required for that).
+
     /**
      * @param node The node to check.
      * @return true if the node is expanded.
@@ -1237,12 +1401,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return The number of visible children under this node (including any other expanded nodes underneath).
      */
     public int getVisibleChildCount(final TreeNode node) {
-        final Integer childCount = expandedNodeCounts.get(node);
-        return childCount == null ? 0 : childCount;
+        if (node.getAllowsChildren() && node.getChildCount() > 0) {
+            final Integer childCount = expandedNodeCounts.get(node);
+            return childCount == null ? 0 : childCount;
+        }
+        return 0;
     }
 
     /**
-     * Sets a node to expand, if it isn't already expanded.
+     * Sets a node to expand, if it isn't already expanded and allows children.
+     * Even if the node has no children but allows children, it will still be set to be expanded.
+     * Any children added to it would automatically be visible once expanded.
+     *
      * @param node The node to expand.
      */
     public void expandNode(final TreeNode node) {
@@ -1251,29 +1421,124 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
-
+    /**
+     * Expands all nodes in the tree which allow children.
+     */
+    public void expandTree() {
+        expandChildren(rootNode);
+    }
 
     /**
-     * Expands all children and subchildren of a parent node.
+     * Expands all nodes in the tree which allow children up to the maximum depth specified.
+     * A depth of one expands the root only, showing the children of the root.  A depth of 2 would also
+     * expand those children, showing 2 levels of node under the root.
      *
-     * @param parentNode The node to expand all children and subchildren.
+     * @param depth The number of levels of children to make visible under the root.
      */
-    public void expandAllChildren(final TreeNode parentNode) {
+    public void expandTree(final int depth) {
+        expandChildren(rootNode, depth);
+    }
+
+    /**
+     * Expands all nodes in the tree which allow children and also pass the node predicate test.
+     * Any child nodes of a node which doesn't pass the test will not be expanded further, but
+     * siblings of that node and their child nodes may be expanded.
+     *
+     * @param nodePredicate The predicate a node must pass in order to be expanded.
+     */
+    public void expandTree(final Predicate<TreeNode> nodePredicate) {
+        expandChildren(rootNode, nodePredicate);
+    }
+
+    /**
+     * Expands all nodes in the tree which allow children up to the maximum depth specified and which pass
+     * the node predicate test. Any child nodes of a node which doesn't pass the test will not be expanded further,
+     * but siblings of that node and their child nodes may be expanded.
+     *
+     * A depth of one expands the root only, showing the children of the root.  A depth of 2 would also
+     * expand those children, showing 2 levels of node under the root.
+     *
+     * @param depth The number of levels of children to make visible under the root.
+     * @param nodePredicate The predicate a node must pass in order to be expanded.
+     */
+    public void expandTree(final int depth, final Predicate<TreeNode> nodePredicate) {
+        expandChildren(rootNode, depth, nodePredicate);
+    }
+
+    /**
+     * Expands the parent node and all children and subchildren nodes which allow children.
+     *
+     * @param parentNode The node to expand and all children and subchildren.
+     */
+    public void expandChildren(final TreeNode parentNode) {
+        expandNode(parentNode);
         for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
-            TreeNode child = parentNode.getChildAt(childIndex);
-            expandNode(child);
-            expandAllChildren(child);
+            expandChildren(parentNode.getChildAt(childIndex));
         }
     }
 
-    public void expandAllChildren(final TreeNode parentNode, final int depth) {
-        if (depth > 0) {
+    /**
+     * Expands the parent node and all children and subchildren if they meet the node predicate test.
+     * No further children will be expanded for a node that fails the predicate test,
+     * but other siblings of it that pass the test may be expanded.
+     *
+     * @param parentNode The node to expand along with children
+     * @param nodePredicate The predicate a node must pass in order to expand itself and its children.
+     */
+    public void expandChildren(final TreeNode parentNode, final Predicate<TreeNode> nodePredicate) {
+        if (nodePredicate.test(parentNode)) {
+            expandNode(parentNode);
             for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
-                TreeNode child = parentNode.getChildAt(childIndex);
-                expandNode(child);
-                expandAllChildren(child, depth - 1);
+                expandChildren(parentNode.getChildAt(childIndex), nodePredicate);
             }
         }
+    }
+
+    /**
+     * Expands the parent node and its children, and sub-children up to the depth (number of levels of sub-children)
+     * from the parent.  A depth of one gives the immediate children of the parent, 2 gives their children as well,
+     * and so on.
+     *
+     * @param parentNode The parent node to expand along with its children and sub-children up to the depth specified.
+     * @param depth The maximum depth to expand a parent node, 1 being it's immediate children, 2 being their children and so on.
+     */
+    public void expandChildren(final TreeNode parentNode, final int depth) {
+        if (depth > 0) { // as long as there's a depth level to expand...
+            expandNode(parentNode);
+            if (depth > 1) { // don't bother trying to expand children if they wouldn't be expanded anyway due to depth.
+                for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+                    expandChildren(parentNode.getChildAt(childIndex), depth - 1);
+                }
+            }
+        }
+    }
+
+    /**
+     * Expands the parent node and all children and subchildren if they meet the node predicate test, up to the
+     * maximum depth of children specified.  No further children will be expanded for a node that fails the predicate test,
+     * but other siblings of it that pass the test may be expanded.
+     *
+     * @param parentNode The parent node to expand along with its children and sub-children up to the depth specified.
+     * @param depth The maximum depth to expand a parent node, 1 being it's immediate children, 2 being their children and so on.
+     * @param nodePredicate The predicate a node must pass in order to expand itself and its children.
+     */
+    public void expandChildren(final TreeNode parentNode, final int depth, final Predicate<TreeNode> nodePredicate) {
+        if (depth > 0 && nodePredicate.test(parentNode)) { // as long as there's a depth level to expand and the node passes the test...
+            expandNode(parentNode);
+            if (depth > 1) { // don't bother trying to expand children if they wouldn't be expanded anyway due to depth.
+                for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+                    expandChildren(parentNode.getChildAt(childIndex), depth - 1, nodePredicate);
+                }
+            }
+        }
+    }
+
+    /**
+     * Collapse all expansions in the tree.
+     */
+    public void collapseTree() {
+        clearExpansions();
+        fireTableDataChanged();
     }
 
     /**
@@ -1298,6 +1563,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             collapseAllChildren(child);
         }
     }
+
+    public void collapseChildren(final TreeNode parentNode, final Predicate<TreeNode> nodePredicate) {
+        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+            TreeNode child = parentNode.getChildAt(childIndex);
+            if (nodePredicate.test(child)) {
+                collapseNode(child);
+                collapseAllChildren(child);
+            }
+        }
+    }
+
+    //TODO: are there any use cases for collapse to depth?  So you leave sub-sub-sub-children expanded, but a block of them are collapsed?
 
     /**
      * Listeners may change the node structure (e.g. dynamically add, remove or change nodes).
@@ -1366,7 +1643,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Updates all child counds down the tree to root given a starting node and the change in child counts,
+     * Updates all child counts down the tree to root given a starting node and the change in child counts,
      * which can be negative or positive.
      *
      * @param startNode The node to start adjusting child counts for, down to the root node.
@@ -1390,11 +1667,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected void clearExpansions() {
         expandedNodeCounts.clear();
-        if (!showRoot) { // expand the root if it's not showing.
+        if (!showRoot) { // expand the root if it's not showing - or nothing will ever be visible in the tree!
             expandNode(rootNode);
         }
     }
 
+    //TODO: method not used.
     /**
      * Returns true if this node is rooted in the model tree.
      *
@@ -1405,6 +1683,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return getRoot(node) == rootNode;
     }
 
+    //TODO: method not used.
     /**
      * Gets the root node for a node (root node has a null parent).
      *

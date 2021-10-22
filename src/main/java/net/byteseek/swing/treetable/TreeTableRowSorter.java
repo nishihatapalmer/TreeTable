@@ -331,7 +331,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     }
 
     protected int groupNodes(final TreeNode firstNode, final TreeNode secondNode) {
-        final Comparator<TreeNode> nodeComparator = model.getNodeComparator();
+        final Comparator<TreeNode> nodeComparator = model.getGroupingComparator();
         return nodeComparator == null ? 0 : nodeComparator.compare(firstNode, secondNode);
     }
 
@@ -365,7 +365,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Builds (or clears) the sort indexes, depending on the SortKeys definition.
      */
     private void buildSortIndexes() {
-        if (sortKeys.size() > 0 || model.getNodeComparator() != null) {
+        if (sortKeys.size() > 0 || model.getGroupingComparator() != null) {
             sort();
         } else {
             clearSortIndexes();
