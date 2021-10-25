@@ -540,7 +540,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param column The column to return a Comparator for, or null if the default comparison is OK.
      * @return A Comparator for the given column, or null if no special comparator is required.
      */
-    public Comparator getColumnComparator(final int column) {
+    public Comparator<?> getColumnComparator(final int column) {
         return null; // Defaults to no special column comparators.
     }
 
@@ -647,6 +647,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     @Override
     public Object getValueAt(final int row, final int column) {
         return getColumnValue( getNodeAtModelIndex(row), column);
+        //TODO: revert to the above line - JTable already converts to model index.
+        //return getColumnValue( getNodeAtTableRow(row), column);
     }
 
     /*
@@ -1032,7 +1034,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return The node at the tableRow position in the JTable.
      */
     public TreeNode getNodeAtTableRow(final int tableRow) {
-        return getNodeAtModelIndex(getModelIndexForTableRow(tableRow));
+        return getNodeAtModelIndex( getModelIndexForTableRow(tableRow));
     }
 
     /**
@@ -1069,7 +1071,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public int getModelIndexForTableRow(final int tableRow) {
         final RowSorter<? extends TableModel> rowSorter = table == null? null : table.getRowSorter();
-        return rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
+        final int result = rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
+        return result;
     }
 
     /**
@@ -1492,7 +1495,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * and so on.
      *
      * @param parentNode The parent node to expand along with its children and sub-children up to the depth specified.
-     * @param depth The maximum depth to expand a parent node, 1 being it's immediate children, 2 being their children and so on.
+     * @param depth The maximum depth to expand a parent node, 1 being its immediate children, 2 being their children and so on.
      */
     public void expandChildren(final TreeNode parentNode, final int depth) {
         if (depth > 0) { // as long as there's a depth level to expand...
@@ -1511,7 +1514,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * but other siblings of it that pass the test may be expanded.
      *
      * @param parentNode The parent node to expand along with its children and sub-children up to the depth specified.
-     * @param depth The maximum depth to expand a parent node, 1 being it's immediate children, 2 being their children and so on.
+     * @param depth The maximum depth to expand a parent node, 1 being its immediate children, 2 being their children and so on.
      * @param nodePredicate The predicate a node must pass in order to expand itself and its children.
      */
     public void expandChildren(final TreeNode parentNode, final int depth, final Predicate<TreeNode> nodePredicate) {

@@ -35,7 +35,6 @@ import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
 import javax.swing.tree.*;
-import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;

@@ -358,14 +358,16 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
         // Compare values using the best comparator we can find for them:
         final int result;
-        final Comparator columnComparator = localModel.getColumnComparator(column);
+
+        // Get a comparator from the model, if one has been defined:
+        final Comparator<?> columnComparator = localModel.getColumnComparator(column);
         if (columnComparator != null) {
-            result = columnComparator.compare(value1, value2);            // Compare with provided comparator.
-        } else {
-            if (value1 instanceof Comparable && value2 instanceof Comparable) { // We assume that all values in the same column will be equivalent/comparable if one is.
-                result = ((Comparable) value1).compareTo(value2); // Compare directly if Comparable<>
-            } else {
-                result = value1.toString().compareTo(value2.toString());  // Compare on string values:
+            result = ((Comparator) columnComparator).compare(value1, value2);            // Compare with provided comparator.
+        } else { // If they're Comparable and the same class, compare them using their native comparison function.
+            if ((value1 instanceof Comparable) && (value2.getClass().equals(value1.getClass()))) { 
+                result = ((Comparable) value1).compareTo(value2);
+            } else { // Compare them on a simple string comparison.
+                result = value1.toString().compareTo(value2.toString());
             }
         }
         return result;

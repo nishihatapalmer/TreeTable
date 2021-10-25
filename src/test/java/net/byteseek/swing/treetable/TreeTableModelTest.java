@@ -285,6 +285,9 @@ class TreeTableModelTest {
         assertEquals(child3, ((DefaultMutableTreeNode) node.getChildAt(2)).getUserObject());
     }
 
+    //TODO: test different tree building methods with expand collapse... look for places where the difference between
+    //      what is visible and what is in the tree exists, e.g. expand collapse listeners who might alter tree structure.
+
     /* *****************************************************************************************************************
      *                                         Default methods which subclasses may override
      */
@@ -454,6 +457,8 @@ class TreeTableModelTest {
         testGetValueAt(true);
     }
 
+    //TODO: why did this test not find the problems with getValueAt?
+    //      temporarily revert changes back to converting the sort index again and try to trigger it.
     private void testGetValueAt(boolean showRoot) {
         /*   model order         sorted ascending     grouped by allows children.       Column Values:
          * 0 root                root                 root                              0        true
@@ -495,48 +500,40 @@ class TreeTableModelTest {
         expectedSizes = new int[] {0, 100, 101, 1000, 1001, 1002, 1003, 102};
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
-        // Use grouping to sort the nodes:
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        // Use grouping to sort the nodes - nothing should change as getValueAt is in terms of model index, not sorted table index.
+        model.setGroupingComparator(TreeTableModel.GROUP_BY_HAS_CHILDREN);
         assertEquals(7 + root, model.getRowCount());
-        expectedDescriptions = new String[] {"root", "child1", "subchildren0", "subchildren1", "subchildren2", "subchildren3", "child0", "child2"};
-        expectedSizes = new int[] {0, 101, 1000, 1001, 1002, 1003, 100, 102};
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Set an ascending sort key - shouldn't change as ascending order sort is same as model index order.
         model.setSortKeys(sortKey1);
         assertEquals(7 + root, model.getRowCount());
-        expectedDescriptions = new String[] {"root", "child1", "subchildren0", "subchildren1", "subchildren2", "subchildren3", "child0", "child2"};
-        expectedSizes = new int[] {0, 101, 1000, 1001, 1002, 1003, 100, 102};
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Set a descending sort key - order of children changes, grouping is still operating.
         model.setSortKeys(sortKey2);
         assertEquals(7 + root, model.getRowCount());
-        expectedDescriptions = new String[] {"root", "child1", "subchildren3", "subchildren2", "subchildren1", "subchildren0", "child2", "child0"};
-        expectedSizes = new int[] {0, 101, 1003, 1002, 1001, 1000, 102, 100};
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // get rid of grouping, keep descending sort:
         model.setGroupingComparator(null);
         assertEquals(7 + root, model.getRowCount());
-        expectedDescriptions = new String[] {"root", "child2", "child1", "subchildren3", "subchildren2", "subchildren1", "subchildren0", "child0"};
-        expectedSizes = new int[] {0, 102, 101, 1003, 1002, 1001, 1000, 100};
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // collapse child1 children, still with descending sort:
         model.collapseNode(child1);
         assertEquals(3 + root, model.getRowCount());
-        expectedDescriptions = new String[] {"root", "child2", "child1", "child0"};
-        expectedSizes = new int[] {0, 102, 101, 100};
+        expectedDescriptions = new String[] {"root", "child0", "child1", "child2"};
+        expectedSizes = new int[] {0, 100, 101, 102};
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
     }
 
     private void testGetValuesAt(String[] expectedDescriptions, int[] expectedSizes, boolean showRoot) {
-        int root = showRoot? 0 : 1;
+        int ignoreRootOffset = showRoot? 0 : 1;
         for (int row = 0; row < model.getRowCount(); row++) {
-            assertEquals(expectedDescriptions[row + root], model.getValueAt(row, 0), "row" + row);
-            assertEquals(expectedSizes[row + root], (long) model.getValueAt(row, 1), "row" + row);
-            assertEquals(expectedSizes[row + root] % 2 == 0, model.getValueAt(row, 2), "row" + row);
+            assertEquals(expectedDescriptions[row + ignoreRootOffset], model.getValueAt(row, 0), "row" + row);
+            assertEquals(expectedSizes[row + ignoreRootOffset], (long) model.getValueAt(row, 1), "row" + row);
+            assertEquals(expectedSizes[row + ignoreRootOffset] % 2 == 0, model.getValueAt(row, 2), "row" + row);
         }
     }
 

@@ -88,10 +88,10 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
                                                    final boolean hasFocus, final int row, final int column) {
         setNode(treeTableModel.getNodeAtTableRow(row));
-        setForeground( isSelected? getSelectedForegroundColor(table, value, isSelected, hasFocus, row, column)
-                                 : getUnselectedForegroundColor(table, value, isSelected, hasFocus, row, column));
-        setBackground( isSelected? getSelectedBackgroundColor(table, value, isSelected, hasFocus, row, column)
-                                 : getUnselectedBackgroundColor(table, value, isSelected, hasFocus, row, column));
+        setForeground( isSelected? getSelectedForegroundColor(table, value, hasFocus, row, column)
+                                 : getUnselectedForegroundColor(table, value, hasFocus, row, column));
+        setBackground( isSelected? getSelectedBackgroundColor(table, value, hasFocus, row, column)
+                                 : getUnselectedBackgroundColor(table, value, hasFocus, row, column));
         setFont( getFont(table, value, isSelected, hasFocus, row, column));
         setValue( getValue(table, value, isSelected, hasFocus, row, column));
         setToolTipText( getTooltipText(table, value, isSelected, hasFocus, row, column));
@@ -175,7 +175,6 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -183,15 +182,13 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
      * @return The foreground color to use for a selected cell.
      */
     protected Color getSelectedForegroundColor(final JTable table, final Object value,
-                                               final boolean isSelected, final boolean hasFocus,
-                                               final int row, final int column) {
+                                               final boolean hasFocus, final int row, final int column) {
         return table.getSelectionForeground();
     }
 
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -199,15 +196,13 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
      * @return The foreground color to use for an unselected cell.
      */
     protected Color getUnselectedForegroundColor(final JTable table, final Object value,
-                                                 final boolean isSelected, final boolean hasFocus,
-                                                 final int row, final int column) {
+                                                 final boolean hasFocus, final int row, final int column) {
         return table.getForeground();
     }
 
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -215,15 +210,13 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
      * @return The background color to use for a selected cell.
      */
     protected Color getSelectedBackgroundColor(final JTable table, final Object value,
-                                               final boolean isSelected, final boolean hasFocus,
-                                               final int row, final int column) {
+                                               final boolean hasFocus, final int row, final int column) {
         return table.getSelectionBackground();
     }
 
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -231,8 +224,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
      * @return The background color to use for an unselected cell.
      */
     protected Color getUnselectedBackgroundColor(final JTable table, final Object value,
-                                                 final boolean isSelected, final boolean hasFocus,
-                                                 final int row, final int column) {
+                                                 final boolean hasFocus, final int row, final int column) {
         return table.getBackground();
     }
 
