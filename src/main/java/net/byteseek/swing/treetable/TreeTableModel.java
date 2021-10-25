@@ -700,19 +700,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     public void treeNodesChanged(final TreeNode parentNode, final int[] childIndices) {
-        if (isExpanded(parentNode) && (parentNode == rootNode || isVisible(parentNode))) { //TODO: bug - if child of root, root may not be visible, but children are.
+        if (isExpanded(parentNode) && (parentNode == rootNode || isVisible(parentNode))) {
             for (int i = 0; i < childIndices.length; i++) {
                 final int modelIndex  = getModelIndexForTreeNode(parentNode.getChildAt(childIndices[i]));
                 fireTableRowsUpdated(modelIndex, modelIndex); //TODO: model index or table row?
             }
         }
-        /*
-        final int visibleChildren = getVisibleChildCount(nodeChanged);
-        if (visibleChildren > 0 && isVisible(nodeChanged)) { //TODO: bug?  even if no visible children, the node itself may require a table update.
-            final int parentIndex = getModelIndex(nodeChanged);
-            fireTableRowsUpdated(parentIndex + 1, parentIndex + visibleChildren);
-        }
-         */
     }
 
     @Override
