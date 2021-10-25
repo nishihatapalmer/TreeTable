@@ -74,7 +74,7 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
     public enum WhenUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
 
     private static final int DEFAULT_MAX_SORT_KEYS = 3;
-    private static final NewColumnAction DEFAULT_NEW_COLUMN_ACTION = NewColumnAction.ADD_TO_END;
+    private static final NewColumnAction DEFAULT_NEW_COLUMN_ACTION = NewColumnAction.ADD_TO_START;
     private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE_SUBSEQUENT;
 
     private int maximumSortKeys;

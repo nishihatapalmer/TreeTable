@@ -40,6 +40,7 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 
 //TODO: what about rendering arbitrary data types *within* the tree cell?  Just subclass this renderer and replace it in the model?
+//      would be better with composition - then you can use arbitrary renderers which already exist for other purposes, you don't have to make a specialized class.
 
 /**
  * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model
@@ -76,22 +77,40 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
         setBorder(new ExpandHandleBorder());
     }
 
+    /**
+     * If overriding the TreeTableCellRenderer, preferably override the get methods called in this method, or
+     * override setAdditionalProperties() to set any additional properties rather than overriding this method
+     * calling super or re-implementing it.
+     * <p>
+     * {@inheritDoc}
+     */
     @Override
     public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
                                                    final boolean hasFocus, final int row, final int column) {
-        setForeground(isSelected? table.getSelectionForeground() : table.getForeground());
-        setBackground(isSelected? table.getSelectionBackground() : table.getBackground());
-        setFont(table.getFont());
-        setValue(value);
-        setToolTipText(value.toString());
-        final TreeNode node = treeTableModel.getNodeAtTableRow(row);
-        setNode(node);
-        setNodeIcon(node);
+        setNode(treeTableModel.getNodeAtTableRow(row));
+        setForeground( isSelected? getSelectedForegroundColor(table, value, isSelected, hasFocus, row, column)
+                                 : getUnselectedForegroundColor(table, value, isSelected, hasFocus, row, column));
+        setBackground( isSelected? getSelectedBackgroundColor(table, value, isSelected, hasFocus, row, column)
+                                 : getUnselectedBackgroundColor(table, value, isSelected, hasFocus, row, column));
+        setFont( getFont(table, value, isSelected, hasFocus, row, column));
+        setValue( getValue(table, value, isSelected, hasFocus, row, column));
+        setToolTipText( getTooltipText(table, value, isSelected, hasFocus, row, column));
+        setNodeIndent( getNodeIndent(currentNode, table, value, isSelected, hasFocus, row, column));
+        setIcon( getNodeIcon(currentNode, table, value, isSelected, hasFocus, row, column));
+        setAdditionalProperties(currentNode, table, value, isSelected, hasFocus, row, column);
         return this;
     }
 
+    protected int getNodeIndent(TreeNode currentNode, JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        return getNodeIndent(currentNode);
+    }
+
+    protected void setNodeIndent(int indent) {
+        insets.left = indent;
+    }
+
     @Override
-    public boolean clickOnExpand(TreeNode node, int column, MouseEvent evt) {
+    public boolean clickOnExpand(final TreeNode node, final int column, final MouseEvent evt) {
         final TableColumnModel columnModel = treeTableModel.getTableColumnModel();
         final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
         if (columnModelIndex == 0 && node != null && node.getAllowsChildren()) {
@@ -153,18 +172,157 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
         return getClass().getSimpleName() + '('+ treeTableModel + ')';
     }
 
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The foreground color to use for a selected cell.
+     */
+    protected Color getSelectedForegroundColor(final JTable table, final Object value,
+                                               final boolean isSelected, final boolean hasFocus,
+                                               final int row, final int column) {
+        return table.getSelectionForeground();
+    }
+
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The foreground color to use for an unselected cell.
+     */
+    protected Color getUnselectedForegroundColor(final JTable table, final Object value,
+                                                 final boolean isSelected, final boolean hasFocus,
+                                                 final int row, final int column) {
+        return table.getForeground();
+    }
+
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The background color to use for a selected cell.
+     */
+    protected Color getSelectedBackgroundColor(final JTable table, final Object value,
+                                               final boolean isSelected, final boolean hasFocus,
+                                               final int row, final int column) {
+        return table.getSelectionBackground();
+    }
+
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The background color to use for an unselected cell.
+     */
+    protected Color getUnselectedBackgroundColor(final JTable table, final Object value,
+                                                 final boolean isSelected, final boolean hasFocus,
+                                                 final int row, final int column) {
+        return table.getBackground();
+    }
+
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The text to use for a tooltip for this cell.
+     */
+    protected String getTooltipText(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        return value == null ? "" : value.toString();
+    }
+
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The value to render for this cell.
+     */
+    protected Object getValue(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        return value;
+    }
+
+    /**
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     *
+     * @return The font to use to render the cell.
+     */
+    protected Font getFont(final JTable table, final Object value, final boolean isSelected,
+                           final boolean hasFocus, final int row, final int column) {
+        return table.getFont();
+    }
+
+    /**
+     * Override this method to set any additional properties on the label before it is rendered.
+     * This is a blank implementation that does nothing.
+     *
+     * @param treeNode the tree node to be renderered.
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     */
+    protected void setAdditionalProperties(final TreeNode treeNode, final JTable table, final Object value, final boolean isSelected,
+                                           final boolean hasFocus, final int row, final int column) {
+    }
+
     protected int getNodeIndent(final TreeNode node) {
         final int adjustShowRoot = treeTableModel.getShowRoot()? 0 : 1;
         return PADDING + maxIconWidth + ((getLevel(node) - adjustShowRoot) * pixelsPerLevel);
     }
 
+    /**
+     * Sets the current node in the tree being rendered.
+     * @param node The node to set.
+     */
     protected final void setNode(final TreeNode node) {
-        insets.left = getNodeIndent(node);
         currentNode = node;
     }
 
-    protected final void setNodeIcon(final TreeNode node) {
-        setIcon(treeTableModel.getNodeIcon(node));
+    /**
+     * Gets the icon for the node.  By default, this implementation fetches the node from the tree table model,
+     * which subclasses of it can override to get the right tree icon.  If you prefer, you can instead override
+     * this method in your TreeTableCellRenderer sub-class to get the right icon for the node.
+     *
+     * @param node The node to get the icon for.
+     * @return The icon for the node, or null if no icon exists for it.
+     */
+    protected Icon getNodeIcon(final TreeNode node) {
+        return treeTableModel.getNodeIcon(node);
+    }
+
+    protected final Icon getNodeIcon(final TreeNode node, final JTable table, final Object value, final boolean isSelected,
+                                     final boolean hasFocus, final int row, final int column) {
+        return getNodeIcon(node);
     }
 
     protected final void setMaxIconWidth() {
@@ -196,6 +354,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
         }
         return width;
     }
+
 
     /**
      * A class which provides an expanded border to render the tree expand/collapse handle icon, indented by insets.left.

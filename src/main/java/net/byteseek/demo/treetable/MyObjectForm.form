@@ -61,6 +61,13 @@
                   <text value="delete"/>
                 </properties>
               </component>
+              <component id="86d1e" class="javax.swing.JButton" binding="groupToggleButton">
+                <constraints/>
+                <properties>
+                  <enabled value="false"/>
+                  <text value="group"/>
+                </properties>
+              </component>
             </children>
           </toolbar>
         </children>

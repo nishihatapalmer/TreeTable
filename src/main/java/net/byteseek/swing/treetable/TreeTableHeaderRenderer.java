@@ -41,8 +41,6 @@ import javax.swing.table.TableModel;
 import java.awt.*;
 import java.util.List;
 
-//TODO: centering of header labels - no need for non sorted columns to have the left indent, makes them look lop-sided.
-
 /**
  * Renders a header for a JTable which shows multi-column sorting, putting a number for each sort key against the
  * icon for ascending or descending.
@@ -50,7 +48,7 @@ import java.util.List;
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
 
     private static final int ICON_AND_NUMBER_WIDTH = 32; //TODO: hard coded value for ascend/descend icon and text... should calculate?
-    private static final int PADDING = 4; // white space padding at end of ascend/descend .
+    private static final int PADDING = 1; // white space padding at end of ascend/descend .
 
     private Icon sortAscendingIcon;
     private Icon sortDescendingIcon;
@@ -62,9 +60,12 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     private Font headerFont;
     private Font boldHeaderFont;
     private boolean boldOnSorted;
+    private Border focusHeaderBorder;
+    private Border headerBorder;
 
     private int sortColumn;
     private SortOrder sortOrder;
+    private SortIconBorder sortIconBorder;
 
     /**
      * Constructs a TreeTableHeaderRenderer.
@@ -72,6 +73,8 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     public TreeTableHeaderRenderer() {
         setSortAscendingIcon(UIManager.getIcon("Table.ascendingSortIcon"));
         setSortDescendingIcon(UIManager.getIcon("Table.descendingSortIcon"));
+        focusHeaderBorder = UIManager.getBorder( "TableHeader.focusCellBorder");
+        headerBorder = UIManager.getBorder("TableHeader.cellBorder");
         setSortColumnTextColor(Color.GRAY);
         setHorizontalAlignment(JLabel.CENTER);
         setBoldOnSorted(true);
@@ -81,23 +84,30 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     public void setBorder(final Border border) {
         // If the border is already a compound with an inner SortIconBorder, just set it directly.
         if (border instanceof CompoundBorder && ((CompoundBorder) border).getInsideBorder() instanceof SortIconBorder) {
+            sortIconBorder = (SortIconBorder) ((CompoundBorder) border).getInsideBorder();
             super.setBorder(border);
         } else {  // Wrap the border in a CompoundBorder using the SortIconBorder inside to render sort icon and number.
-            super.setBorder(new CompoundBorder(border, new SortIconBorder()));
+            sortIconBorder = new SortIconBorder();
+            super.setBorder(new CompoundBorder(border, sortIconBorder));
         }
     }
 
+    //TODO: configure whether number shows up in header for column sort.
+    //      could have greyed out sort icons for later sort keys...?
+
+    //TODO: provide standard getter / setting methods to allow override.
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
         if (table != null) {
             JTableHeader header = table.getTableHeader();
             if (header != null) {
+                setBorder(hasFocus ? focusHeaderBorder : headerBorder);
                 setFont(header.getFont());
                 setForeground(header.getForeground());
                 setBackground(header.getBackground());
                 setText(value == null? "" : value.toString());
                 setColumnSorted(table, column);
-                setGridColor(table.getGridColor());
+                //setGridColor(table.getGridColor()); //TODO; set border.
             }
         }
         return this;
@@ -169,13 +179,6 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         return getClass().getSimpleName();
     }
 
-    protected void setGridColor(Color gridColor) {
-        if (this.gridColor != gridColor) {
-            this.gridColor = gridColor;
-            setBorder(new MatteBorder(1, 0, 1, 1, gridColor));
-        }
-    }
-
     protected void setColumnSorted(JTable table, int column) {
         final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
         if (rowSorter != null) {
@@ -187,6 +190,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
                     if (key.getColumn() == columnModelIndex && key.getSortOrder() != SortOrder.UNSORTED) {
                         sortOrder = key.getSortOrder();
                         sortColumn = sortKeyIndex;
+                        sortIconBorder.insets.left = ICON_AND_NUMBER_WIDTH;
                         setBold(true);
                         return;
                     }
@@ -196,6 +200,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         setBold(false);
         sortOrder = SortOrder.UNSORTED;
         sortColumn = -1;
+        sortIconBorder.insets.left = PADDING;
     }
 
     protected void setBold(final boolean bold) {

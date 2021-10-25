@@ -345,15 +345,25 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      */
     protected int compareNodeColumns(final TreeNode firstNode, final TreeNode secondNode, final int column) {
         final TreeTableModel localModel = model;
-        final int result;
         final Object value1 = localModel.getColumnValue(firstNode, column);
         final Object value2 = localModel.getColumnValue(secondNode, column);
-        final Comparator<Object> columnComparator = (Comparator<Object>) localModel.getColumnComparator(column);
+
+        // Compare null values consistently to give a total order to the sort.
+        // Two nulls are 0, then either 1 or -1 if one of them is null.
+        if (value1 == null) {
+            return value2 == null ? 0 : 1;
+        } else if (value2 == null) {
+            return -1;
+        }
+
+        // Compare values using the best comparator we can find for them:
+        final int result;
+        final Comparator columnComparator = localModel.getColumnComparator(column);
         if (columnComparator != null) {
             result = columnComparator.compare(value1, value2);            // Compare with provided comparator.
         } else {
-            if (value1 instanceof Comparable<?>) { // We assume that all values in the same column will be equivalent/comparable if one is.
-                result = ((Comparable<Object>) value1).compareTo(value2); // Compare directly if Comparable<>
+            if (value1 instanceof Comparable && value2 instanceof Comparable) { // We assume that all values in the same column will be equivalent/comparable if one is.
+                result = ((Comparable) value1).compareTo(value2); // Compare directly if Comparable<>
             } else {
                 result = value1.toString().compareTo(value2.toString());  // Compare on string values:
             }
