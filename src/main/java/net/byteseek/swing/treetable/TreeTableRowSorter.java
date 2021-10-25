@@ -61,6 +61,13 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     private static final int[] EMPTY_ARRAY = new int[0];
 
     /**
+     * Amount the SortRow array is expanded by over the new row count when it needs to resize to be bigger.
+     * Having some headroom in the expansion means if a few more nodes are expanded, we don't have to reallocate
+     * the SortRow array too often.
+     */
+    private static final int EXPAND_SORTROW_SIZE = 128;
+
+    /**
      * The model being sorted.
      */
     protected final TreeTableModel model;
@@ -364,7 +371,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         if (columnComparator != null) {
             result = ((Comparator) columnComparator).compare(value1, value2);            // Compare with provided comparator.
         } else { // If they're Comparable and the same class, compare them using their native comparison function.
-            if ((value1 instanceof Comparable) && (value2.getClass().equals(value1.getClass()))) { 
+            if ((value1 instanceof Comparable) && (value2.getClass().equals(value1.getClass()))) {
                 result = ((Comparable) value1).compareTo(value2);
             } else { // Compare them on a simple string comparison.
                 result = value1.toString().compareTo(value2.toString());
@@ -409,7 +416,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         final int newRowCount = model.getRowCount();
         // If we don't have an index, or the index is too small, create a new one.
         if (viewToModelIndex == null || viewToModelIndex.length < newRowCount) {
-            viewToModelIndex = new SortRow[newRowCount];
+            viewToModelIndex = new SortRow[newRowCount + EXPAND_SORTROW_SIZE];
         }
         createModelOrderRows(newRowCount);
         Arrays.sort(viewToModelIndex, 0, newRowCount); // The array can be bigger than the row count - only sort the valid rows.

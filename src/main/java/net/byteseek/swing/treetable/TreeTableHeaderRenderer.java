@@ -34,7 +34,7 @@ package net.byteseek.swing.treetable;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
-import javax.swing.border.MatteBorder;
+import javax.swing.border.EtchedBorder;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
@@ -48,7 +48,7 @@ import java.util.List;
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
 
     private static final int ICON_AND_NUMBER_WIDTH = 32; //TODO: hard coded value for ascend/descend icon and text... should calculate?
-    private static final int PADDING = 1; // white space padding at end of ascend/descend .
+    private static final int VERTICAL_PADDING = 4; // white space above and below to raise header.
 
     private Icon sortAscendingIcon;
     private Icon sortDescendingIcon;
@@ -73,6 +73,8 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     public TreeTableHeaderRenderer() {
         setSortAscendingIcon(UIManager.getIcon("Table.ascendingSortIcon"));
         setSortDescendingIcon(UIManager.getIcon("Table.descendingSortIcon"));
+        sortIconBorder = new SortIconBorder();
+        setBorder(new EtchedBorder());
         focusHeaderBorder = UIManager.getBorder( "TableHeader.focusCellBorder");
         headerBorder = UIManager.getBorder("TableHeader.cellBorder");
         setSortColumnTextColor(Color.GRAY);
@@ -83,11 +85,9 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     @Override
     public void setBorder(final Border border) {
         // If the border is already a compound with an inner SortIconBorder, just set it directly.
-        if (border instanceof CompoundBorder && ((CompoundBorder) border).getInsideBorder() instanceof SortIconBorder) {
-            sortIconBorder = (SortIconBorder) ((CompoundBorder) border).getInsideBorder();
+        if (border instanceof CompoundBorder && ((CompoundBorder) border).getInsideBorder() == sortIconBorder) {
             super.setBorder(border);
         } else {  // Wrap the border in a CompoundBorder using the SortIconBorder inside to render sort icon and number.
-            sortIconBorder = new SortIconBorder();
             super.setBorder(new CompoundBorder(border, sortIconBorder));
         }
     }
@@ -101,13 +101,13 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         if (table != null) {
             JTableHeader header = table.getTableHeader();
             if (header != null) {
-                setBorder(hasFocus ? focusHeaderBorder : headerBorder);
                 setFont(header.getFont());
                 setForeground(header.getForeground());
                 setBackground(header.getBackground());
                 setText(value == null? "" : value.toString());
                 setColumnSorted(table, column);
                 //setGridColor(table.getGridColor()); //TODO; set border.
+                //setBorder(hasFocus ? focusHeaderBorder : headerBorder);
             }
         }
         return this;
@@ -142,7 +142,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         this.sortAscendingIcon = sortAscendingIcon;
         if (sortAscendingIconLabel == null) {
             sortAscendingIconLabel = new JLabel(sortAscendingIcon);
-            sortAscendingIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+            sortAscendingIconLabel.setBorder(BorderFactory.createEmptyBorder());
         } else {
             sortAscendingIconLabel.setIcon(sortAscendingIcon);
         }
@@ -157,7 +157,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         this.sortDescendingIcon = sortDescendingIcon;
         if (sortDescendingIconLabel == null) {
             sortDescendingIconLabel = new JLabel(sortDescendingIcon);
-            sortDescendingIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+            sortDescendingIconLabel.setBorder(BorderFactory.createEmptyBorder());
         } else {
             sortDescendingIconLabel.setIcon(sortDescendingIcon);
         }
@@ -200,7 +200,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         setBold(false);
         sortOrder = SortOrder.UNSORTED;
         sortColumn = -1;
-        sortIconBorder.insets.left = PADDING;
+        sortIconBorder.insets.left = 0;
     }
 
     protected void setBold(final boolean bold) {
@@ -221,7 +221,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      */
     protected class SortIconBorder implements Border {
 
-        private final Insets insets = new Insets(PADDING, ICON_AND_NUMBER_WIDTH, PADDING, 0);
+        private final Insets insets = new Insets(VERTICAL_PADDING, ICON_AND_NUMBER_WIDTH, VERTICAL_PADDING, 0);
 
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {

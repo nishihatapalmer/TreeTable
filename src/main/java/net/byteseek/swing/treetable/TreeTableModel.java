@@ -457,7 +457,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public TableCellRenderer getTableHeaderRenderer() {
         if (table != null) {
-            JTableHeader header = table.getTableHeader();
+            final JTableHeader header = table.getTableHeader();
             if (header != null) {
                 return header.getDefaultRenderer();
             }
@@ -469,9 +469,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Sets the renderer for the table header, if it exists.
      * @param renderer The renderer to use.
      */
-    public void setTableHeaderRenderer(TableCellRenderer renderer) {
+    public void setTableHeaderRenderer(final TableCellRenderer renderer) {
         if (table != null) {
-            JTableHeader header = table.getTableHeader();
+            final JTableHeader header = table.getTableHeader();
             if (header != null) {
                 header.setDefaultRenderer(renderer);
             }
@@ -647,8 +647,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     @Override
     public Object getValueAt(final int row, final int column) {
         return getColumnValue( getNodeAtModelIndex(row), column);
-        //TODO: revert to the above line - JTable already converts to model index.
-        //return getColumnValue( getNodeAtTableRow(row), column);
     }
 
     /*
