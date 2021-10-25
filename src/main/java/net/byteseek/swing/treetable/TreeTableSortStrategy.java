@@ -70,15 +70,18 @@ import java.util.List;
  */
 public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
+    public enum ExistingColumnAction { MAKE_FIRST, STAY_STILL }
     public enum NewColumnAction { ADD_TO_START_IF_ROOM, ADD_TO_START, ADD_TO_END_IF_ROOM, ADD_TO_END }
     public enum WhenUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
 
     private static final int DEFAULT_MAX_SORT_KEYS = 3;
     private static final NewColumnAction DEFAULT_NEW_COLUMN_ACTION = NewColumnAction.ADD_TO_START;
-    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE_SUBSEQUENT;
+    private static final ExistingColumnAction DEFAULT_EXISTING_COLUMN_ACTION = ExistingColumnAction.MAKE_FIRST;
+    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE;
 
     private int maximumSortKeys;
     private NewColumnAction newColumnAction;
+    private ExistingColumnAction existingColumnAction;
     private WhenUnsortedAction whenUnsortedAction;
 
     /**
@@ -87,14 +90,16 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
     protected List<RowSorter.SortKey> defaultSortKeys;
 
     public TreeTableSortStrategy() {
-        this(DEFAULT_MAX_SORT_KEYS, DEFAULT_NEW_COLUMN_ACTION, DEFAULT_WHEN_UNSORTED_ACTION);
+        this(DEFAULT_MAX_SORT_KEYS, DEFAULT_NEW_COLUMN_ACTION, DEFAULT_EXISTING_COLUMN_ACTION, DEFAULT_WHEN_UNSORTED_ACTION);
     }
 
     public TreeTableSortStrategy(final int maximumSortKeys,
                                  final NewColumnAction newColumnAction,
+                                 final ExistingColumnAction existingColumnAction,
                                  final WhenUnsortedAction whenUnsortedAction) {
         this.maximumSortKeys = maximumSortKeys;
         this.newColumnAction = newColumnAction;
+        this.existingColumnAction = existingColumnAction;
         this.whenUnsortedAction = whenUnsortedAction;
     }
 
@@ -176,7 +181,18 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
         if (nextState == SortOrder.UNSORTED) { // process a column becoming unsorted:
             processRemoveSortedColumn(newKeys, sortKeyIndex);
         } else { // Update the sort key:
-            newKeys.set(sortKeyIndex, new RowSorter.SortKey(currentKey.getColumn(), nextState));
+            final RowSorter.SortKey newKey = new RowSorter.SortKey(currentKey.getColumn(), nextState);
+            switch (existingColumnAction) {
+                case MAKE_FIRST: {
+                    newKeys.remove(sortKeyIndex);
+                    newKeys.add(0, newKey);
+                    break;
+                }
+                case STAY_STILL: {
+                    newKeys.set(sortKeyIndex, newKey);
+                    break;
+                }
+            }
         }
     }
 
