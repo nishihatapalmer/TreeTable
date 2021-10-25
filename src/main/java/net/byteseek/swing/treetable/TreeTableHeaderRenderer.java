@@ -104,10 +104,10 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
                 setFont(header.getFont());
                 setForeground(header.getForeground());
                 setBackground(header.getBackground());
-                setText(value == null? "" : value.toString());
+                String displayText = value == null? "" : value.toString();
+                setText(displayText);
+                setToolTipText(displayText);
                 setColumnSorted(table, column);
-                //setGridColor(table.getGridColor()); //TODO; set border.
-                //setBorder(hasFocus ? focusHeaderBorder : headerBorder);
             }
         }
         return this;
