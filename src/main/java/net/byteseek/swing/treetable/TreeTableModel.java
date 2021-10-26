@@ -1797,8 +1797,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Toggles whether the root node is showing in the tree.
      */
     public void toggleShowRoot() {
-        this.showRoot = !showRoot;
-        if (!isFiltered(rootNode)) {
+        this.showRoot = !showRoot; // toggle root status.
+        boolean rootFiltered = isFiltered(rootNode);
+        if (rootFiltered) { // if root node is filtered (whether showing or not), refresh the tree if we change it's stauts.
+            refreshTree(false);
+            fireTableDataChanged();
+        } else { // add or remove the root node if the root isn't filtered.
             if (showRoot) {
                 displayedNodes.add(0, rootNode);
                 fireTableRowsInserted(0, 0);
@@ -1809,18 +1813,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
-    //TODO: think about how isVisible() interacts with filtering. Obviously, just because parents are expanded
-    //      doesn't mean they're in the visible tree.
-    /**
-     * Returns true if the node is currently visible in the tree, or false otherwise.
-     * Visibility doesn't mean the node is on-screen in the JTable, it means it is
-     * currently displayable in the JTable and is tracked in this model as visible.
-     *
-     * @param node The node to check if visible.
-     * @return true if the node is visible in the tree.
-     */
+
     public boolean isVisible(final TreeNode node) {
-        return node != null && (node == rootNode ? showRoot : !isFiltered(node) && parentsAreVisibleAndPartOfTree(node));
+        if (node == rootNode) {
+            return showRoot ? !isFiltered(node) : false; // if not showing the root, the root node is not filtered, if showing it can be filtered.
+        }
+        return node != null && !isFiltered(node) && parentsAreVisibleAndPartOfTree(node);
     }
 
     /**
