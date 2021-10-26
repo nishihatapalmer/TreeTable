@@ -35,11 +35,14 @@ import net.byteseek.swing.treetable.*;
 
 import javax.swing.*;
 import javax.swing.tree.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
 
 //TODO: toggle button for group by.
 
@@ -49,7 +52,7 @@ import java.util.Random;
 public class MyObjectForm {
 
     public static final int MAX_LEVELS = 3;
-    public static final int MAX_CHILDREN = 4;
+    public static final int MAX_CHILDREN = 10;
     public static final int CHANCE_OUT_OF_TEN_FOR_CHILDREN = 5;
 
     public static void main(String[] args) {
@@ -63,6 +66,8 @@ public class MyObjectForm {
         frame.setVisible(true);
     }
 
+    private static final Predicate<TreeNode> NODE_FILTER = treeNode -> ((MyObject) ((DefaultMutableTreeNode) treeNode).getUserObject()).getDescription().contains("s");
+
     private TreeTableModel treeTableModel;
     private DefaultTreeModel treeModel;
 
@@ -74,11 +79,13 @@ public class MyObjectForm {
     private JButton insertButton;
     private JButton deleteButton;
     private JButton groupToggleButton;
+    private JButton toggleFilterButton;
     private Random random;
     private List<String> wordList;
     private boolean showRoot;
 
     public MyObjectForm() {
+
     }
 
     /**
@@ -120,6 +127,8 @@ public class MyObjectForm {
                 treeModel.removeNodeFromParent(selectedNode);
             }
         });
+
+        toggleFilterButton.addActionListener(e -> treeTableModel.setNodeFilter(treeTableModel.isFiltering() ? null : NODE_FILTER));
     }
 
     private DefaultTreeModel createTreeModel(TreeNode rootNode) {

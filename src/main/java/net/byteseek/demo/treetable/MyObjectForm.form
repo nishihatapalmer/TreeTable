@@ -68,6 +68,12 @@
                   <text value="group"/>
                 </properties>
               </component>
+              <component id="719af" class="javax.swing.JButton" binding="toggleFilterButton">
+                <constraints/>
+                <properties>
+                  <text value="Filter"/>
+                </properties>
+              </component>
             </children>
           </toolbar>
         </children>

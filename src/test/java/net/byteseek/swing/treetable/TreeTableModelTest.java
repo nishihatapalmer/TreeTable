@@ -560,12 +560,12 @@ class TreeTableModelTest {
         int root = showRoot? 1 : 0;
         if (showRoot) {
             String[] expectedDescriptions = {"root"};
-            int[] expectedSizes = {0};
+            long[] expectedSizes = {0};
             assertEquals(1, model.getRowCount());
             testSetValuesAt(expectedDescriptions, expectedSizes, true);
         } else {
             String[] expectedDescriptions = {"root", "child0", "child1", "child2"};
-            int[] expectedSizes = {0, 100, 101, 102};
+            long[] expectedSizes = {0, 100, 101, 102};
             assertEquals(3, model.getRowCount());
             testSetValuesAt(expectedDescriptions, expectedSizes, false); // will ignore first "root" item of expected.
         }
@@ -574,14 +574,14 @@ class TreeTableModelTest {
         model.expandNode(rootNode);
         assertEquals(3 + root, model.getRowCount());
         String[] expectedDescriptions = {"root", "child0", "child1", "child2"};
-        int[] expectedSizes = {0, 100, 101, 102};
+        long[] expectedSizes = {0, 100, 101, 102};
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Expand sub-children of child1
         model.expandNode(child1);
         assertEquals(7 + root, model.getRowCount());
         expectedDescriptions = new String[] {"root", "child0", "child1", "subchildren0", "subchildren1", "subchildren2", "subchildren3", "child2"};
-        expectedSizes = new int[] {0, 100, 101, 1000, 1001, 1002, 1003, 102};
+        expectedSizes = new long[] {0, 100, 101, 1000, 1001, 1002, 1003, 102};
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Use grouping to sort the nodes:
@@ -608,11 +608,11 @@ class TreeTableModelTest {
         model.collapseNode(child1);
         assertEquals(3 + root, model.getRowCount());
         expectedDescriptions = new String[] {"root", "child0", "child1", "child2"};
-        expectedSizes = new int[] {0, 100, 101, 102};
+        expectedSizes = new long[] {0, 100, 101, 102};
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
     }
 
-    private void testSetValuesAt(String[] expectedDescriptions, int[] expectedSizes, boolean showRoot) {
+    private void testSetValuesAt(String[] expectedDescriptions, long[] expectedSizes, boolean showRoot) {
         int ignoreRootOffset = showRoot? 0 : 1;
         for (int row = 0; row < model.getRowCount(); row++) {
             Object currentValue =  model.getValueAt(row, 0);
@@ -623,8 +623,8 @@ class TreeTableModelTest {
 
             currentValue =  model.getValueAt(row, 1);
             assertEquals(expectedSizes[row + ignoreRootOffset], (long) currentValue, "row" + row);
-            model.setValueAt(row, row, 1);
-            assertEquals(row, model.getValueAt(row, 1), "row" + row);
+            model.setValueAt((long) row, row, 1);
+            assertEquals((long) row, model.getValueAt(row, 1), "row" + row);
             model.setValueAt(currentValue, row, 1); // reset back to old value so next tests work.
 
             currentValue =  model.getValueAt(row, 2);
