@@ -32,6 +32,7 @@
 package net.byteseek.demo.treetable;
 
 import net.byteseek.swing.treetable.TreeTableModel;
+import net.byteseek.swing.treetable.TreeUtils;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableColumnModel;
@@ -49,7 +50,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
     public MyObjectTreeTableModel(final TreeNode rootNode, final boolean showRoot) {
         super(rootNode, showRoot);
         setIcons();
-        setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
         leafIcon = null;
     }
 

@@ -96,7 +96,7 @@ public class MyObjectForm {
      */
     public void initForm() {
         MyObject myObjectTree = buildRandomTree(MAX_LEVELS, CHANCE_OUT_OF_TEN_FOR_CHILDREN);
-        TreeNode rootNode = TreeTableModel.buildTree(myObjectTree, (Object parent) -> ((MyObject) parent).getChildren());
+        TreeNode rootNode = TreeUtils.buildTree(myObjectTree, (Object parent) -> ((MyObject) parent).getChildren());
         table1.setRowHeight(24);
         treeTableModel = createTreeTableModel(rootNode);
         treeModel = createTreeModel(rootNode);

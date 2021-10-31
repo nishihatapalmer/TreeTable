@@ -306,7 +306,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         // Insert the new nodes, blocking up consecutive insertions into a single operation:
         int insertIndex = 0;
         while (insertIndex < insertionPoints.length) {
-            final int lastInsertIndex = TreeTableModel.findLastConsecutiveIndex(insertIndex, insertionPoints);
+            final int lastInsertIndex = TreeUtils.findLastConsecutiveIndex(insertIndex, insertionPoints);
             final int insertStartPosition = insertionPoints[insertIndex];
             final int insertEndPosition = insertionPoints[lastInsertIndex];
 
@@ -364,7 +364,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         int copyPosition = removedViewRows.length > 0 ? removedViewRows[0] : -1;
         while (removeIndex < removedViewRows.length) {
             // Calculate what blocks to move and update:
-            final int lastRemoveIndex = TreeTableModel.findLastConsecutiveIndex(removeIndex, removedViewRows);
+            final int lastRemoveIndex = TreeUtils.findLastConsecutiveIndex(removeIndex, removedViewRows);
             final int viewRowDeleteEnd = removedViewRows[lastRemoveIndex];
             final int nextBlockStart = lastRemoveIndex + 1 < removedViewRows.length ? removedViewRows[lastRemoveIndex + 1] : localLastRowCount;
             final int numToCopy = nextBlockStart - viewRowDeleteEnd - 1;

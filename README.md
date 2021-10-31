@@ -11,6 +11,7 @@ The overall code shouldn't change too much, but methods may be refactored a lot.
 The demo code will probably be extended a bit and the help expanded.
 
 ## Getting started
+This section covers how to get started with using TreeTableModel in your own code.  We will use the demo form application code in `net.byteseek.demo.treetable` as an example to show how it works.
 
 ### The object
 We'll start with the object whose values you want to display in a tree table.  For example:
@@ -75,19 +76,42 @@ To display a `TreeTableModel`, instantiate a model with a root node, and bind it
 
 ## Building a tree
 
-In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeNode` structure, and assign the correct user objects to the nodes.  There are many ways to do that:
+In the example above, we built a single root node and displayed it, so only a single row would be displayed.  You must create the `TreeNode` structure, and assign the correct user objects to the nodes.  
 
-### Static copy
-If your objects already have a tree structure, you can build a mirrored tree of `DefaultMutableTreeNode` from them using the static utility method `TreeTableModel.buildTree()`.  For example:
+If your objects already have a tree structure, you can build a mirrored tree of `DefaultMutableTreeNode` from them using the static utility method `TreeTableModel.buildTree()`.  You must supply the root object of the tree, and a lambda, or instance of `ChildProvider`, that returns a list of child objects from a parent object. For example:
 ```java
    MyObject rootObject = yourMethodToGetAnObjectTree();
    MutableTreeNode rootNode = TreeTableModel.buildTree(rootObject, parent -> ((MyObject) parent).getChildren());
 ```
-You must supply the root object of the tree, and a lambda, or a class implementing `ChildProvider`, that returns a list of child objects from a parent object, and a `MutableTreeNode` will be returned which is the root of the mirrored tree, with each node associated with the corresponding user object.
-
-This won't keep the tree up to date if the object structure subsequently changes, but is easy to use if you have a static tree structure to start with.
 
 
+Or you can build a tree of `TreeNode` by any other means, before a `TreeTableModel` is constructed with the root `TreeNode`. 
+After construction, the model needs to be kept in sync with the tree if it changes.
+
+Even after building a larger tree and binding it to a `JTable`, only the root, or its immediate children will be visible.  This is because nodes with children are unexpanded by default.
+
+## Expanding and collapsing nodes
+
+### Mouse clicks
+Nodes can be expanded or collapsed by clicking to the left of the expand/collapse handle in the tree column.
+
+### Keystrokes
+Selected nodes can be expanded or collapsed with key presses, defaulting to using the `+` key for expand, the `-` key for collapse, and the space key to toggle between expand and collapse.  You can change which KeyStrokes are defined for these events using `setExpandKeys()` , `setCollapseKeys()` and `setToggleKeys()`. You can set no keystrokes if you want no keyboard controls.
+
+
+
+
+### By code
+
+
+### 
+When a node expands or collapses, the model fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
+
+//TODO: programmatic expansion of nodes.
+
+
+
+## Updating the tree
 
 ### Build on expand
 You can dynamically build nodes on expand, or remove them on collapse, by implementing the `TreeTableModel.ExpandCollapseListener` interface, registering it as a listener, and responding to expand or collapse events.
@@ -107,6 +131,8 @@ model.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
     }
 });
 ```
+It's better to work with tree nodes directly inside an expand or collapse handler, and avoid using a TreeModel  (if the TreeTableModel is listening for TreeModelEvents from it). Using a TreeModel will generate tree update events which will cause table refresh events.  The TreeTableModel will process the changes made in any case, and then issue table refresh events as well.
+
 If on dynamic expand there are no child nodes to be added, you can set the node to not allow children.  The node will no longer display expand or collapse handles.  For example, assuming `DefaultMutableTreeNode` is being used:
 
 ```java 
@@ -146,15 +172,6 @@ If you're just changing a tree directly via the nodes, then you can call the app
    parentNode.remove(childToRemove);
    treeTableModel.treeNodeRemoved(parentNode, childToRemove);
 ```
-
-## Expanding and collapsing nodes
-Nodes can be expanded or collapsed by clicking to the left of the expand handle.
-
-Selected nodes can be expanded or collapsed with key presses, defaulting to using the `+` key for expand, the `-` key for collapse, and the space key to toggle between expand and collapse.  You can change what KeyStrokes are defined for these events, but you should change these before you bind to a JTable.
-
-When a node expands or collapses, the model fires a `TreeTableEvent`, which you can subscribe to.  A listener has the option of cancelling the event.  It is allowed to make modifications to the tree structure for the node being processed and any of its children.  It must not modify other areas of the tree.
-
-//TODO: programmatic expansion of nodes.
 
 ## Rendering
 

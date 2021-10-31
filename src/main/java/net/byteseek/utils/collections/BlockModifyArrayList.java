@@ -65,6 +65,8 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return true;
     }
 
+    //TODO: run jmh benchmarks on BlockModifyArrayList vs ArrayList vs system.arraycopy.
+
     //TODO: investigate whether systemcopy is safe copying around same array and performance of it.
     //      almost certainly better than my attempts, but profile it maybe.
 

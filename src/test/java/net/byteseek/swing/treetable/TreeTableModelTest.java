@@ -278,7 +278,7 @@ class TreeTableModelTest {
         rootObject.getChildren().add(child1);
         rootObject.getChildren().add(child2);
         rootObject.getChildren().add(child3);
-        DefaultMutableTreeNode node = TreeTableModel.buildTree(rootObject, parent -> ((TestObject) parent).getChildren());
+        DefaultMutableTreeNode node = TreeUtils.buildTree(rootObject, parent -> ((TestObject) parent).getChildren());
         assertEquals(rootObject, node.getUserObject());
         assertEquals(child1, ((DefaultMutableTreeNode) node.getChildAt(0)).getUserObject());
         assertEquals(child2, ((DefaultMutableTreeNode) node.getChildAt(1)).getUserObject());
@@ -327,8 +327,8 @@ class TreeTableModelTest {
     @Test
     public void testGetSetNodeComparator() {
         assertNull(model.getGroupingComparator());
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
-        assertEquals(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN, model.getGroupingComparator());
+        model.setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
+        assertEquals(TreeUtils.GROUP_BY_ALLOWS_CHILDREN, model.getGroupingComparator());
         model.setGroupingComparator(null);
         assertNull(model.getGroupingComparator());
     }
@@ -373,7 +373,7 @@ class TreeTableModelTest {
         assertEquals(subchild3, model.getNodeAtTableRow(6));
         assertEquals(child2, model.getNodeAtTableRow(7));
 
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
 
         assertEquals(rootNode, model.getNodeAtTableRow(0));
         assertEquals(child1, model.getNodeAtTableRow(1));
@@ -430,14 +430,14 @@ class TreeTableModelTest {
 
     @Test
     public void testGetRowCountWithGroupedTable() {
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
         model.bindTable(table);
         testGetRowCount();
     }
 
     @Test
     public void testGetRowCountWithSortedGroupedTable() {
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
         model.bindTable(table, sortKey1);
         testGetRowCount();
     }
@@ -499,7 +499,7 @@ class TreeTableModelTest {
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Use grouping to sort the nodes - nothing should change as getValueAt is in terms of model index, not sorted table index.
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_HAS_CHILDREN);
+        model.setGroupingComparator(TreeUtils.GROUP_BY_HAS_CHILDREN);
         assertEquals(7 + root, model.getRowCount());
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
@@ -585,7 +585,7 @@ class TreeTableModelTest {
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Use grouping to sort the nodes:
-        model.setGroupingComparator(TreeTableModel.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
         assertEquals(7 + root, model.getRowCount());
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
