@@ -31,27 +31,49 @@
  */
 package net.byteseek.swing.treetable;
 
-import net.byteseek.utils.collections.BlockModifyArrayList;
-
-import javax.swing.*;
+import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.function.Predicate;
+import javax.swing.AbstractAction;
+import javax.swing.ActionMap;
+import javax.swing.Icon;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
+import javax.swing.JTable;
+import javax.swing.KeyStroke;
+import javax.swing.RowSorter;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
-import javax.swing.table.*;
-import javax.swing.tree.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.util.*;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
+import javax.swing.tree.TreeNode;
+import net.byteseek.utils.collections.BlockModifyArrayList;
 
 //TODO: main bugs:
 //                        TreeStructureChanged  rebuildnodes is weird on root (also try it on other nodes)
-//                        Sort                  broken on Date fields (most sort fine, but there's always a few ones that don't sort correctly).
+//TODO: bug - show root and filtering
 
 //TODO: check logic
 //  check logic around when child counts are updated, and whether there are any missing updates for tree building...
-//  surely a rebuild of the tree nodes would imply we'd also recalculate the node counts (as they could have changed).
 
 //TODO: expand-all by default option?  All nodes always visible?
 //TODO: insert-expanded option?
@@ -66,6 +88,9 @@ import java.util.function.Predicate;
  *
  * <p><b>Usage</b></p>
  * To use it, instantiate a subclassed TreeTableModel with a root TreeNode, then bind it to a JTable.
+ * <p>
+ * There are other useful non-abstract methods subclasses can override to provide icons for the tree,
+ * allow cells to be editable and set their values, and so on.
  */
 public abstract class TreeTableModel extends AbstractTableModel implements TreeModelListener {
 
@@ -244,7 +269,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* *****************************************************************************************************************
      *                             Abstract methods for subclasses to implement
      *
-     * These methods define how a particular model obtains data, sets data and defines the columns of the table.
+     * These methods define how a particular model obtains data and defines the columns of the table.
      * These are obviously user specific, and must be defined by the subclass.
      */
 
@@ -258,21 +283,22 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public abstract Object getColumnValue(TreeNode node, int column);
 
-
     /**
      * Creates a TableColumnModel to reflect what columns the JTable should display for your subclass.
      * This could be all available columns, or you can just add a few and add or remove them dynamically using
      * the model later.  The model used is cached and can be obtained by a call to getTableColumnModel().
      * <p>
      * If no special TreeCellRenderer is set for the tree column with model index zero, then a default tree
-     * renderer will be added automatically after it is created.
+     * renderer will be added automatically after it is created.  The column with model index zero is always the
+     * column that renders and handles the tree events.  You can move the display order of columns you create,
+     * but the tree column is always logically the one with model index zero.
      * <p>
      * You should generally include a TableColumn with model index zero, as that is the column that renders the
      * tree structure, and responds to clicks on expand or collapse handles.
      *
      * @return A TableColumnModel with the columns you wish to display in the tree table initially.
      */
-    public abstract TableColumnModel createTableColumnModel();
+    protected abstract TableColumnModel createTableColumnModel();
 
 
      /* *****************************************************************************************************************
@@ -407,42 +433,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
-    /* ****************************************************************************************************************
-     *                                Table methods
-     */
-
-    /**
-     * @return the JTable bound to this TreeTableModel, or null if one is not currently bound.
-     */
-    public JTable getTable() {
-        return table;
-    }
-
-    /**
-     * @return The renderer used for the table header, or null if not set.
-     */
-    public TableCellRenderer getTableHeaderRenderer() {
-        if (table != null) {
-            final JTableHeader header = table.getTableHeader();
-            if (header != null) {
-                return header.getDefaultRenderer();
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Sets the renderer for the table header, if it exists.
-     * @param renderer The renderer to use.
-     */
-    public void setTableHeaderRenderer(final TableCellRenderer renderer) {
-        if (table != null) {
-            final JTableHeader header = table.getTableHeader();
-            if (header != null) {
-                header.setDefaultRenderer(renderer);
-            }
-        }
-    }
 
     /* *****************************************************************************************************************
      *                             Optional methods for subclasses to implement
@@ -619,8 +609,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return node != null && (filterPredicate != null && filterPredicate.test(node));
     }
 
-    //TODO: bug - show root and filtering
-
     /**
      * @return true if a filter predicate is set.
      */
@@ -671,6 +659,46 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         setColumnValue( getNodeAtModelIndex(row), column, aValue);
     }
 
+    /* ****************************************************************************************************************
+     *                                Table methods
+     *
+     * Methods relating to the table we are bound to, if any.
+     */
+
+    /**
+     * @return the JTable bound to this TreeTableModel, or null if one is not currently bound.
+     */
+    public JTable getTable() {
+        return table;
+    }
+
+    /**
+     * @return The renderer used for the table header, or null if not set.
+     */
+    public TableCellRenderer getTableHeaderRenderer() {
+        if (table != null) {
+            final JTableHeader header = table.getTableHeader();
+            if (header != null) {
+                return header.getDefaultRenderer();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Sets the renderer for the table header, if it exists.
+     * @param renderer The renderer to use.
+     */
+    public void setTableHeaderRenderer(final TableCellRenderer renderer) {
+        if (table != null) {
+            final JTableHeader header = table.getTableHeader();
+            if (header != null) {
+                header.setDefaultRenderer(renderer);
+            }
+        }
+    }
+
+
     /* *****************************************************************************************************************
      *                                    Tree Change methods
      *
@@ -709,7 +737,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     public void treeNodeChanged(final TreeNode nodeChanged) {
         if (isVisible(nodeChanged)) {
             final int modelIndex  = getModelIndexForTreeNode(nodeChanged);
-            fireTableRowsUpdated(modelIndex, modelIndex); //TODO: model index or table row?
+            fireTableRowsUpdated(modelIndex, modelIndex);
         }
     }
 
@@ -728,7 +756,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             } else {
                 for (int i = 0; i < childIndices.length; i++) {
                     final int modelIndex = getModelIndexForTreeNode(parentNode.getChildAt(childIndices[i]));
-                    fireTableRowsUpdated(modelIndex, modelIndex); //TODO: model index or table row?
+                    fireTableRowsUpdated(modelIndex, modelIndex);
                 }
             }
         }
@@ -1373,10 +1401,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* *****************************************************************************************************************
      *                                Node expansion and collapse and tree change.
      */
-
-    //TODO: auto expand on insert?
-
-    //TODO: always expanded option?  (no expand / collapse handles, key strokes or mouse clicks required for that).
 
     /**
      * @param node The node to check.

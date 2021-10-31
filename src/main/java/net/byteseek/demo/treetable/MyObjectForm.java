@@ -31,18 +31,25 @@
  */
 package net.byteseek.demo.treetable;
 
-import net.byteseek.swing.treetable.*;
-
-import javax.swing.*;
-import javax.swing.tree.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreeNode;
+import net.byteseek.swing.treetable.TreeTableModel;
+import net.byteseek.swing.treetable.TreeUtils;
 
 //TODO: toggle button for group by.
 

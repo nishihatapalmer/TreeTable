@@ -31,9 +31,14 @@
  */
 package net.byteseek.swing.treetable;
 
-import javax.swing.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.tree.TreeNode;
-import java.util.*;
 
 /**
  * A class which sorts a TreeTableModel, given the sort keys to sort on.

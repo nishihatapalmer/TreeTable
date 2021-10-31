@@ -37,16 +37,16 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * A collection of miscellaneous static utility methods and objects to build trees, group nodes and process
+ * tree data.
+ */
 public final class TreeUtils {
 
     /**
      * Static utility class - cannot construct it.
      */
     private TreeUtils() {};
-
-    /* *****************************************************************************************************************
-     *                                         Static Utility Methods
-     */
 
     /**
      * Mirrors a tree of user objects as a tree of MutableTreeNodes, with each MutableTreeNode associated with the

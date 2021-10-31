@@ -31,13 +31,21 @@
  */
 package net.byteseek.swing.treetable;
 
-import javax.swing.*;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Insets;
+import java.awt.event.MouseEvent;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JTable;
+import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.TreeNode;
-import java.awt.*;
-import java.awt.event.MouseEvent;
 
 //TODO: what about rendering arbitrary data types *within* the tree cell?  Just subclass this renderer and replace it in the model?
 //      would be better with composition - then you can use arbitrary renderers which already exist for other purposes, you don't have to make a specialized class.

@@ -31,7 +31,10 @@
  */
 package net.byteseek.utils.collections;
 
-import java.util.*;
+import java.util.AbstractList;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.List;
 
 /**
  * A List which provides efficient block operations for insert and remove of objects backed by an array.

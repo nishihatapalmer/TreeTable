@@ -31,9 +31,10 @@
  */
 package net.byteseek.swing.treetable;
 
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 
 //TODO: sort strategy of remove subsequent combined with default sort column means you can only ever sort on the primary column.
 //      how to move to a new sort column when you're removing subsequent?  Getting to unsorted allows you to pick a new primary.
