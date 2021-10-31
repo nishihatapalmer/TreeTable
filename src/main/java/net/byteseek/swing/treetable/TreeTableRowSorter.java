@@ -465,6 +465,14 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
                 firstNode =  getAncestor(firstNode, firstLevel - secondLevel);
             }
 
+            // If they now both the same node, this means we are comparing a node with one of its children, sub-children
+            // or vice versa.  The only node with a common parent at the same level as the parent is the parent itself.
+            // In this situation, if the first node is at the lower level, it's the parent and should sort earlier
+            // in the tree, if the other way around, the second level should sort earlier.
+            if (firstNode == secondNode) {
+                return firstLevel - secondLevel;
+            }
+
             // They are now both at the same level - find the nodes that share a common parent (root will be common to all).
             while (firstNode.getParent() != secondNode.getParent()) {
                 firstNode = firstNode.getParent();
