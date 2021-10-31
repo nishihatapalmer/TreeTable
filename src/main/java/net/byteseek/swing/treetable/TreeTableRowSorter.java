@@ -92,11 +92,16 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     /**
      * A sorted index of rows, giving the model index for each view index.
+     * In other words, this array is sorted in order of visual display - 0 is the first row, 1 is the second row, etc.
+     * Each SortRow object contains the modelIndex where we can find the model index of that table row.
+     * So it lets us convert from visual sorted table rows back to the model index.
+     * If not sorting, will be null.
      */
     protected SortRow[] viewToModelIndex;
 
     /**
-     * A sorted index of rows, giving the view index for a model index.
+     * An index to convert back from a model index to the view index, so converts from the model back to the
+     * visual table row it represents.  If not sorting, will be null.
      */
     protected int[] modelToViewIndex;
 
@@ -109,6 +114,12 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * defined.  So we can't get the row count from the model - we have to cache the last count that was built.
      */
     protected int lastRowCount;
+
+    /**
+     * alwaysRebuildIndices mode forces the RowSorter to rebuild the sort indexes entirely on notification of row update, insert and removals.
+     * The faster algorithms adjust the indexes in place.  This is mostly for debugging purposes.
+     */
+    protected boolean rebuildIndices;
 
     /**
      * Constructs a TreeTableRowSorter given a TreeTableModel.
@@ -139,7 +150,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         this.model = model;
         this.defaultSortKeys = defaultSortKeys == null ? Collections.emptyList() : defaultSortKeys;
         sortKeys = defaultSortKeys == null? new ArrayList<>() : new ArrayList<>(defaultSortKeys);
-        buildSortIndexes(); // even if no columns are sorted, we might have node comparison sorts.
+        rebuildIndices = true; //TODO: set true if we want things to work until the update/insert code is done.
+        buildSortIndices(); // even if no columns are sorted, we might have node comparison sorts.
     }
 
     @Override
@@ -170,7 +182,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         if (!sortKeys.equals(newKeys)) {
             this.sortKeys = new ArrayList<>(newKeys);
             fireSortOrderChanged(); //DefaultRowSorter fires before it actually does the sort, so we do that here.
-            buildSortIndexes();
+            buildSortIndices();
         }
     }
 
@@ -191,40 +203,196 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void modelStructureChanged() {
-        buildSortIndexes();
+        buildSortIndices();
     }
 
     @Override
     public void allRowsChanged() {
-        buildSortIndexes();
+        buildSortIndices();
     }
 
-    @Override
-    public void rowsInserted(final int firstRow, final int endRow) {
-       if (isSorting()) {
-           buildSortIndexes();
-       }
-    }
+    //TODO: throw out of bonds exceptions
 
     @Override
-    public void rowsDeleted(final int firstRow, final int endRow) {
+    public void rowsInserted(final int firstModelIndex, final int endModelIndex) {
         if (isSorting()) {
-            buildSortIndexes();
+            if (shouldRebuildIndex(firstModelIndex, endModelIndex)) {
+                buildSortIndices();
+            } else { // patch the existing sort index.
+               final int[] oldViewToModel = buildViewToModelAsInts();
+               insertSortedRows(firstModelIndex, endModelIndex);
+               fireRowSorterChanged(oldViewToModel);
+            }
+        }
+    }
+
+    //TODO: profile to see what the difference between removing rows and full sort index rebuild.
+
+    @Override
+    public void rowsDeleted(final int firstModelIndex, final int endModelIndex) {
+        if (isSorting()) {
+            if (shouldRebuildIndex(firstModelIndex, endModelIndex)) {
+                buildSortIndices();
+            } else { // patch the existing sort index.
+                final int[] oldViewToModel = buildViewToModelAsInts();
+                removeSortedRows(firstModelIndex, endModelIndex);
+                fireRowSorterChanged(oldViewToModel);
+            }
+        }
+    }
+
+    protected boolean shouldRebuildIndex(final int firstModelIndex, final int endModelIndex) {
+        return rebuildIndices;
+    }
+
+    @Override
+    public void rowsUpdated(final int firstModelIndex, final int endModelIndex) {
+        if (isSorting()) {
+            buildSortIndices();
         }
     }
 
     @Override
-    public void rowsUpdated(final int firstRow, final int endRow) {
+    public void rowsUpdated(final int firstModelIndex, final int endModelIndex, final int column) {
         if (isSorting()) {
-            buildSortIndexes();
+            buildSortIndices();
         }
     }
 
-    @Override
-    public void rowsUpdated(final int firstRow, final int endRow, final int column) {
-        if (isSorting()) {
-            buildSortIndexes();
+    public boolean getRebuildIndices() {
+        return rebuildIndices;
+    }
+
+    public void setRebuildIndices(final boolean rebuildIndices) {
+        this.rebuildIndices = rebuildIndices;
+    }
+
+    protected void insertSortedRows(int firstModelIndex, int endModelIndex) {
+        // Initialize useful constants:
+        final int[] localModelToViewIndex = modelToViewIndex; // avoid repeated field access, use a local ref.
+        final SortRow[] localViewToModelIndex = viewToModelIndex; // avoid repeated field access, use a local ref.
+        final int localLastRowCount = lastRowCount;
+        final int numToAdd = endModelIndex - firstModelIndex + 1;
+
+        //TODO: deal with array re-sizing of indices.
+
+        // Adjust all view to model entries from the insertion point to the end, to add the number of inserted nodes to their model index.
+        // The model indexes are all increased by the number of rows being inserted to the model.
+        for (int modelIndex = firstModelIndex; modelIndex < localLastRowCount; modelIndex++) {
+            final int viewIndex = localModelToViewIndex[modelIndex];
+            localViewToModelIndex[viewIndex].modelIndex += numToAdd;
         }
+
+        // Build new SortRows to insert and sort them relative to each other:
+        final SortRow[] newRows = new SortRow[numToAdd];
+        for (int i = 0; i < numToAdd; i++) {
+            newRows[i] = new SortRow(this, firstModelIndex + i);
+        }
+        Arrays.sort(newRows);
+
+        // Build an array of all the insertion points in the current index, which will also be in insertion order.
+        final int[] insertionPoints = new int[numToAdd];
+        for (int i = 0; i < numToAdd; i++) {
+            insertionPoints[i] =  -1 -Arrays.binarySearch(localViewToModelIndex, newRows[i]);
+            //TODO: could insertion points be identical for new nodes?  seems like they could...
+        }
+
+        // Insert a gap for the new nodes in the model to view index://TODO:
+       // final int positionAfterDeletions = endModelIndex + 1;
+     //   final int remainingToCopyBack = localLastRowCount - positionAfterDeletions;
+     //   System.arraycopy(localModelToViewIndex, positionAfterDeletions, localModelToViewIndex, firstModelIndex, remainingToCopyBack);
+
+        //TODO: do we have to insert nodes backwards to avoid over-copying blocks?
+        // Insert the new nodes, blocking up consecutive insertions into a single operation:
+        int insertIndex = 0;
+        while (insertIndex < insertionPoints.length) {
+            final int lastInsertIndex = TreeTableModel.findLastConsecutiveIndex(insertIndex, insertionPoints);
+            final int insertStartPosition = insertionPoints[insertIndex];
+            final int insertEndPosition = insertionPoints[lastInsertIndex];
+
+
+            insertIndex = lastInsertIndex + 1;
+        }
+
+    }
+
+    /**
+     * Removes rows from the sorted indexes without requiring the view index to be re-sorted and all indexes
+     * completely rebuilt, by moving items around and updating items in the indexes.
+     * It does require a sort itself of the deleted view indices,although this is a straight sort of integers which
+     * will be much more efficient than a tree sort, and isn't the entire tree.
+     *
+     * @param firstModelIndex The first model index of the nodes being deleted.
+     * @param endModelIndex The end model index of the nodes being deleted.
+     */
+    protected void removeSortedRows(final int firstModelIndex, final int endModelIndex) {
+        // Initialize useful constants:
+        final int[] localModelToViewIndex = modelToViewIndex; // avoid repeated field access, use a local ref.
+        final SortRow[] localViewToModelIndex = viewToModelIndex; // avoid repeated field access, use a local ref.
+        final int localLastRowCount = lastRowCount;
+        final int numToRemove = endModelIndex - firstModelIndex + 1;
+
+        // Build a sorted list of all view rows removed.
+        // This will let us identify consecutive blocks of nodes to move to patch up the view array more efficiently.
+        final int[] removedViewRows = new int[numToRemove];
+        for (int modelIndex = firstModelIndex; modelIndex <= endModelIndex; modelIndex++) {
+            removedViewRows[modelIndex - firstModelIndex] = localModelToViewIndex[modelIndex];
+        }
+        Arrays.sort(removedViewRows);
+
+        // Adjust all view entries after the removed rows to fix up their new model indexes now the rows are deleted from the model.
+        // The model indexes are all reduced by the number of rows being deleted from the model.
+        for (int modelIndex = endModelIndex + 1; modelIndex < localLastRowCount; modelIndex++) {
+            final int viewIndex = localModelToViewIndex[modelIndex];
+            localViewToModelIndex[viewIndex].modelIndex -= numToRemove;
+        }
+
+        //TODO: test with disjoint blocks of nodes removed from view.
+
+        // Delete the model to view removed rows by copying the remaining rows up over them.
+        final int positionAfterDeletions = endModelIndex + 1;
+        final int remainingToCopyBack = localLastRowCount - positionAfterDeletions;
+        System.arraycopy(localModelToViewIndex, positionAfterDeletions, localModelToViewIndex, firstModelIndex, remainingToCopyBack);
+
+        // Shift the view array contents over to cover the removed view rows and update model to view indexes for things which visually move.
+        // Identify consecutive blocks of rows removing in the view model.
+        // A sorted tree mostly retains consecutive blocks of removed rows, as parent-child relationships largely keep them together.
+        // In addition, the removal is probably driven in the first place by collapse of a node (or removal of one).
+        // Node collapse is automatically a removal of a visual block of nodes, so this is just re-translating model changes
+        // back into a block operation on the view.  So identifying blocks of removals in the sorted view is probably worthwhile.
+        int removeIndex = 0;
+        int copyPosition = removedViewRows.length > 0 ? removedViewRows[0] : -1;
+        while (removeIndex < removedViewRows.length) {
+            // Calculate what blocks to move and update:
+            final int lastRemoveIndex = TreeTableModel.findLastConsecutiveIndex(removeIndex, removedViewRows);
+            final int viewRowDeleteEnd = removedViewRows[lastRemoveIndex];
+            final int nextBlockStart = lastRemoveIndex + 1 < removedViewRows.length ? removedViewRows[lastRemoveIndex + 1] : localLastRowCount;
+            final int numToCopy = nextBlockStart - viewRowDeleteEnd - 1;
+            final int numDeleted = viewRowDeleteEnd - copyPosition + 1;
+
+            // Copy a block of view to model rows upwards to cover the deleted rows above.
+            System.arraycopy(localViewToModelIndex, viewRowDeleteEnd + 1, localViewToModelIndex, copyPosition, numToCopy);
+
+            // Update model to view indexes for view rows which have moved:
+            for (int viewIndex = copyPosition; viewIndex < copyPosition + numToCopy; viewIndex++) {
+                final int modelIndex = localViewToModelIndex[viewIndex].modelIndex;
+                localModelToViewIndex[modelIndex] -= numDeleted;
+            }
+            copyPosition += numToCopy;
+            removeIndex = lastRemoveIndex + 1;
+        }
+
+        // Since we have copied SortRow objects over to new positions, the ones left on the end are
+        // now duplicate objects of the ones in the rest of the tree.  They must be distinct objects
+        // that can have independent model indexes or future sorting will fail horribly.
+        // We just set them to null here; they will be recreated with new SortRows when rebuilding
+        // the model to view indices if needed.
+        for (int i = localLastRowCount - numToRemove; i < localLastRowCount; i++) {
+            localViewToModelIndex[i] = null;
+        }
+
+        // Update new row count.
+        lastRowCount = model.getRowCount();
     }
 
     /**
@@ -383,7 +551,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     /**
      * Builds (or clears) the sort indexes, depending on the SortKeys definition.
      */
-    private void buildSortIndexes() {
+    private void buildSortIndices() {
         if (sortKeys.size() > 0 || model.getGroupingComparator() != null) {
             sort();
         } else {
@@ -538,6 +706,11 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         @Override
         public int compareTo(final SortRow o) {
             return rowSorter.compare(modelIndex, o.modelIndex);
+        }
+
+        @Override
+        public String toString() {
+            return getClass().getSimpleName() + '(' + modelIndex + ':' + rowSorter.getModel().getNodeAtModelIndex(modelIndex) + ')';
         }
 
         public void setModelIndex(final int modelIndex) {
