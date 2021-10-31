@@ -92,7 +92,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Default visible width of a TableColumn created using the utility createColumn() methods, if you don't specify a width.
      */
-    protected static final int DEFAULT_COLUMN_WIDTH = 75;
+    protected static final int DEFAULT_COLUMN_WIDTH = 75; //TODO: test to see if this is a good default.
 
     /**
      * Value returned by find methods if not found.
@@ -137,29 +137,38 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected Comparator<TreeNode> groupingComparator; // used to group nodes together based on node properties.
 
     /**
-     * Any filter predicate applied to the tree.  Any nodes which the predicate returns true for are filtered.
+     * A filter predicate applied to the tree.  Any nodes which the predicate returns true for are filtered,
+     * null if not filtering.
      */
     private Predicate<TreeNode> filterPredicate;
 
     /**
-     * The threshold number of nodes below which a linear scan will be used to find a node in the tree rather than
-     * a tree scan.  Defaults to 100 after profiling with the jmh tool, which showed tree scans outperformed linear
-     * scans at around that size of visible nodes in the tree.
+     * The threshold number of visible nodes in the tree below which a linear scan will be used to find the model index
+     * of a node in the tree rather than using a tree scan.
+     * Defaults to 100 after profiling with the jmh benchmarking tool, which showed tree scans consistently outperformed
+     * linear scans at around that size of visible nodes in the tree, and that unsurprisingly, linear scans get
+     * consistently worse the larger the number of visible nodes, on average.
+     * There are edge cases where this won't be true, such as a large and very flat or deep trees, but should not
+     * be a lot worse than a linear scan of all the nodes in those cases.
      */
     protected final int linearScanThreshold = 100;
 
     /*
-     * Cached/calculated properties of the model:
+     * Cached/calculated properties of the model.
      */
 
     /**
      * The TableColumnModel used by this TreeTableModel.
-     * The method {@link #createTableColumnModel()} creates the model, which is an abstract method which must be provided by the subclass of this model.
+     * The method {@link #createTableColumnModel()} creates the model, which is an abstract method which must be provided by the subclass of this model,
+     * as it defines the column structure of the table.
      */
     protected TableColumnModel columnModel;
 
     /**
      * A list of all the currently displayed nodes in the table.  This is essentially a view over the tree for the table.
+     * It uses a BlockModifyArrayList, which is a type of ArrayList that supports block insert and removals as single
+     * operations.  The normal ArrayList handles this by individual inserts and removals, each of which shifts the
+     * remaining elements in the array around, giving O(n * m) performance rather than O(n + m) for the BlockModifyArrayList.
      */
     protected final BlockModifyArrayList<TreeNode> displayedNodes = new BlockModifyArrayList<>(); // has block operations which are more efficient than inserting or removing individually.
 
@@ -2049,6 +2058,21 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return toggleKeys;
     }
 
+    /* *****************************************************************************************************************
+     *                                     General methods
+     */
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName() +
+                "(root node = " + rootNode +
+                ", show root = " + showRoot +
+                ", size = " + displayedNodes.size() +
+                ", table = " + table +
+                ", filtering = " + isFiltering() +
+                ", sorting = " + (getSortKeys().size() > 0) +  //TODO: make isSorting() and isGrouping() convenience methods?
+                ", grouping = " + (getGroupingComparator() != null) + ')';
+    }
 
     /* *****************************************************************************************************************
      *                            Action classes to bind to keyboard events.
