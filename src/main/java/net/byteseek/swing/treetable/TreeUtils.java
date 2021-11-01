@@ -31,6 +31,8 @@
  */
 package net.byteseek.swing.treetable;
 
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.Comparator;
@@ -46,7 +48,7 @@ public final class TreeUtils {
     /**
      * Static utility class - cannot construct it.
      */
-    private TreeUtils() {};
+    private TreeUtils() {}
 
     /**
      * Mirrors a tree of user objects as a tree of MutableTreeNodes, with each MutableTreeNode associated with the
@@ -73,6 +75,36 @@ public final class TreeUtils {
             parentNode.insert(buildTree(child, childProvider), indexToInsert++);
         }
         return parentNode;
+    }
+
+    /**
+     * Applies a method to the node passed in and all of its children.
+     *
+     * @param node The node to walk all children of.
+     * @param method The method to apply to each node.
+     */
+    public static void walk(final TreeNode node, final Consumer<TreeNode> method) {
+        method.accept(node);
+        for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
+            walk(node.getChildAt(childIndex), method);
+        }
+    }
+
+    /**
+     * Applies a method to the node passed in and all of its children.
+     * Only applies the method if the predicate test passes, but will still process all of a failed nodes children.
+     *
+     * @param node The node to walk all children of.
+     * @param method The method to apply to each node.
+     * @param predicate The predicate that decides whether to apply the method.
+     */
+    public static void walk(final TreeNode node, final Consumer<TreeNode> method, final Predicate<TreeNode> predicate) {
+        if (predicate.test(node)) {
+            method.accept(node);
+        }
+        for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
+            walk(node.getChildAt(childIndex), method, predicate);
+        }
     }
 
     /**
