@@ -1698,10 +1698,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected void updateVisibleChildCounts(final TreeNode node, final int delta) {
         if (delta != 0) {
-            final Map<TreeNode, Integer> nodeCounts = expandedNodeCounts;
             final int existingChildren = getExpandedChildCount(node);
             final int newVisibleChildren = existingChildren + delta;
-            nodeCounts.put(node, newVisibleChildren);
+            expandedNodeCounts.put(node, newVisibleChildren);
             updateTreeChildCounts(node.getParent(), newVisibleChildren);
         }
     }
