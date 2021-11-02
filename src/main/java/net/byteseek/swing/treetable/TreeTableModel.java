@@ -606,7 +606,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return true if the node passed in should be filtered out.
      */
     public boolean isFiltered(final TreeNode node) {
-        return node != null && (filterPredicate != null && filterPredicate.test(node));
+        return node != null && filterPredicate != null && filterPredicate.test(node);
     }
 
     /**

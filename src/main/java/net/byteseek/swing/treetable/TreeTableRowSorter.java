@@ -584,10 +584,10 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Creates sort indexes and notifies a sort change.
      */
     private void sort() {
-        final int[] currentViewToModelIndex = buildViewToModelAsInts();
+        final int[] previousViewToModelIndex = buildViewToModelAsInts();
         buildViewToModelIndex();
         buildModelToViewIndex();
-        fireRowSorterChanged(currentViewToModelIndex);
+        fireRowSorterChanged(previousViewToModelIndex);
     }
 
     /**
