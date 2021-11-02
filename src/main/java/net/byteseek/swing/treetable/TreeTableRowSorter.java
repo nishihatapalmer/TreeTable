@@ -340,8 +340,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         // Build a sorted list of all view rows removed.
         // This will let us identify consecutive blocks of nodes to move to patch up the view array more efficiently.
         final int[] removedViewRows = new int[numToRemove];
-        for (int modelIndex = firstModelIndex; modelIndex <= endModelIndex; modelIndex++) {
-            removedViewRows[modelIndex - firstModelIndex] = localModelToViewIndex[modelIndex];
+        if (numToRemove > 0) {
+            System.arraycopy(localModelToViewIndex, firstModelIndex, removedViewRows, 0, numToRemove);
         }
         Arrays.sort(removedViewRows);
 
