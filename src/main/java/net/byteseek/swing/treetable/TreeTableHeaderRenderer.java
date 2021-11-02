@@ -60,12 +60,13 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     private static final int ICON_AND_NUMBER_WIDTH = 32; //TODO: hard coded value for ascend/descend icon and text... should calculate?
     private static final int VERTICAL_PADDING = 4; // white space above and below to raise header.
 
+    private final SortIconBorder sortIconBorder;
+
     private Icon sortAscendingIcon;
     private Icon sortDescendingIcon;
     private int maxIconWidth;
     private JLabel sortAscendingIconLabel;
     private JLabel sortDescendingIconLabel;
-    private Color gridColor;
     private Color sortcolumnTextColor;
     private Font headerFont;
     private Font boldHeaderFont;
@@ -75,15 +76,14 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
 
     private int sortColumn;
     private SortOrder sortOrder;
-    private SortIconBorder sortIconBorder;
 
     /**
      * Constructs a TreeTableHeaderRenderer.
      */
     public TreeTableHeaderRenderer() {
+        sortIconBorder = new SortIconBorder();
         setSortAscendingIcon(UIManager.getIcon("Table.ascendingSortIcon"));
         setSortDescendingIcon(UIManager.getIcon("Table.descendingSortIcon"));
-        sortIconBorder = new SortIconBorder();
         setBorder(new EtchedBorder());
         focusHeaderBorder = UIManager.getBorder( "TableHeader.focusCellBorder");
         headerBorder = UIManager.getBorder("TableHeader.cellBorder");
