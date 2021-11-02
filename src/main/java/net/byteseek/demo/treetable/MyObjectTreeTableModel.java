@@ -71,7 +71,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public Object getColumnValue(final TreeNode node, final int column) {
-        final Object o = ((DefaultMutableTreeNode) node).getUserObject();
+        final Object o = TreeUtils.getObject(node);
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
             switch (column) {
@@ -94,7 +94,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public void setColumnValue(final TreeNode node, final int column, final Object value) {
-        final Object o = ((DefaultMutableTreeNode) node).getUserObject();
+        final Object o = TreeUtils.getObject(node);
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
             switch (column) {

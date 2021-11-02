@@ -78,6 +78,19 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns the user object associated with a DefaultMutableTreeNode, given only a TreeNode type.
+     * This is a convenience method to avoid typing all the double-casting to DefaultMutableTreeNode
+     * and then to the type of the user object.
+     *
+     * @param node The TreeNode to obtain the user object from (which must be a DefaultMutableTreeNode).
+     * @param <T> The type of the user object.
+     * @return The user object associated with the DefaultMutableTreeNode passed in.
+     */
+    public static <T> T getObject(final TreeNode node) {
+        return (T) ((DefaultMutableTreeNode) node).getUserObject();
+    }
+
+    /**
      * Applies a method to the node passed in and all of its children.
      *
      * @param node The node to walk all children of.
