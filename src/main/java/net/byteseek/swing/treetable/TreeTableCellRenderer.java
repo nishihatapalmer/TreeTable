@@ -293,6 +293,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
      */
     protected void setAdditionalProperties(final TreeNode treeNode, final JTable table, final Object value, final boolean isSelected,
                                            final boolean hasFocus, final int row, final int column) {
+        // No implementation here; subclasses can use this to set whatever addditional properties they like.
     }
 
     protected int getNodeIndent(final TreeNode node) {
