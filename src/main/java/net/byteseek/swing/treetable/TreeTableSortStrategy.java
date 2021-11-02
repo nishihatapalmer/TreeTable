@@ -132,6 +132,14 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
         this.whenUnsortedAction = whenUnsortedAction;
     }
 
+    public ExistingColumnAction getExistingColumnAction() {
+        return existingColumnAction;
+    }
+
+    public void setExistingColumnAction(ExistingColumnAction existingColumnAction) {
+        this.existingColumnAction = existingColumnAction;
+    }
+
     public int getMaximumSortKeys() {
         return maximumSortKeys;
     }
