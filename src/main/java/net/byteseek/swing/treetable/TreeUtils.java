@@ -31,6 +31,7 @@
  */
 package net.byteseek.swing.treetable;
 
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -78,6 +79,21 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns a list containing the parent node and all children and sub-children in the
+     * tree structure under the parent, using a depth-first tree walking strategy.
+     * This gives the same (unsorted) order the nodes would have visually in the tree
+     * if they were all expanded.
+     *
+     * @param parentNode The node to get a list of itself and all children and sub-children.
+     * @return  a list of all the nodes in the tree structure starting from the parent node.
+     */
+    public static List<TreeNode> getNodeList(final TreeNode parentNode) {
+        final List<TreeNode> results = new ArrayList<>();
+        walk(parentNode, results::add);
+        return results;
+    }
+
+    /**
      * Returns the user object associated with a DefaultMutableTreeNode, given only a TreeNode type.
      * This is a convenience method to avoid typing all the double-casting to DefaultMutableTreeNode
      * and then to the type of the user object.
@@ -91,7 +107,8 @@ public final class TreeUtils {
     }
 
     /**
-     * Applies a method to the node passed in and all of its children.
+     * Applies a method to the node passed in and all of its children using a depth first
+     * tree walk.
      *
      * @param node The node to walk all children of.
      * @param method The method to apply to each node.
@@ -104,7 +121,7 @@ public final class TreeUtils {
     }
 
     /**
-     * Applies a method to the node passed in and all of its children.
+     * Applies a method to the node passed in and all of its children using a depth-first tree walk.
      * Only applies the method if the predicate test passes, but will still process all of a failed nodes children.
      *
      * @param node The node to walk all children of.
@@ -120,8 +137,10 @@ public final class TreeUtils {
         }
     }
 
+    //TODO: do we need descending versions of these groups?
+
     /**
-     * A static node comparator that groups nodes by whether they allow children or not.
+     * A node comparator that groups nodes by whether they allow children or not.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
      * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
      * <p>
@@ -136,7 +155,7 @@ public final class TreeUtils {
     };
 
     /**
-     * A static node comparator that groups nodes by whether they have children or not.
+     * A node comparator that groups nodes by whether they have children or not.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
      * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
      * <p>

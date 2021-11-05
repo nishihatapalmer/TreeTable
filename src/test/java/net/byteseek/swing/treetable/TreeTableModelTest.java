@@ -673,11 +673,15 @@ class TreeTableModelTest {
 
     private void testModelIndexAlgorithmsAreEquivalent(TreeTableModel modelToTest) {
 
+        Random random = new Random(0);
+
         // Test not finding a node which isn't in the tree:
         DefaultMutableTreeNode nodeNotInTree = new DefaultMutableTreeNode();
         assertEquals(-1, modelToTest.getModelIndexForTreeNode(nodeNotInTree));
         assertEquals(-1, modelToTest.getModelIndexLinearScan(nodeNotInTree));
         assertEquals(-1, modelToTest.getModelIndexTreeScan(nodeNotInTree));
+
+        List<TreeNode> allNodes = TreeUtils.getNodeList(modelToTest.getRoot());
 
         for (int trial = 0; trial < 100; trial++) {
 
@@ -690,8 +694,12 @@ class TreeTableModelTest {
                 assertEquals(i, modelIndex2);
             }
 
+            // Test finding random nodes which are somewhere in the tree (whether currently visible or not).
             for (int i = 0; i < 100; i++) {
-                //TreeNode nodeToFind =
+                TreeNode nodeToFind = allNodes.get(random.nextInt(allNodes.size()));
+                int modelIndex1 = modelToTest.getModelIndexLinearScan(nodeToFind);
+                int modelIndex2 = modelToTest.getModelIndexTreeScan(nodeToFind);
+                assertEquals(modelIndex1, modelIndex2);
             }
 
             //DEBUG: uncomment to monitor we're getting enough visible nodes with random expansion of tree.
