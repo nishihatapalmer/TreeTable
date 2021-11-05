@@ -2,6 +2,8 @@ package net.byteseek.swing.treetable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JTable;
@@ -641,19 +643,65 @@ class TreeTableModelTest {
         }
     }
 
-
+    //TODO: test with a wider variety of random trees.
     @Test
-    public void testModelIndexAlgorithms() {
+    public void testModelIndexAlgorithmsAreEquivalent() {
+        // validate basic test tree:
         model.expandNode(rootNode);
         model.expandNode(child1);
-        for (int i = 0; i < model.getRowCount(); i++) {
-            TreeNode nodeToFind = model.displayedNodes.get(i); // naughty - go inside, but want to avoid calling model index to test model index.
-            int modelIndex1 = model.getModelIndexLinearScan(nodeToFind);
-            int modelIndex2 = model.getModelIndexTreeScan(nodeToFind);
-            assertEquals(i, modelIndex1);
-            assertEquals(i, modelIndex2);
+        testModelIndexAlgorithmsAreEquivalent(model);
+
+        // validate 100 random trees:
+        for (int trial = 0; trial < 100; trial++) {
+            TreeNode rootNode = buildRandomTree(trial);
+
+            // Test not showing root:
+            TreeTableModel testModel = new SimpleTreeTableModel(rootNode, false);
+
+            testModelIndexAlgorithmsAreEquivalent(testModel);
+
+            //TODO: test filtered tree:
+
+            // Test showing root:
+            testModel = new SimpleTreeTableModel(rootNode, true);
+            testModelIndexAlgorithmsAreEquivalent(testModel);
+
+            //TODO: test filtered tree:
+
         }
     }
+
+    private void testModelIndexAlgorithmsAreEquivalent(TreeTableModel modelToTest) {
+
+        // Test not finding a node which isn't in the tree:
+        DefaultMutableTreeNode nodeNotInTree = new DefaultMutableTreeNode();
+        assertEquals(-1, modelToTest.getModelIndexForTreeNode(nodeNotInTree));
+        assertEquals(-1, modelToTest.getModelIndexLinearScan(nodeNotInTree));
+        assertEquals(-1, modelToTest.getModelIndexTreeScan(nodeNotInTree));
+
+        for (int trial = 0; trial < 100; trial++) {
+
+            // Test finding index of nodes which are displayed in the tree:
+            for (int i = 0; i < modelToTest.getRowCount(); i++) {
+                TreeNode nodeToFind = modelToTest.displayedNodes.get(i); // naughty - go inside, but want to avoid calling model index to test model index.
+                int modelIndex1 = modelToTest.getModelIndexLinearScan(nodeToFind);
+                int modelIndex2 = modelToTest.getModelIndexTreeScan(nodeToFind);
+                assertEquals(i, modelIndex1);
+                assertEquals(i, modelIndex2);
+            }
+
+            for (int i = 0; i < 100; i++) {
+                //TreeNode nodeToFind =
+            }
+
+            //DEBUG: uncomment to monitor we're getting enough visible nodes with random expansion of tree.
+            //System.out.println(modelToTest.getRowCount());
+
+            // Expand and collapse some more folders (will change which nodes are visible in the tree).
+            expandAndCollapseRandomNodes(modelToTest, trial, 50, 10);
+        }
+    }
+
 
     /* *****************************************************************************************************************
      *                                          Node visibility
@@ -749,23 +797,83 @@ class TreeTableModelTest {
 
     @Test
     public void testParentsExpandedChildVisible() {
-        TreeNode sub3 = child1.getChildAt(2);
-
         model = new SimpleTreeTableModel(rootNode, false);
         assertFalse(model.isVisible(rootNode));
         assertTrue(model.isVisible(child1));
-        assertFalse(model.isVisible(sub3));
+        assertFalse(model.isVisible(subchild2));
 
         model.expandNode(child1);
-        assertTrue(model.isVisible(sub3));
+        assertTrue(model.isVisible(subchild3));
     }
 
     //TODO: test looking for nodes that aren't in the tree, so won't be found by model index scans..
+
+    /* *****************************************************************************************************************
+     *                                 Test expansion and collapse
+     */
+    @Test
+    public void testCollapseHiddenRoot() {
+        //TODO: what should it do?
+        model = new SimpleTreeTableModel(rootNode, false);
+        model.collapseNode(rootNode);
+    }
+
+    @Test
+    public void testExpandHiddenRoot() {
+        //TODO: what should it do?
+    }
+
+    @Test
+    public void testExpandShowingRoot() {
+        //TODO: what should it do?
+    }
+
+    @Test
+    public void testCollapseShowingRoot() {
+        //TODO: what should it do?
+    }
+
 
 
     /* *****************************************************************************************************************
      *                                 Utility methods and classes
      */
+
+    private TreeNode buildRandomTree(int trial) {
+        Random rand = new Random(trial);
+        TestObject rootObject = new TestObject("root", 0, true);
+        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(rootObject);
+        List<DefaultMutableTreeNode> allNodes = addChildren(rootNode, rand.nextInt(50) + 5, "rootchild", 0);
+        int numSubFolders = rand.nextInt(400) + 20;
+        for (int newFolder = 0; newFolder < numSubFolders; newFolder++) {
+            DefaultMutableTreeNode randomNode = allNodes.get(rand.nextInt(allNodes.size()));
+            allNodes.addAll(addChildren(randomNode, rand.nextInt(10) + 1, "sub", rand.nextInt(10000000)));
+        }
+        return rootNode;
+    }
+
+    private void expandAndCollapseRandomNodes(TreeTableModel model, int trial, int numToExpand, int percentToCollapse) {
+        Random rand = new Random(trial);
+
+        List<TreeNode> expanded = new ArrayList<>(model.getExpandedNodes());
+        int numToCollapse = expanded.size() / 10;
+        for (int i = 0; i < numToCollapse; i++) {
+            int index = rand.nextInt(expanded.size());
+            TreeNode randomNode = expanded.get(index);
+            model.collapseNode(randomNode);
+            expanded.remove(index);
+        }
+
+        // If we've managed to not expand the root, we won't have much to look for.
+        if (model.getRowCount() == 0) {
+            model.expandNode(model.getRoot());
+        }
+
+        for (int i = 0; i < numToExpand; i++) {
+            TreeNode randomNode = model.getNodeAtModelIndex(rand.nextInt(model.getRowCount()));
+            model.expandNode(randomNode);
+        }
+    }
 
     protected void createChildren(MutableTreeNode parentNode, Object... childValues) {
         for (int i = 0; i < childValues.length; i++) {
@@ -783,15 +891,18 @@ class TreeTableModelTest {
         return rootNode;
     }
 
-    protected void addChildren(DefaultMutableTreeNode parent, int numChildren, String description, int sizeStart) {
+    protected List<DefaultMutableTreeNode> addChildren(DefaultMutableTreeNode parent, int numChildren, String description, int sizeStart) {
         TestObject parentObject = (TestObject) parent.getUserObject();
         parent.setAllowsChildren(true);
+        List<DefaultMutableTreeNode> results = new ArrayList<>();
         for (int i = 0; i < numChildren; i++) {
             TestObject object = new TestObject(description + i, sizeStart + i, (sizeStart + i) % 2 == 0);
             parentObject.children.add(object);
-            MutableTreeNode childNodes = new DefaultMutableTreeNode(object, false);
+            DefaultMutableTreeNode childNodes = new DefaultMutableTreeNode(object, false);
             parent.insert(childNodes, i);
+            results.add(childNodes);
         }
+        return results;
     }
 
     protected static class TestObject {
