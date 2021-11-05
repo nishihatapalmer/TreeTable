@@ -1367,29 +1367,84 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
+     * The tree column at model index 0 will automatically get a TreeTableCellRenderer if it isn't specified.
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
     protected TableColumn createColumn(final int modelIndex, final Object headerValue) {
         return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, null, null);
     }
 
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
+     * The tree column at model index 0 will automatically get a TreeTableCellRenderer if it isn't specified.     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param width The width of the column.
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
     protected TableColumn createColumn(final int modelIndex, final Object headerValue, final int width) {
         return createColumn(modelIndex, headerValue, width, null, null);
     }
 
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
+     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
     protected TableColumn createColumn(final int modelIndex, final Object headerValue,
                                        final TableCellRenderer cellRenderer) {
         return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, null);
     }
 
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
+     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param width The width of the column.
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
     protected TableColumn createColumn(final int modelIndex, final Object headerValue, final int width,
                                        final TableCellRenderer cellRenderer) {
         return createColumn(modelIndex, headerValue, width, cellRenderer, null);
     }
 
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @param cellEditor The TableCellEditor to use with the data types in that column.
+     * @return a TableColumn with the values provided, and a default width.
+     */
     protected TableColumn createColumn(final int modelIndex, final Object headerValue,
                                        final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
         return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor);
     }
 
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param width The width of the column.
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @param cellEditor The TableCellEditor to use with the data types in that column.
+     * @return a TableColumn with the values provided.
+     */
     protected TableColumn createColumn(final int modelIndex,  final Object headerValue, final int width,
                                        final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
         final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
@@ -1632,19 +1687,29 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * whether the node was already expanded or not.
      *
      * @param node The node to toggle expansion.
-     * @param modelRow The row in the model the node exists at.
+     * @param modelIndex The row in the model the node exists at.
      */
-    protected void toggleExpansion(final TreeNode node, final int modelRow) {
+    protected void toggleExpansion(final TreeNode node, final int modelIndex) {
         final boolean currentlyExpanded = isExpanded(node);
-        if (node.getAllowsChildren()) {  //TODO check how get allows children affects tree building - can nodes have children but not allow them?
+        if (node.getAllowsChildren()) {
             if (listenersApprove(node, currentlyExpanded)) {
-                if (modelRow >= 0 && modelRow < displayedNodes.size()) {
-                    toggleVisibleExpansion(node, modelRow, currentlyExpanded); // deal with changes to visible nodes.
+                if (expansionChangeAffectsVisibleNodes(node, modelIndex)) {
+                    toggleVisibleExpansion(node, modelIndex, currentlyExpanded); // deal with changes to visible nodes.
                 } else {
                     toggleInvisibleExpansion(node, currentlyExpanded); // node not visible - just toggle it's expanded state.
                 }
             }
         }
+    }
+
+    /**
+     * @param node The node to expand or collapse.
+     * @param modelIndex A model index of the node in the visible tree, or negative if it isn't currently visible.
+     * @return true if expanding or collapsing the node may affect visible rows in the tree.
+     */
+    protected boolean expansionChangeAffectsVisibleNodes(final TreeNode node, final int modelIndex) {
+        return (modelIndex >= 0 && modelIndex < displayedNodes.size()) || // it has a valid visible index
+               (!showRoot && node == rootNode);                        // or it's a hidden root node.
     }
 
     /**
