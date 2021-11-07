@@ -94,6 +94,18 @@ public final class TreeUtils {
     }
 
     /**
+     * @param parentNode The parent tree node to get the list of children for.
+     * @return A list of the children of the parent node.
+     */
+    public static List<TreeNode> getChildren(final TreeNode parentNode) {
+        final List<TreeNode> children = new ArrayList<>();
+        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+            children.add(parentNode.getChildAt(childIndex));
+        }
+        return children;
+    }
+
+    /**
      * Returns the user object associated with a DefaultMutableTreeNode, given only a TreeNode type.
      * This is a convenience method to avoid typing all the double-casting to DefaultMutableTreeNode
      * and then to the type of the user object.
@@ -136,8 +148,6 @@ public final class TreeUtils {
             walk(node.getChildAt(childIndex), method, predicate);
         }
     }
-
-    //TODO: do we need descending versions of these groups?
 
     /**
      * A node comparator that groups nodes by whether they allow children or not.
