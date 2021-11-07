@@ -1,6 +1,7 @@
 package net.byteseek.swing.treetable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -773,14 +774,21 @@ class TreeTableModelTest {
     @Test
     public void testGetSetSortKeysAfterUnbind() {
         createRandomTree(0, true);
-        model.setSortKeys(sortKey1); // start with sort key 1.
+        model.setSortKeys(sortKey1);
         model.bindTable(table);
-        model.expandTree(); // bind the table.
-        model.setSortKeys(sortKey3); // set sort keys while bound.
-        model.unbindTable(); //  unbind the table.
+        model.expandTree();
+
+        // Set a sort key on the row sorter directly, bypassing the model interface (so the model cannot cache the value).
+        table.getRowSorter().setSortKeys(Arrays.asList(new RowSorter.SortKey[] {sortKey3, sortKey2}));
+
+        // Unbind the table.
+        model.unbindTable();
+
+        // We should still have the sort key set on the rowsorter directly (the last active sort key in use).
         List<? extends RowSorter.SortKey> sortKeys = model.getSortKeys();
-        assertEquals(1, sortKeys.size());
+        assertEquals(2, sortKeys.size());
         assertEquals(sortKey3, sortKeys.get(0));
+        assertEquals(sortKey2, sortKeys.get(1));
     }
 
     private void testGetSetSortKeys(boolean tableBound) {
@@ -819,6 +827,16 @@ class TreeTableModelTest {
         assertFalse(model.isSorting());
         sortKeys = model.getSortKeys();
         assertTrue(sortKeys.isEmpty());
+    }
+
+    @Test
+    public void testGetSetFilteringNoTable() {
+
+    }
+
+    @Test
+    public void testGetSetFilteringWithTable() {
+
     }
 
 
