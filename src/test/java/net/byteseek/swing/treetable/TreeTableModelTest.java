@@ -1,6 +1,7 @@
 package net.byteseek.swing.treetable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import javax.swing.ActionMap;
@@ -125,31 +126,58 @@ class TreeTableModelTest {
     }
 
     @Test
-    public void testBindTableWithSortKeys() {
-        // Test single sort key
+    public void testBindTableWithNullDefaultSortKey() {
+        model.bindTable(table, (RowSorter.SortKey) null);
+        testDefaultTableBinding();
+        testNoSortKeys();
+    }
+
+    @Test
+    public void testBindTableWithDefaultSortKey() {
         model.bindTable(table, sortKey1);
         testDefaultTableBinding();
         testOneSortKey();
+    }
 
-        // Test multi key parameters
+    @Test
+    public void testBindTableWithTwoDefaultSortKeys() {
         model.bindTable(table, sortKey1, sortKey2);
         testDefaultTableBinding();
         testTwoSortKeys();
+    }
 
-        // Test list method
+    @Test
+    public void testBindTableWitDefaultSortKeyList() {
         model.bindTable(table, sortKeyList);
         testDefaultTableBinding();
         testListOfKeys();
+    }
+
+    @Test
+    public void testBindTableWitDefaultEmptySortKeyList() {
+        model.bindTable(table, Collections.emptyList());
+        testDefaultTableBinding();
+        testNoSortKeys();
+    }
+
+    @Test
+    public void testBindTableWitDefaultNullSortKeyList() {
+        model.bindTable(table, (List<RowSorter.SortKey>) null);
+        testDefaultTableBinding();
+        testNoSortKeys();
+    }
+
+    private void testNoSortKeys() {
+        assertTrue(table.getRowSorter().getSortKeys().isEmpty());
     }
 
     private void testOneSortKey() {
         List<? extends RowSorter.SortKey> sortKeyList = table.getRowSorter().getSortKeys();
         assertEquals(1, sortKeyList.size());
         assertEquals(sortKey1, sortKeyList.get(0));
-
     }
 
-    private void testTwoSortKeys() { //TODO: difference between ? extends RowSorter and List<RowSorter.sortkey>
+    private void testTwoSortKeys() {
         List<? extends RowSorter.SortKey> sortKeyList = table.getRowSorter().getSortKeys();
         assertEquals(2, sortKeyList.size());
         assertEquals(sortKey1, sortKeyList.get(0));
@@ -181,7 +209,18 @@ class TreeTableModelTest {
     }
 
     @Test
-    public void testBindTableWithCustomHeaderAndSortKeys() {
+    public void testBindTableWithCustomHeaderAndNullSortKey() {
+        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+
+        // Test null sort key
+        model.bindTable(table, headerRenderer, (RowSorter.SortKey) null);
+        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
+        testDefaultTableBinding();
+        testNoSortKeys();
+    }
+
+    @Test
+    public void testBindTableWithCustomHeaderAndOneSortKey() {
         TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
 
         // Test single sort key
@@ -189,18 +228,39 @@ class TreeTableModelTest {
         assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
         testDefaultTableBinding();
         testOneSortKey();
+    }
+
+    @Test
+    public void testBindTableWithCustomHeaderAndTwoSortKeys() {
+        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
 
         // Test multi key parameters
         model.bindTable(table, headerRenderer, sortKey1, sortKey2);
         assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
         testDefaultTableBinding();
         testTwoSortKeys();
+    }
+
+    @Test
+    public void testBindTableWithCustomHeaderAndSortKeysList() {
+        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
 
         // Test list method
         model.bindTable(table, headerRenderer, sortKeyList);
         assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
         testDefaultTableBinding();
         testListOfKeys();
+    }
+
+    @Test
+    public void testBindTableWithCustomHeaderAndNullSortKeysList() {
+        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
+
+        // Test list method
+        model.bindTable(table, headerRenderer, (List<? extends RowSorter.SortKey>) null);
+        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
+        testDefaultTableBinding();
+        testNoSortKeys();
     }
 
     @Test
@@ -215,7 +275,6 @@ class TreeTableModelTest {
         assertEquals(model, newTable.getModel());
         assertNotEquals(model, table.getModel());
     }
-
 
     @Test
     public void testUnbindTable() {
@@ -642,7 +701,8 @@ class TreeTableModelTest {
 
     @Test
     public void testGetSetGroupingComparator() {
-        createRandomTreeWithTable(0, true);
+        createRandomTree(0, true);
+        model.bindTable(table);
         model.expandTree();
         List<TreeNode> allNodesInVisualOrder = TreeUtils.getNodeList(rootNode); // gets all tree nodes depth first (visual order)
 
@@ -667,10 +727,9 @@ class TreeTableModelTest {
         assertTrue(tableOrderMatches(allNodesInVisualOrder));
     }
 
-    private void createRandomTreeWithTable(int randTree, boolean showRoot) {
+    private void createRandomTree(int randTree, boolean showRoot) {
         rootNode = buildRandomTree(randTree);
         model = new SimpleTreeTableModel(rootNode, showRoot);
-        model.bindTable(table);
     }
 
     private boolean tableOrderMatches(List<TreeNode> nodeList) {
@@ -686,14 +745,80 @@ class TreeTableModelTest {
     }
 
     @Test
-    public void testGetSetSortKeys() {
-        createRandomTreeWithTable(0, true);
+    public void testGetSetSortKeysWithBoundTable() {
+        createRandomTree(0, true);
+        model.bindTable(table);
         model.expandTree();
+        testGetSetSortKeys(true);
+    }
+
+    @Test
+    public void testGetSetSortKeysWithBoundTableWithNoRowSorter() {
+        createRandomTree(0, true);
+        model.bindTable(table, (RowSorter<TreeTableModel>) null);
+        model.expandTree();
+        testGetSetSortKeys(true);
+    }
+
+    /**
+     * getting and setting sorting should be the same.
+     */
+    @Test
+    public void testGetSetSortKeysWithNoTable() {
+        createRandomTree(0, true);
+        model.expandTree();
+        testGetSetSortKeys(false);
+    }
+
+    @Test
+    public void testGetSetSortKeysAfterUnbind() {
+        createRandomTree(0, true);
+        model.setSortKeys(sortKey1); // start with sort key 1.
+        model.bindTable(table);
+        model.expandTree(); // bind the table.
+        model.setSortKeys(sortKey3); // set sort keys while bound.
+        model.unbindTable(); //  unbind the table.
+        List<? extends RowSorter.SortKey> sortKeys = model.getSortKeys();
+        assertEquals(1, sortKeys.size());
+        assertEquals(sortKey3, sortKeys.get(0));
+    }
+
+    private void testGetSetSortKeys(boolean tableBound) {
         List<TreeNode> allNodesInVisualOrder = TreeUtils.getNodeList(rootNode); // gets all tree nodes depth first (visual order)
 
         assertFalse(model.isSorting());
         assertTrue(tableOrderMatches(allNodesInVisualOrder));
+        List<? extends RowSorter.SortKey> sortKeys = model.getSortKeys();
+        assertTrue(sortKeys.isEmpty());
 
+        model.setSortKeys(sortKey1);
+        assertTrue(model.isSorting());
+        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder));
+        sortKeys = model.getSortKeys();
+        assertEquals(1, sortKeys.size());
+        assertEquals(sortKey1, sortKeys.get(0));
+
+        model.setSortKeys(sortKey2, sortKey1);
+        assertTrue(model.isSorting());
+        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder));
+        sortKeys = model.getSortKeys();
+        assertEquals(2, sortKeys.size());
+        assertEquals(sortKey2, sortKeys.get(0));
+        assertEquals(sortKey1, sortKeys.get(1));
+
+        model.setSortKeys(sortKeyList);
+        assertTrue(model.isSorting());
+        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder));
+        sortKeys = model.getSortKeys();
+        assertEquals(sortKeyList.size(), sortKeys.size());
+        for (int i = 0; i < sortKeyList.size(); i++) {
+            assertEquals(sortKeyList.get(i), sortKeys.get(i));
+        }
+
+        model.setSortKeys(Collections.emptyList());
+        assertFalse(model.isSorting());
+        sortKeys = model.getSortKeys();
+        assertTrue(sortKeys.isEmpty());
     }
 
 
@@ -724,13 +849,15 @@ class TreeTableModelTest {
      */
     @Test
     public void testModelIndexAlgorithmsAreEquivalent() {
+        final int numTrials = 10;
+
         // validate basic test tree:
         model.expandNode(rootNode);
         model.expandNode(child1);
         testModelIndexAlgorithmsAreEquivalent(model);
 
         // validate 100 random trees:
-        for (int trial = 0; trial < 100; trial++) {
+        for (int trial = 0; trial < numTrials; trial++) {
             TreeNode rootNode = buildRandomTree(trial);
 
             // Test not showing root:

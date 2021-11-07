@@ -159,7 +159,16 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0, false)};  // - on keypad
     protected KeyStroke[] toggleKeys = new KeyStroke[] { // key presses that toggle node expansion
                 KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, false)};
-    protected Comparator<TreeNode> groupingComparator; // used to group nodes together based on node properties.
+
+    /**
+     * The list of sort keys defined for this model. It is never null - only empty if no keys defined.
+     */
+    protected List<? extends RowSorter.SortKey> sortKeys = Collections.emptyList();
+
+    /**
+     * Groups sibling nodes together based on a grouping comparator (e.g. has children or doesn't).
+     */
+    protected Comparator<TreeNode> groupingComparator;
 
     /**
      * A filter predicate applied to the tree.  Any nodes which the predicate returns true for are filtered,
@@ -328,7 +337,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      */
     public void bindTable(final JTable table, final RowSorter.SortKey... defaultSortKeys) {
-        bindTable(table, new TreeTableRowSorter(this, Arrays.asList(defaultSortKeys)), new TreeTableHeaderRenderer());
+        bindTable(table, Arrays.asList(defaultSortKeys));
     }
 
     /**
@@ -338,7 +347,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      */
-    public void bindTable(final JTable table, final List<RowSorter.SortKey> defaultSortKeys) {
+    public void bindTable(final JTable table, final List<? extends RowSorter.SortKey> defaultSortKeys) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), new TreeTableHeaderRenderer());
     }
 
@@ -384,35 +393,36 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param headerRenderer The renderer to use to draw the table header.
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
      */
-    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final List<RowSorter.SortKey> defaultSortKeys) {
+    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final List<? extends RowSorter.SortKey> defaultSortKeys) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
     }
 
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
-     * react to mouse and keyboard events.
+     * react to mouse and keyboard events.  Also unbinds from any table which is currently bound.
      *
-     * @param table The JTable to bind to this TreeTableModel.  Cannot be null.
+     * @param tableToBind The JTable to bind to this TreeTableModel.  Cannot be null.
      * @param rowSorter The row sorter to use with the table.  Can be null if no sorting required.
      * @param headerRenderer The renderer to use to draw the table header.  Can be null if no special header rendering required.
      */
-    public void bindTable(final JTable table,
+    public void bindTable(final JTable tableToBind,
                           final RowSorter<TreeTableModel> rowSorter,
                           final TableCellRenderer headerRenderer) {
         if (this.table != null) {
             unbindTable();
         }
-        this.table = table;
-        if (table != null) {
-            table.setAutoCreateColumnsFromModel(false);
-            table.setModel(this);
-            table.setColumnModel(getTableColumnModel());
+        this.table = tableToBind; // fine to set to null if no table is being bound - we'll just remain unbound.
+        if (tableToBind != null) {
+            tableToBind.setAutoCreateColumnsFromModel(false);
+            tableToBind.setModel(this);
+            tableToBind.setColumnModel(getTableColumnModel());
             if (rowSorter != null) {
-                table.setRowSorter(rowSorter);
+                rowSorter.setSortKeys(sortKeys);
+                tableToBind.setRowSorter(rowSorter);
             }
-            oldHeaderRenderer = table.getTableHeader().getDefaultRenderer();
+            oldHeaderRenderer = tableToBind.getTableHeader().getDefaultRenderer();
             if (headerRenderer != null) {
-                table.getTableHeader().setDefaultRenderer(headerRenderer);
+                tableToBind.getTableHeader().setDefaultRenderer(headerRenderer);
             }
             addKeyboardActions();
             addMouseListener();
@@ -426,8 +436,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         if (table != null && table.getModel() == this) {
             removeMouseListener();
             removeKeyboardActions();
+            removeRowSorterAndCacheSortKeys();
             table.setColumnModel(new DefaultTableColumnModel());
-            table.setRowSorter(null);
             table.setAutoCreateColumnsFromModel(true); //TODO: should we cache old table setting?
             table.setModel(new DefaultTableModel());
             setTableHeaderRenderer(oldHeaderRenderer);
@@ -556,59 +566,82 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
-    //TODO: should we maintain sort keys rather than relying on a bound table?
-    //      If any sort keys are set, we can bind the table later and they should be used.
     /**
-     * Returns true if sort keys are set on a bound table.  If no table is bound, no sort keys can be set.
-     * @return true if any sort keys are set on a bound table.
+     * Returns true if sort keys are set.
+     * @return true if any sort keys are set.
      */
     public boolean isSorting() {
-        return getSortKeys().size() > 0;
+        return !getSortKeys().isEmpty();
     }
 
     /**
-     * This is a convenience method to obtain the current sort keys, if bound to table using a row sorter.
+     * Returns an unmodifiable list of sort keys currently set, or an empty list if none are set.
+     * If no table is bound, it will just be the ones cached in this model for binding later.
+     * If a table is bound, then the sort keys currently set on its row sorter will be returned.
      *
-     * @return if bound to a table, returns any sort keys defined on its row sorter, or an empty list if none are defined or available.
+     * @return an unmodifiable list of sort keys currently set, or an empty list of no keys are set.
      */
     public List<? extends RowSorter.SortKey> getSortKeys() {
-        final RowSorter<? extends TableModel> rowSorter = table == null? null : table.getRowSorter();
-        return rowSorter == null? Collections.emptyList() : rowSorter.getSortKeys();
+        if (table == null) {
+            return sortKeys;
+        }
+        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+        return rowSorter == null ? Collections.emptyList() : rowSorter.getSortKeys();
     }
 
     /**
-     * This method sets sort keys if bound to a table, using a list of SortKeys.  It does nothing if the model is not bound to a table.
-     * It will also create a TreeTableRowSorter and assign it to the table if a row sorter is not currently defined.
+     * Sets the sort keys to sort the model with.  If you pass in null, an empty list will be set.
+     * You can set sort keys before binding occurs, and they will be cached for future binding.
+     * If bound to a table, it will also set those sort keys on its RowSorter,
+     * and create a TreeTableRowSorter for the table if one does not already exist.
      *
-     * @param keys the sort keys to use in the table.
+     * @param keys The list of sort keys to sort with.
      */
     public void setSortKeys(final List<? extends RowSorter.SortKey> keys) {
-        if (table != null) {
+        // Cache the keys set as an unmodifiable list of keys.
+        sortKeys = keys == null || keys.isEmpty()? Collections.emptyList() : Collections.unmodifiableList(keys);
+
+        // If we're bound to a table, set those keys on the table, creating a row sorter if one does not exist.
+        if (table != null) { // We are bound to a table - use its RowSorter, or create one if it doesn't have one.
             RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-            if (rowSorter == null) {
+            if (rowSorter == null) { // row sorter not set on table - create one to hold the sort keys.
                 rowSorter = new TreeTableRowSorter(this);
-                rowSorter.setSortKeys(keys);
+                rowSorter.setSortKeys(sortKeys);
                 table.setRowSorter(rowSorter);
             } else {
-                rowSorter.setSortKeys(keys);
+                rowSorter.setSortKeys(sortKeys); // we have a table and a rowsorter - just set the keys!
             }
         }
     }
 
     /**
-     * This method sets sort keys if bound to a table, using sort key parameters.  It does nothing if the model is not bound to a table.
-     * It will also create a TreeTableRowSorter and assign it to the table if a row sorter is not currently defined.
+     * Sets the sort keys to sort the model with.  If you pass in null, an empty list will be set.
+     * You can set sort keys before binding occurs, and they will be cached for future binding.
+     * If bound to a table, it will also set those sort keys on its RowSorter,
+     * and create a TreeTableRowSorter for the table if one does not already exist.
+     * <p>
+     * This version of setSortKeys is useful to set keys programmatically,
+     *  as you can just specify as many keys as you like as direct parameters.
      *
-     * @param keys the sort keys to use in the table.
+     * @param keys The list of sort keys to sort with.
      */
     public void setSortKeys(final RowSorter.SortKey... keys) {
+        setSortKeys(keys == null ? Collections.emptyList() : Arrays.asList(keys));
+    }
+
+    /**
+     * When unbinding from a table, we will no longer get sort keys from its rowsorter.
+     * Take a copy of the last known state of sort keys in the table, if any are set.
+     * This ensures that a call to getSortKeys() while bound remains consistent after unbinding.
+     * Get and Set methods for sort keys remain consistent, whether bound to a table or not.
+     */
+    protected void removeRowSorterAndCacheSortKeys() {
         if (table != null) {
             RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-            if (rowSorter == null) {
-                rowSorter = new TreeTableRowSorter(this);
+            if (rowSorter != null) {
+                sortKeys = rowSorter.getSortKeys();
             }
-            rowSorter.setSortKeys(Arrays.asList(keys));
-            table.setRowSorter(rowSorter);
+            table.setRowSorter(null);
         }
     }
 

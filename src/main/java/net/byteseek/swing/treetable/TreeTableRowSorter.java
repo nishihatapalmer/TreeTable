@@ -36,12 +36,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.tree.TreeNode;
 
 /**
- * A class which sorts a TreeTableModel, given the sort keys to sort on.
+ * A class which implements the RowSorter interface, and sorts a TreeTableModel, given the sort keys to sort on.
  * It provides an index of the view to model, and the model to view.
  * It can be provided to a JTable to sort the rows.
  */
@@ -78,14 +79,14 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     protected final TreeTableModel model;
 
     /**
-     * The list of current sort keys.  This must not be null but it can be empty.
+     * The list of current sort keys.  This must not be null, but it can be empty.
      */
-    protected List<SortKey> sortKeys;
+    protected List<SortKey> sortKeys = Collections.emptyList();
 
     /**
      * The list of default sort keys which are used if no other sort specified.
      */
-    protected List<SortKey> defaultSortKeys;
+    protected List<? extends SortKey> defaultSortKeys = Collections.emptyList();
 
     /**
      * The sort strategy to use to build new sort keys after sort is requested on a column.
@@ -129,6 +130,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     /**
      * Constructs a TreeTableRowSorter given a TreeTableModel.
      * @param model The TreeTableModel to sort.
+     * @throws IllegalArgumentException if the model passed in is null.
      */
     public TreeTableRowSorter(final TreeTableModel model) {
         this(model, Collections.emptyList());
@@ -138,6 +140,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Constructs a TreeTableRowSorter given a TreeTableModel and one or more default sort keys.
      * @param model The tree table model to sort.
      * @param defaultSortKeys The default sort if no other sort is defined.
+     * @throws IllegalArgumentException if the model passed in is null.
      */
     public TreeTableRowSorter(final TreeTableModel model, final SortKey defaultSortKeys) {
         this(model, List.of(defaultSortKeys));
@@ -147,16 +150,17 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Constructs a TreeTableRowSorter given a TreeTableModel.
      * @param model The TreeTableModel to sort.
      * @param defaultSortKeys The default sort if no other sort is defined.
+     * @throws IllegalArgumentException if the model passed in is null.
      */
-    public TreeTableRowSorter(final TreeTableModel model, final List<SortKey> defaultSortKeys) {
+    public TreeTableRowSorter(final TreeTableModel model, final List<? extends SortKey> defaultSortKeys) {
         if (model == null) {
             throw new IllegalArgumentException("Must supply a non null TreeTableModel.");
         }
         this.model = model;
-        this.defaultSortKeys = defaultSortKeys == null ? Collections.emptyList() : defaultSortKeys;
-        sortKeys = defaultSortKeys == null? new ArrayList<>() : new ArrayList<>(defaultSortKeys);
+        setDefaultSortKeys(defaultSortKeys);
+        setSortKeys(this.defaultSortKeys);
         rebuildIndices = true; //TODO: set true if we want things to work until the update/insert code is done.
-        buildSortIndices(); // even if no columns are sorted, we might have node comparison sorts.
+        buildSortIndices();
     }
 
     @Override
@@ -185,8 +189,13 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     public void setSortKeys(final List<? extends SortKey> keys) {
         final List<? extends SortKey> newKeys = keys == null || keys.isEmpty() ? defaultSortKeys : keys;
         if (!sortKeys.equals(newKeys)) {
-            this.sortKeys = new ArrayList<>(newKeys);
-            fireSortOrderChanged(); //DefaultRowSorter fires before it actually does the sort, so we do that here.
+            this.sortKeys = new ArrayList<>(newKeys); //TODO: should be unmodifiable list?
+            /*
+             * sort order changed is fired before the sort indices are rebuilt, as is done for DefaultRowSorter.
+             * The documentation for RowSorterEvent states that this message is fired first and is typically
+             * followed by a SORTED message that indicates the sort order of the contents has actually been modified.
+             */
+            fireSortOrderChanged();
             buildSortIndices();
         }
     }
@@ -264,6 +273,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
+    //TODO: do we need this once we are satisfied through testing and profiling that dynamic updates are better than full rebuilds?
     public boolean getRebuildIndices() {
         return rebuildIndices;
     }
@@ -422,7 +432,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Gets the list of sort keys to use if no other sort is defined.
      * @return The list of sort keys to use if no other sort is defined.
      */
-    public List<SortKey> getDefaultSortKeys() {
+    public List<? extends SortKey> getDefaultSortKeys() {
         return defaultSortKeys;
     }
 
@@ -430,8 +440,13 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * Sets the default sort keys to use if no other sort is defined.  Ensures will never set to null.
      * @param newDefaults The new default sort keys to use.
      */
-    public void setDefaultSortKeys(final List<SortKey> newDefaults) {
-        this.defaultSortKeys = newDefaults == null? Collections.emptyList() : newDefaults;
+    public void setDefaultSortKeys(final List<? extends SortKey> newDefaults) {
+        if (newDefaults == null) {
+            this.defaultSortKeys = Collections.emptyList();
+        } else {
+            List<? extends SortKey> noNullElementList = newDefaults.stream().filter(sortKey -> sortKey != null).collect(Collectors.toList());
+            this.defaultSortKeys = noNullElementList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(noNullElementList);
+        }
         if (!defaultSortKeys.isEmpty()) {                    // If we have some keys as defaults
             if (sortKeys == null || sortKeys.isEmpty()) {    // And we currently have no sort keys defined:
                 setSortKeys(newDefaults);                    // Set the defaults as the new sort keys.
