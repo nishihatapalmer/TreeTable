@@ -155,6 +155,21 @@ public final class TreeUtils {
     };
 
     /**
+     * A node comparator that groups nodes by whether they allow children or not, in a descending order.
+     * Can be used to group folders and non-folders in a tree, with column sorting within them.
+     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
+     * <p>
+     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
+     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
+     *
+     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
+     */
+    public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN_DESCENDING = (o1, o2) -> {
+        final boolean allowsChildren = o1.getAllowsChildren();
+        return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? 1 : -1;
+    };
+
+    /**
      * A node comparator that groups nodes by whether they have children or not.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
      * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
@@ -169,9 +184,8 @@ public final class TreeUtils {
         return hasChildren == o2.getChildCount() > 0 ? 0 : hasChildren ? -1 : 1;
     };
 
-    //TODO: validate ascending / descending sort order.
     /**
-     * A static node comparator that groups nodes by the number of children they have, in ascending order.
+     * A node comparator that groups nodes by whether they have children or not in a descending order.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
      * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
      * <p>
@@ -180,11 +194,26 @@ public final class TreeUtils {
      *
      * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN_ASCENDING = Comparator.comparingInt(TreeNode::getChildCount);
+    public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN_DESCENDING = (o1, o2) -> {
+        final boolean hasChildren = o1.getChildCount() > 0;
+        return hasChildren == o2.getChildCount() > 0 ? 0 : hasChildren ? 1 : -1;
+    };
+
+    /**
+     * A static node comparator that groups nodes by the number of children they have, in ascending order.
+     * Can be used to group folders sorted by number of children, and non-folders in a tree, with column sorting within them.
+     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
+     * <p>
+     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
+     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
+     *
+     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
+     */
+    public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN = Comparator.comparingInt(TreeNode::getChildCount);
 
     /**
      * A static node comparator that groups nodes by the number of children they have, in descending order.
-     * Can be used to group folders and non-folders in a tree, with column sorting within them.
+     * Can be used to group folders sorted by number of children and non-folders in a tree, with column sorting within them.
      * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
      * <p>
      * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
@@ -195,7 +224,7 @@ public final class TreeUtils {
     public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN_DESCENDING = (o1, o2) -> o2.getChildCount() - o1.getChildCount();
 
     /**
-     * Given an array of indices, and a position to start looking in them,
+     * Given a sorted array of indices, and a position to start looking in them,
      * it returns the index of the last consecutive index, or the from index passed in if none exist.
      * For example, if we have [1, 2, 5, 6, 7, 8, 10], then calling this from 0, would return 1, as we have 1 and 2
      * consecutive, so the index of 2 is returned.  If we call it on 1, we get 1 returned, as the next index isn't 3.
@@ -207,20 +236,18 @@ public final class TreeUtils {
      * consecutive updates together.
      *
      * @param from The position in the indices to start looking in.
-     * @param indices An array of index positions, some of which may be consecutive.
+     * @param sortedIndices A sorted array of index positions, some of which may be consecutive.
      * @return The index of the last consecutive index in the array, or from if there are no others.
      */
-    public static int findLastConsecutiveIndex(final int from, final int[] indices) {
+    public static int findLastConsecutiveIndex(final int from, final int[] sortedIndices) {
         int lastConsecutiveIndex = from;
-        for (int i = from + 1; i < indices.length; i++) {
-            if (indices[i] - indices[i - 1] == 1) {
-                lastConsecutiveIndex = i; // one apart - update last consecutive index.
-            } else {
-                break; // not consecutive - cease processing.
+        for (int i = from + 1; i < sortedIndices.length; i++) {
+            if (sortedIndices[i] - sortedIndices[i - 1] != 1) { // not a gap of one?  stop looking.
+                break;
             }
+            lastConsecutiveIndex = i; // one apart - update last consecutive index.
         }
         return lastConsecutiveIndex;
     }
-
 
 }

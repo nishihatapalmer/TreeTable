@@ -3,7 +3,6 @@ package net.byteseek.swing.treetable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.Set;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JTable;
@@ -549,8 +548,6 @@ class TreeTableModelTest {
         testSetValueAt(true);
     }
 
-    //TODO: set values and test them!
-    
     private void testSetValueAt(boolean showRoot) {
         /*   model order         sorted ascending     grouped by allows children.       Column Values:
          * 0 root                root                 root                              0        true
@@ -643,7 +640,88 @@ class TreeTableModelTest {
         }
     }
 
-    //TODO: test with a wider variety of random trees.
+    @Test
+    public void testGetSetGroupingComparator() {
+        createRandomTreeWithTable(0, true);
+        model.expandTree();
+        List<TreeNode> allNodesInVisualOrder = TreeUtils.getNodeList(rootNode); // gets all tree nodes depth first (visual order)
+
+        // By default, no grouping is set.
+        assertFalse(model.isGrouping());
+        assertNull(model.getGroupingComparator());
+        assertTrue(tableOrderMatches(allNodesInVisualOrder));
+
+        model.setGroupingComparator(TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING);
+        assertTrue(model.isGrouping());
+        assertEquals(TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING, model.getGroupingComparator());
+        assertFalse(tableOrderMatches(allNodesInVisualOrder));
+
+        model.setGroupingComparator(TreeUtils.GROUP_BY_HAS_CHILDREN);
+        assertTrue(model.isGrouping());
+        assertEquals(TreeUtils.GROUP_BY_HAS_CHILDREN, model.getGroupingComparator());
+        assertFalse(tableOrderMatches(allNodesInVisualOrder));
+
+        model.setGroupingComparator(null);
+        assertFalse(model.isGrouping());
+        assertNull(model.getGroupingComparator());
+        assertTrue(tableOrderMatches(allNodesInVisualOrder));
+    }
+
+    private void createRandomTreeWithTable(int randTree, boolean showRoot) {
+        rootNode = buildRandomTree(randTree);
+        model = new SimpleTreeTableModel(rootNode, showRoot);
+        model.bindTable(table);
+    }
+
+    private boolean tableOrderMatches(List<TreeNode> nodeList) {
+        assertEquals(nodeList.size(), model.getRowCount());
+        for (int i = 0; i < nodeList.size(); i++) {
+            TreeNode listNode = nodeList.get(i);
+            TreeNode tableNode = model.getNodeAtTableRow(i);
+            if (listNode != tableNode) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Test
+    public void testGetSetSortKeys() {
+        createRandomTreeWithTable(0, true);
+        model.expandTree();
+        List<TreeNode> allNodesInVisualOrder = TreeUtils.getNodeList(rootNode); // gets all tree nodes depth first (visual order)
+
+        assertFalse(model.isSorting());
+        assertTrue(tableOrderMatches(allNodesInVisualOrder));
+
+    }
+
+
+    /**
+     * Tests that both algorithms for finding the model index of a node in the tree are equivalent.
+     * <p>
+     * The linear scan algorithm just looks in the visible node array for the node, so is entirely reliable,
+     * assuming the model has built the array correctly in the first place of course.  It's generally the fastest
+     * algorithm to use in a tree of around 100 nodes or so (simpler and better cache locality),
+     * but gets linearly slower the bigger the visible tree is, on average.
+     * <p>
+     * The tree scan algorithm walks up the path of the node to find from the root, adding up all the children
+     * which are visible in the tree before it.  This is efficient because we already store the total visible
+     * number of children for each expanded node in a map, so we don't need to walk those sub-trees to get the totals.
+     * For more than about 100 nodes in the visible tree, the tree scan is generally faster,
+     * as it has to deal with much fewer nodes on average, despite being more complex.  Its performance will only
+     * slow down very gradually as the tree gets even bigger - most path lengths and child numbers won't change dramatically
+     * even if there are a lot of visible nodes in the tree as a whole.
+     * <p>
+     * This test takes a long time to run - it creates many random trees, and randomly expands and collapses nodes
+     * with them to create very different visible tree structures.  It then selects all the visible
+     * nodes in each tree and tries to find them with both algorithms.  Then it selects random nodes from all the nodes
+     * in the tree (some of which may not be visible), and ensures that both algorithms give the same result.
+     * <p>
+     * It has already exposed a few minor edge cases to do with root node visibility in the rest of the code
+     * (not the model index algorithms themselves!), since any mismatch between the two highlights bugs in the
+     * building of the array of visible nodes.
+     */
     @Test
     public void testModelIndexAlgorithmsAreEquivalent() {
         // validate basic test tree:
@@ -789,18 +867,13 @@ class TreeTableModelTest {
 
     @Test
     public void testParentNotExpandedChildNotVisible() {
-        createChildren(child1, "sub1", "sub2", "sub3");
-        TreeNode sub3 = child1.getChildAt(2);
-
         model = new SimpleTreeTableModel(rootNode, true);
         assertTrue(model.isVisible(rootNode));
         assertFalse(model.isVisible(child1));
-        assertFalse(model.isVisible(sub3));
+        assertFalse(model.isVisible(subchild3));
 
-        //TODO: bug - expanding node when root is not expanded causes NullPointerExceptin in expandVisibleChildCounts.
-        //      you can have a non expanded root if it is showing.
         model.expandNode(child1);
-        assertFalse(model.isVisible(sub3));
+        assertFalse(model.isVisible(subchild3));
     }
 
     @Test
@@ -814,40 +887,47 @@ class TreeTableModelTest {
         assertTrue(model.isVisible(subchild3));
     }
 
-    //TODO: test looking for nodes that aren't in the tree, so won't be found by model index scans..
 
     /* *****************************************************************************************************************
      *                                 Test expansion and collapse
      */
+
+    /**
+     * Collapsing a hidden root will make the entire tree disappear, but it is still a legimitate
+     * action.  It can only be done programmatically (since an invisible root cannot be selected visually
+     * to collapse.
+     */
     @Test
-    public void testCollapseHiddenRoot() {
-        //TODO: what should it do?
+    public void testCollapseExpandHiddenRoot() {
         model = new SimpleTreeTableModel(rootNode, false);
+        assertTrue(model.isExpanded(rootNode)); // hidden roots are expanded by default.
+
         model.collapseNode(rootNode);
+        assertFalse(model.isExpanded(rootNode));
+
+        model.expandNode(rootNode);
+        assertTrue(model.isExpanded(rootNode));
     }
+
 
     @Test
-    public void testExpandHiddenRoot() {
-        //TODO: what should it do?
-    }
+    public void testExpandCollapseShowingRoot() {
+        model = new SimpleTreeTableModel(rootNode, true);
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
 
-    @Test
-    public void testExpandShowingRoot() {
-        //TODO: what should it do?
-    }
+        model.expandNode(rootNode);
+        assertTrue(model.isExpanded(rootNode));
 
-    @Test
-    public void testCollapseShowingRoot() {
-        //TODO: what should it do?
+        model.collapseNode(rootNode);
+        assertFalse(model.isExpanded(rootNode));
     }
-
 
 
     /* *****************************************************************************************************************
-     *                                 Utility methods and classes
+     *                                 Test utility methods and classes
      */
 
-    private TreeNode buildRandomTree(int trial) {
+    private DefaultMutableTreeNode buildRandomTree(int trial) {
         Random rand = new Random(trial);
         TestObject rootObject = new TestObject("root", 0, true);
         DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(rootObject);

@@ -173,7 +173,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Defaults to 100 after profiling with the jmh benchmarking tool, which showed tree scans consistently outperformed
      * linear scans at around that size of visible nodes in the tree, and that unsurprisingly, linear scans get
      * consistently worse the larger the number of visible nodes, on average.
-     * There are edge cases where this won't be true, such as a large and very flat or deep trees, but should not
+     * There are edge cases where this won't be true, such as a large and very flat or deep tree, but should not
      * be a lot worse than a linear scan of all the nodes in those cases.
      */
     protected final int linearScanThreshold = 100;
@@ -183,9 +183,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
 
     /**
-     * The TableColumnModel used by this TreeTableModel.
-     * The method {@link #createTableColumnModel()} creates the model, which is an abstract method which must be provided by the subclass of this model,
-     * as it defines the column structure of the table.
+     * The TableColumnModel used by this TreeTableModel, and which will be set on a bound JTable.
+     * The method {@link #createTableColumnModel()} creates the model, which is an abstract method which must be provided
+     * by the subclass of this model.  It defines the column structure of the table and any associated renderers or editors
+     * for the data type of each column.
      */
     protected TableColumnModel columnModel;
 
@@ -195,29 +196,31 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * operations.  The normal ArrayList handles this by individual inserts and removals, each of which shifts the
      * remaining elements in the array around, giving O(n * m) performance rather than O(n + m) for the BlockModifyArrayList.
      */
-    protected final BlockModifyArrayList<TreeNode> displayedNodes = new BlockModifyArrayList<>(); // has block operations which are more efficient than inserting or removing individually.
+    protected final BlockModifyArrayList<TreeNode> displayedNodes = new BlockModifyArrayList<>();
 
     /**
      * A map tracking which nodes are expanded, and how many visible children they have.
      * It's a WeakHashMap to allow nodes which are no longer referenced anywhere else to be garbage collected.
      * <p>
-     * An entry in the map of a node indicates that the node should be expanded. Remove a node to collapse it.
+     * An entry in the map of a node indicates that the node should be expanded. Remove a node from the map to collapse it.
      * The value of the node key is the number of currently visible children in the table for that node (including sub-children).
-     * This is automatically updated - when change is made to the number of children of a node the updated totals are propagated down the parents to the root.
+     * This is automatically updated - when a change is made to the number of children of a node the updated totals are
+     * propagated down the parents to the root, thus maintaining accurate child counts for each level of the tree.
      * <p>
-     * Note that the expanded node count value is only valid for *currently visible nodes*.  Nodes can be "expanded" but not actually visible.
+     * Note that the expanded node count value is only valid for *currently visible nodes*.
+     * Nodes can remain "expanded" but not actually visible.
      * This situation can happen when the expanded parent of an expanded child node is collapsed.
      * So the child and children of the collapsed parent are no longer visible.
-     * However, the child is still in an expanded state and still has an entry in the map.
-     * If the parent was ever re-expanded,  the child and children of the child would also be made visible again,
-     * but you could not rely on the actual count of the invisible node when re-building it as a visible node.
+     * However, the child itself is still in an expanded state and still has an entry in the map.
+     * If the parent was ever re-expanded, the child and children of the child would also be made visible again.
+     * Making visible again involves rebuilding the visible node structure and recalculating any counts as it builds.
      * <p>
      * This allows us to only worry about keeping visible node counts accurate and lets us ignore the invisible part
      * of the tree for most operations.  There isn't really a downside to this, since the count itself is of no
      * use when making nodes visible again.  All the children still need processing to determine which ones
      * should be shown (e.g. if filtered), which will give us the actual count in the process of making them visible.
      * The fact there is an entry, even if the count may be wrong, still tells us the only thing we need at that point,
-     *  which is that it is expanded and its children need to be made visible, if not filtered.
+     * which is that it should be expanded and its visible children now need to be rebuilt.
      */
     protected final Map<TreeNode, Integer> expandedNodeCounts = new WeakHashMap<>(); // If a TreeNode is removed and no longer used, it will be garbage collected.
 
@@ -232,7 +235,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * The old header renderer assigned to the JTable before we bound to it.
      * We hold on to it so we can replace it if we unbind the TreeTableModelm from the JTable.
      */
-    protected TableCellRenderer oldHeaderRenderer; // Holds on to the previous header renderer for a JTable.  When unbinding, the original renderer is replaced.
+    protected TableCellRenderer oldHeaderRenderer;
 
 
     /* *****************************************************************************************************************
@@ -241,7 +244,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Constructs a TreeTableModel given the root node, the number of columns required.
-     * The root node will be displayed.
+     * The root node will be displayed by default.
      *
      * @param rootNode The root node of the tree to display.
      * @throws IllegalArgumentException if the rootNode is null.
@@ -275,7 +278,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Returns the value of a node for a given column.
-     * Subclasses should implement this to map a column to a node user object values.
+     * Subclasses should implement this to map a column to node values.
      *
      * @param node The node to get a column value for.
      * @param column The column to get the value for.
@@ -284,14 +287,14 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     public abstract Object getColumnValue(TreeNode node, int column);
 
     /**
-     * Creates a TableColumnModel to reflect what columns the JTable should display for your subclass.
+     * Creates a TableColumnModel to define what columns the JTable should display for your subclass.
      * This could be all available columns, or you can just add a few and add or remove them dynamically using
-     * the model later.  The model used is cached and can be obtained by a call to getTableColumnModel().
+     * the model later.  The model used is cached and can be obtained by a call to {@link #getTableColumnModel()}.
      * <p>
      * If no special TreeCellRenderer is set for the tree column with model index zero, then a default tree
      * renderer will be added automatically after it is created.  The column with model index zero is always the
      * column that renders and handles the tree events.  You can move the display order of columns you create,
-     * but the tree column is always logically the one with model index zero.
+     * in the TableColumnModel, but the tree column is always the one with column model index zero.
      * <p>
      * You should generally include a TableColumn with model index zero, as that is the column that renders the
      * tree structure, and responds to clicks on expand or collapse handles.
@@ -442,18 +445,21 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Returns an icon for a given node, to be rendered against the node.
+     * The base implementation always returns null.
+     * Override this method to provide an icon for a tree node.
      *
      * @param node The node to get an icon for.
      * @return The icon for that node, or null if no icon is defined.
      */
     public Icon getNodeIcon(final TreeNode node) {
-        return null; // Default is no icons - override this method to return the icon for a node.
+        return null; // Default is no icons - override this method to return the icon for a tree node.
     }
 
     /**
-     * Sets the value of the column to the node.  Override this method if you want to be able to edit table cells.
-     * You must also specify what the table cell editors are for each TableColumn returned in getTableColumn(),
-     * or implement getColumnClass() to tell JTable what default cell editors to use for basic object types.
+     * Sets the value of the column to the node.
+     * The base implementation does nothing.
+     * Override this method if you want to be able to set the value of tree nodes by column.
+     * You must implement this method if you want cells to be editable in the JTable in-place.
      *
      * @param node The node to set a column value for.
      * @param column The column to set the value for.
@@ -464,11 +470,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     *  Return true if the cell at rowIndex, columnIndex is editable.
+     *  The base implementation always returns false.
      *  Override this method if you want to make table cells editable.
      *
-     *  @param  rowIndex  the row
-     *  @param  columnIndex the column
-     *  @return false
+     *  @param  rowIndex  the row of the cell to edit.
+     *  @param  columnIndex the column of the cell to edit.
+     *  @return true if the cell at rowIndex / columnIndex is editable. //TODO: what are row index = model or table row?
      */
     @Override
     public boolean isCellEditable(final int rowIndex, final int columnIndex) {
@@ -476,20 +484,28 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Returns the class of objects for each column.  This allows the JTable to automatically pick appropriate
-     * cell renderers for the types: Object, String, Double, Float, Number, Icon, IconImage and Date, and default
-     * cell editors for Object, String, Boolean, and Number, if you have not specified your own in the TableColumns.
+     * Returns the class of Object used in the data for each column, given the column index.
+     * This allows the JTable to pick cell renderers for the types:
+     * Object, String, Double, Float, Number, Icon, IconImage and Date,
+     * and default cell editors for Object, String, Boolean, and Number, if you have not specified your own in the TableColumns.
+     * <p>
+     * If you are specifying your own cell renderers or cell editors in the TableColumns in the TableColumnModel,
+     * then you do not need to override this method.
+     * If you want to use the default renderers or editors in JTable,
+     * you should override this method to provide the appropriate types from the list of basic types above.
+     * If none is specified or otherwise available, JTable will fall back on rendering the string value of the Object.
      *
      * @param column The column to return the object class for.
      * @return The class of object for values in the column.
      */
     @Override
     public Class<?> getColumnClass(final int column) {
-        return Object.class; // Defaults to object, if renderers and editors not specified, JTable will not display or edit correctly.
+        return Object.class;
     }
 
     /**
-     * Returns a Comparator for a given column index.  Override this method if you want to specify custom comparators.
+     * Returns a Comparator for a given column index.
+     * The base implementation always returns null - override this method if you want to specify custom comparators.
      * If null, then the model will compare node values directly if they implement Comparable,
      * or compare on the string value of the objects if they are not.
      *
@@ -508,6 +524,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
 
     /**
+     * Returns true if a grouping comparator is set on the model.
+     * A grouping comparator can be set regardless of whether the model is bound to an actual table or not.
+     * @return true true if a grouping comparator is set on the model.
+     */
+    public boolean isGrouping() {
+        return groupingComparator != null;
+    }
+
+    /**
+     * Returns the grouping comparator set on the model, or null if not set.
+     * The grouping comparator is used to group sibling nodes together by some criteria (e.g. all folders).
+     *
      * @return a grouping Comparator for a node, or null if not set.
      */
     public Comparator<TreeNode> getGroupingComparator() {
@@ -517,7 +545,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Sets the node comparator to use, or null if no node comparisons are required.
      * When a node comparator is set, nodes are always sorted first by that comparator, before any column sorts
-     * are applied.  This allows nodes to be grouped by some feature of the node.
+     * are applied.  This allows nodes to be grouped by some feature of the nodes.
      *
      * @param nodeComparator the node comparator to use, or null if no node comparisons are required.
      */
@@ -526,6 +554,16 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             this.groupingComparator = nodeComparator;
             fireTableDataChanged();
         }
+    }
+
+    //TODO: should we maintain sort keys rather than relying on a bound table?
+    //      If any sort keys are set, we can bind the table later and they should be used.
+    /**
+     * Returns true if sort keys are set on a bound table.  If no table is bound, no sort keys can be set.
+     * @return true if any sort keys are set on a bound table.
+     */
+    public boolean isSorting() {
+        return getSortKeys().size() > 0;
     }
 
     /**
@@ -601,9 +639,24 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return filterPredicate;
     }
 
-    /*
+    //TODO: should the root be filtered if it is hidden?
+    // This question is really about whether this method is saying a node IS being filtered out, or that it merely passes a filter condition.
+    //  Right now, this is a very low level method that answers a simple question on filtering.
+    //  Don't think it should have logic around the root node necessarily - check it's use and where root node filtering matters.
+    //  Look at code around building tree and see how root node is handled when filtering is active.
+
+    /**
+     * Returns true only if the node passed in is filtered out by an active filter, and false otherwise.
+     * If the node passed in is null, or there is no filter set, then it will return false.
+     * If there is a filter set, and the non-null node meets the filter conditions, then it returns true.
+     * <p>
+     * This method says nothing about whether a node would be visible in the tree.
+     * Even if it isn't filtered, it still might not be visible for other reasons.
+     * If you need to check visibility of a node in the tree (which takes account of filtering too),
+     * use {@link #isVisible(TreeNode)}.
+     *
      * @param node The node te test.
-     * @return true if the node passed in should be filtered out.
+     * @return true if the node passed in matches an active filter.
      */
     public boolean isFiltered(final TreeNode node) {
         return node != null && filterPredicate != null && filterPredicate.test(node);
@@ -620,7 +673,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* *****************************************************************************************************************
      *                                    TableModel interface methods.
      *
-     * Methods required for a JTable to interact with this class.
+     * Methods required for a JTable to interact with this the data in this model.
      */
 
     @Override
@@ -631,7 +684,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     @Override
     public int getColumnCount() {
         return getTableColumnModel().getColumnCount();
-    }
+    } //TODO: check it's OK to use column model for this (no infinite loops where model asks for count which asks model for count....).
+    // DefaultTableModel manages its own columns and doesn't use a TableColumnModel at all :o
 
     //TODO: test column setting / getting works when columns are re-arranged visually.
 
@@ -851,6 +905,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
+    /**
+     * @param node The node to check. //TODO: only used once - check it shouldn't be used elsewhere or there's a good reason this test only matters once.
+     * @return true if the node passed in is the root, and it's hidden.
+     */
     protected boolean isHiddenRoot(final TreeNode node) {
         return !showRoot && node == rootNode;
     }
@@ -1046,7 +1104,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* *****************************************************************************************************************
      *                                          Node and index getters
      *
-     * Methods to get nodes, selected nodes, converting between model and table indexes.
+     * Methods to get nodes, selected nodes, converting between model index and table rows.
      */
 
     /**
@@ -1057,10 +1115,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Gets the node at the model row.
+     * Gets the node at the model row, or null if the model index is out of bounds.
      *
      * @param modelIndex The row in the display model to get the node for.
-     * @return The node for the row in the (unsorted) model index.
+     * @return The node for the row in the (unsorted) model index, or null if out of bounds. //TODO: return null or throw indexoutofbounds?
      */
     public TreeNode getNodeAtModelIndex(final int modelIndex) {
         return modelIndex >= 0 && modelIndex < displayedNodes.size() ? displayedNodes.get(modelIndex) : null;
@@ -1131,7 +1189,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param node The node to get the model index for.
      * @return The index in the model of displayed nodes, or -1 if it isn't being displayed.
      */
-    public int getModelIndexLinearScan(final TreeNode node) {
+    protected int getModelIndexLinearScan(final TreeNode node) {
         return displayedNodes.indexOf(node);
     }
 
@@ -1143,53 +1201,84 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * <p>
      * This is quite fast since we already track how many visible child nodes (including all sub nodes) each expanded
      * folder contains.  So we can just walk the children of each ancestor adding up how many nodes will actually appear,
-     * and don't have to actually scan most of them.
-     * This will be a considerably smaller set of nodes than looking in all of them.
-     * <p>
-     * There are almost certainly faster ways to obtain the model index, but we are re-using existing data
-     * structures in this method to obtain a significant speed up.
+     * and don't have to actually scan most of them. This will be a considerably smaller set of nodes than looking in all of them.
      *
      * @param node The node to get the model index for.
      * @return The index in the model of displayed nodes, or -1 if it isn't being displayed.
      */
-    public int getModelIndexTreeScan(final TreeNode node) {
-        // Definitely not in tree if filtered.
+    protected int getModelIndexTreeScan(final TreeNode node) {
+        // Definitely not in tree if the node we're looking for is filtered.
         if (isFiltered(node)) {
             return NOT_LOCATED;
         }
-        // If it's the root node, only visible if showing root.
-        if (node == rootNode) { //TODO: is there a more elegant way of dealing with root than an edge case test?
+
+        // If it's the root node and not filtered (due to above test), it's only visible if showing root.
+        if (node == rootNode) {
             return showRoot? 0 : NOT_LOCATED;
         }
 
-        //TODO: take account of filtered ancestors when looking.
-
-        // Work up the path from the first child of the root through parents up to the node we want to get the index for.
-        // building the cumulative model index as the sum of all children and visible children that precede it in the path.
-        final List<TreeNode> parentPath = buildPath(node);
+        // Walk up the path from the root up to the node we want to calculate the index for,
+        // calculating the model index as the sum of all visible children that precede it in the path.
+        final List<TreeNode> parentPath = buildPath(node); // last item is the root, first is the node to find.
         final TreeNode ancestorRoot = parentPath.get(parentPath.size() - 1);
-        if (ancestorRoot == rootNode && !isFiltered(rootNode)) { //TODO: think more about filtering the root node when it's both showing and not showing...
-            int modelIndexCount = showRoot ? 0 : -1;
-            for (int pathIndex = parentPath.size() - 2; pathIndex >= 0; pathIndex--) {
-                // As long as the parent node is expanded (so children will be visible), look for the ancestor:
-                final TreeNode parentNode = parentPath.get(pathIndex + 1);
+        CALCULATE_INDEX:
+        if (ancestorRoot == rootNode) { // If we're in the same tree (starts at the same root):
+
+            //TODO: think more about filtering the root node when it's both showing and not showing...
+
+            /*
+             * Set the starting model index for the count of nodes.
+             * If the root is showing, and is unfiltered, it has index zero in the model, so adding the first child would be at 1.  Start count at 0.
+             * If the root isn't showing or is filtered, start at -1, so adding a single child to it would give index of zero.
+             */
+            int modelIndex = showRoot && !isFiltered(rootNode) ? 0 : -1;
+
+            // For each parent/child pair in the path starting from root and working upwards towards the node we want the model index for,
+            // add up all the visible child nodes that precede our path in the tree.
+            // The path is guaranteed to have at least two entries at this point -  the node itself and root,
+            // as we know it isn't the root node due to the first tests in this method.
+            // Start the loop at the second to last item in the path (child of root), since we need the parent of the child to find
+            // as well (we work in parent/child pairs), which will be the last item in the path (root).  Root has no parent, so we can't start there.
+            final int childOfRootIndex = parentPath.size() - 2;
+            for (int pathIndex = childOfRootIndex; pathIndex >= 0; pathIndex--) {
+                final TreeNode parentNode = parentPath.get(pathIndex + 1); // Get the parent of the one we will find.  This is root initially.
+
+                // As long as the parent node is expanded and unfiltered (so children will be visible)
                 if (isExpanded(parentNode) && !isFiltered(parentNode)) {
-                    final TreeNode ancestorNode = parentPath.get(pathIndex);
-                    final int precedingVisibleNodes = addUpVisiblePrecedingChildren(parentNode, ancestorNode);
-                    if (precedingVisibleNodes < 0) {
-                        return NOT_LOCATED;
+                    final TreeNode childToFind = parentPath.get(pathIndex);
+
+                    // Add up all the visible children of that parent which precede the child we want to find.
+                    final int visibleChildren = addUpVisibleChildren(parentNode, childToFind);
+                    if (visibleChildren == NOT_LOCATED) {
+                        /*
+                         *If we do not end up finding the child node in the parent in the tree, this means that there is
+                        * is either a bug in the tree nodes (it has parents down to root, but one of the parents
+                        * doesn't recognise one of them as a child), or a bug in this algorithm.
+                        * //TODO: should we throw an error?  return not found?
+                         */
+                        break CALCULATE_INDEX; // stop looking and fall through to return NOT_LOCATED.
                     }
-                    modelIndexCount += precedingVisibleNodes;
+
+                    // Increase the calculated model index by the number of nodes above us in the path to that point.
+                    modelIndex += visibleChildren;
                 } else {
-                    return NOT_LOCATED;
+                    break CALCULATE_INDEX; // stop looking and fall through to return NOT_LOCATED.
                 }
             }
-            return modelIndexCount;
+            return modelIndex;
         }
         return NOT_LOCATED;
     }
 
-    protected int addUpVisiblePrecedingChildren(TreeNode parentNode, TreeNode nodeToFind) {
+    /**
+     * Returns the number of visible nodes in the child of a parent that precede a child we are trying to find,
+     * or -1 if the child does not exist in that parent.
+     *
+     * @param parentNode The parent node to scan.
+     * @param nodeToFind The child node to find in the parent.
+     * @return the number of visible child nodes up to the child to find, or -1 if the child does not exist.
+     */
+    protected int addUpVisibleChildren(TreeNode parentNode, TreeNode nodeToFind) {
         boolean located = false;
         int visibleNodeCount = 0;
         for (int child = 0; child < parentNode.getChildCount(); child++) {
@@ -1868,7 +1957,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public boolean isVisible(final TreeNode node) {
         if (node == rootNode) {
-            return showRoot && !isFiltered(node); // if not showing the root, the root node is not filtered, if showing it can be filtered.
+            return showRoot && !isFiltered(node); // root only visible if showing and not filtered.
         }
         return node != null && !isFiltered(node) && parentsAreVisibleAndPartOfTree(node);
     }
@@ -2158,8 +2247,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 ", size = " + displayedNodes.size() +
                 ", table = " + table +
                 ", filtering = " + isFiltering() +
-                ", sorting = " + (getSortKeys().size() > 0) +  //TODO: make isSorting() and isGrouping() convenience methods?
-                ", grouping = " + (getGroupingComparator() != null) + ')';
+                ", sorting = " + isSorting() +
+                ", grouping = " + isGrouping() + ')';
     }
 
     /* *****************************************************************************************************************
