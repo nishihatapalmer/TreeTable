@@ -3,6 +3,7 @@ package net.byteseek.swing.treetable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import javax.swing.ActionMap;
@@ -728,6 +729,41 @@ class TreeTableModelTest {
         assertTrue(tableOrderMatches(allNodesInVisualOrder));
     }
 
+    @Test
+    public void testGroupingWorks() {
+        for (int trial = 0; trial < 10; trial++) {
+            createRandomTree(trial, true);
+            model.expandTree();
+            model.bindTable(table);
+            model.setGroupingComparator(TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING);
+            testGrouping(rootNode, TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING);
+
+            model.setGroupingComparator(TreeUtils.GROUP_BY_NUM_CHILDREN);
+            testGrouping(rootNode, TreeUtils.GROUP_BY_NUM_CHILDREN);
+        }
+    }
+
+    private void testGrouping(TreeNode parentNode, Comparator<TreeNode> nodeComparator) {
+        if (parentNode.getChildCount() > 0) {
+
+            // get children in same order as should be displayed in tree when grouped.
+            List<TreeNode> children = TreeUtils.getChildren(parentNode);
+            children.sort(nodeComparator);
+
+            // For each child, validate that the table row is greater than the preceding one:
+            int lastIndex = -1;
+            for (TreeNode child : children) {
+                final int modelIndex = model.getModelIndexForTreeNode(child);
+                final int tableRow = table.convertRowIndexToView(modelIndex);
+                assertTrue(tableRow > lastIndex);
+                lastIndex = tableRow;
+
+                // Test the grouping of the child's children:
+                testGrouping(child, nodeComparator);
+            }
+        }
+    }
+
     private void createRandomTree(int randTree, boolean showRoot) {
         rootNode = buildRandomTree(randTree);
         model = new SimpleTreeTableModel(rootNode, showRoot);
@@ -801,14 +837,14 @@ class TreeTableModelTest {
 
         model.setSortKeys(sortKey1);
         assertTrue(model.isSorting());
-        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder));
+        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(1, sortKeys.size());
         assertEquals(sortKey1, sortKeys.get(0));
 
         model.setSortKeys(sortKey2, sortKey1);
         assertTrue(model.isSorting());
-        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder));
+        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(2, sortKeys.size());
         assertEquals(sortKey2, sortKeys.get(0));
@@ -816,7 +852,7 @@ class TreeTableModelTest {
 
         model.setSortKeys(sortKeyList);
         assertTrue(model.isSorting());
-        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder));
+        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(sortKeyList.size(), sortKeys.size());
         for (int i = 0; i < sortKeyList.size(); i++) {
@@ -829,14 +865,16 @@ class TreeTableModelTest {
         assertTrue(sortKeys.isEmpty());
     }
 
+    //TODO: test sorting actually sorts correctly.
+
     @Test
     public void testGetSetFilteringNoTable() {
-
+        //TODO:
     }
 
     @Test
     public void testGetSetFilteringWithTable() {
-
+        //TODO:
     }
 
 
