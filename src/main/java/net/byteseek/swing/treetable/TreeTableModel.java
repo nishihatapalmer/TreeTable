@@ -332,6 +332,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
      * react to mouse and keyboard events.
+     * <p><b>Default Sort Keys</b><p>
+     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
+     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
+     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
+     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
+     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
      *
      * @param table The JTable to bind to this TreeTableModel.
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
@@ -343,6 +349,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
      * react to mouse and keyboard events.
+     * <p><b>Default Sort Keys</b><p>
+     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
+     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
+     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
+     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
+     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
      *
      * @param table The JTable to bind to this TreeTableModel.
      * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
@@ -376,10 +388,16 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
      * react to mouse and keyboard events.
+     * <p><b>Default Sort Keys</b><p>
+     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
+     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
+     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
+     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
+     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
      *
      * @param table The JTable to bind to this TreeTableModel.
-     * @param defaultSortKey The default sort key the table will have if no other sort defined.
      * @param headerRenderer The renderer to use to draw the table header.
+     * @param defaultSortKey The default sort key the table will have if no other sort defined.
      */
     public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final RowSorter.SortKey... defaultSortKey) {
         bindTable(table, new TreeTableRowSorter(this, Arrays.asList(defaultSortKey)), headerRenderer);
@@ -388,6 +406,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
      * react to mouse and keyboard events.
+     * <p><b>Default Sort Keys</b><p>
+     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
+     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
+     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
+     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
+     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
      *
      * @param table The JTable to bind to this TreeTableModel.
      * @param headerRenderer The renderer to use to draw the table header.
@@ -652,31 +676,19 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Methods which allow filtering nodes from the tree.
      */
 
-    /**
-     * Sets a filter predicate on the model.  Any nodes which meet the predicate will be filtered out.
-     *
-     * @param filterPredicate The predicate used to filter a node.  If the test returns true, the node is filtered.
-     */
-    public void setNodeFilter(final Predicate<TreeNode> filterPredicate) {
-        if (this.filterPredicate != filterPredicate) {
-            this.filterPredicate = filterPredicate;
-            refreshTree(false);
-            fireTableDataChanged();
-        }
-    }
-
-    /**
-     * @return The current filter assigned to the model, or null if no filter is set.
-     */
-    public Predicate<TreeNode> getNodeFilter() {
-        return filterPredicate;
-    }
 
     //TODO: should the root be filtered if it is hidden?
     // This question is really about whether this method is saying a node IS being filtered out, or that it merely passes a filter condition.
     //  Right now, this is a very low level method that answers a simple question on filtering.
     //  Don't think it should have logic around the root node necessarily - check it's use and where root node filtering matters.
     //  Look at code around building tree and see how root node is handled when filtering is active.
+
+    /**
+     * @return true if a filter predicate is set.
+     */
+    public boolean isFiltering() {
+        return filterPredicate != null;
+    }
 
     /**
      * Returns true only if the node passed in is filtered out by an active filter, and false otherwise.
@@ -696,10 +708,23 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * @return true if a filter predicate is set.
+     * Sets a filter predicate on the model.  Any nodes which meet the predicate will be filtered out.
+     *
+     * @param filterPredicate The predicate used to filter a node.  If the test returns true, the node is filtered.
      */
-    public boolean isFiltering() {
-        return filterPredicate != null;
+    public void setNodeFilter(final Predicate<TreeNode> filterPredicate) {
+        if (this.filterPredicate != filterPredicate) {
+            this.filterPredicate = filterPredicate;
+            refreshTree(false);
+            fireTableDataChanged();
+        }
+    }
+
+    /**
+     * @return The current filter assigned to the model, or null if no filter is set.
+     */
+    public Predicate<TreeNode> getNodeFilter() {
+        return filterPredicate;
     }
 
 
