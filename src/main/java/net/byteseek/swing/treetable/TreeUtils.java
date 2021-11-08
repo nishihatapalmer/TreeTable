@@ -94,6 +94,8 @@ public final class TreeUtils {
     }
 
     /**
+     * Builds a list of the children of a parent node.
+     *
      * @param parentNode The parent tree node to get the list of children for.
      * @return A list of the children of the parent node.
      */
@@ -101,6 +103,24 @@ public final class TreeUtils {
         final List<TreeNode> children = new ArrayList<>();
         for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
             children.add(parentNode.getChildAt(childIndex));
+        }
+        return children;
+    }
+
+    /**
+     * Builds a list of the children of a parent node that passes a child predicate filter.
+     *
+     * @param parentNode The parent tree node to get the list of children for.
+     * @param childPredicate The predicate which a child must pass to be included in the list.
+     * @return A list of the children of the parent node.
+     */
+    public static List<TreeNode> getChildren(final TreeNode parentNode, final Predicate<TreeNode> childPredicate) {
+        final List<TreeNode> children = new ArrayList<>();
+        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+            final TreeNode childNode = parentNode.getChildAt(childIndex);
+            if (childPredicate.test(childNode)) {
+                children.add(childNode);
+            }
         }
         return children;
     }
@@ -148,6 +168,10 @@ public final class TreeUtils {
             walk(node.getChildAt(childIndex), method, predicate);
         }
     }
+
+    //TODO: do we want a walk that ceases processing childnodes when it fails the predicate.
+
+    //TODO: do we want a walk with a depth limit?
 
     /**
      * A node comparator that groups nodes by whether they allow children or not.

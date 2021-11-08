@@ -13,13 +13,12 @@ import javax.swing.KeyStroke;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableRowSorter;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreeNode;
+import static net.byteseek.swing.treetable.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,7 @@ class TreeTableModelTest {
     private RowSorter.SortKey sortKey3;
     List<RowSorter.SortKey> sortKeyList;
 
-    private SimpleTreeTableModel model;
+    private TestTreeTableModel model;
     private JTable table;
 
     @BeforeEach
@@ -63,7 +62,7 @@ class TreeTableModelTest {
         sortKeyList.add(sortKey2);
         sortKeyList.add(sortKey3);
 
-        model = new SimpleTreeTableModel(rootNode, true);
+        model = new TestTreeTableModel(rootNode, true);
         table = new JTable();
     }
 
@@ -78,32 +77,32 @@ class TreeTableModelTest {
     @Test
     public void testNullRootNodeConstructorException() {
         assertThrows(IllegalArgumentException.class,
-                ()-> model = new SimpleTreeTableModel(null));
+                ()-> model = new TestTreeTableModel(null));
 
         assertThrows(IllegalArgumentException.class,
-                ()-> model = new SimpleTreeTableModel(null, true));
+                ()-> model = new TestTreeTableModel(null, true));
 
         assertThrows(IllegalArgumentException.class,
-                ()-> model = new SimpleTreeTableModel(null, false));
+                ()-> model = new TestTreeTableModel(null, false));
     }
 
     @Test
     public void testRootVisibleConstructor() {
-        model = new SimpleTreeTableModel(rootNode, true);
+        model = new TestTreeTableModel(rootNode, true);
         assertEquals(rootNode, model.getRoot());
         assertTrue(model.isVisible(rootNode));
     }
 
     @Test
     public void testRootVisibleDefaultConstructor() {
-        model = new SimpleTreeTableModel(rootNode);
+        model = new TestTreeTableModel(rootNode);
         assertEquals(rootNode, model.getRoot());
         assertTrue(model.isVisible(rootNode));
     }
 
     @Test
     public void testRootNotVisibleConstructor() {
-        model = new SimpleTreeTableModel(rootNode, false);
+        model = new TestTreeTableModel(rootNode, false);
         assertEquals(rootNode, model.getRoot());
         assertFalse(model.isVisible(rootNode));
     }
@@ -336,17 +335,17 @@ class TreeTableModelTest {
      */
     @Test
     public void testStaticTreeBuild() {
-        TestObject rootObject = new TestObject("root", 0, true);
-        TestObject child1 = new TestObject("child1", 1, false);
-        TestObject child2 = new TestObject("child2", 2, true);
+        TestTreeTableModel.TestObject rootObject = new TestTreeTableModel.TestObject("root", 0, true);
+        TestTreeTableModel.TestObject child1 = new TestTreeTableModel.TestObject("child1", 1, false);
+        TestTreeTableModel.TestObject child2 = new TestTreeTableModel.TestObject("child2", 2, true);
 
         //TODO: add sub in.
 
-        TestObject child3 = new TestObject("child3", 3, false);
+        TestTreeTableModel.TestObject child3 = new TestTreeTableModel.TestObject("child3", 3, false);
         rootObject.getChildren().add(child1);
         rootObject.getChildren().add(child2);
         rootObject.getChildren().add(child3);
-        DefaultMutableTreeNode node = TreeUtils.buildTree(rootObject, parent -> ((TestObject) parent).getChildren());
+        DefaultMutableTreeNode node = TreeUtils.buildTree(rootObject, parent -> ((TestTreeTableModel.TestObject) parent).getChildren());
         assertEquals(rootObject, node.getUserObject());
         assertEquals(child1, ((DefaultMutableTreeNode) node.getChildAt(0)).getUserObject());
         assertEquals(child2, ((DefaultMutableTreeNode) node.getChildAt(1)).getUserObject());
@@ -512,10 +511,10 @@ class TreeTableModelTest {
 
     @Test
     public void testGetColumnCount() {
-        SimpleTreeTableModel model = new SimpleTreeTableModel(rootNode, true);
+        TestTreeTableModel model = new TestTreeTableModel(rootNode, true);
         assertEquals(3, model.getColumnCount());
 
-        model = new SimpleTreeTableModel(rootNode, true, 10);
+        model = new TestTreeTableModel(rootNode, true, 10);
         assertEquals(10, model.getColumnCount());
     }
 
@@ -537,7 +536,7 @@ class TreeTableModelTest {
          * 7  child2               child2               child2                          102      true
          */
 
-        model = new SimpleTreeTableModel(rootNode, showRoot);
+        model = new TestTreeTableModel(rootNode, showRoot);
         model.bindTable(table);
         int root = showRoot? 1 : 0;
         if (showRoot) {
@@ -621,7 +620,7 @@ class TreeTableModelTest {
          * 7  child2               child2               child2                          102      true
          */
 
-        model = new SimpleTreeTableModel(rootNode, showRoot);
+        model = new TestTreeTableModel(rootNode, showRoot);
         model.bindTable(table);
         int root = showRoot? 1 : 0;
         if (showRoot) {
@@ -736,17 +735,17 @@ class TreeTableModelTest {
             model.expandTree();
             model.bindTable(table);
             model.setGroupingComparator(TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING);
-            testGrouping(rootNode, TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING);
+            testSorting(rootNode, TreeUtils.GROUP_BY_NUM_CHILDREN_DESCENDING);
 
             model.setGroupingComparator(TreeUtils.GROUP_BY_NUM_CHILDREN);
-            testGrouping(rootNode, TreeUtils.GROUP_BY_NUM_CHILDREN);
+            testSorting(rootNode, TreeUtils.GROUP_BY_NUM_CHILDREN);
         }
     }
 
-    private void testGrouping(TreeNode parentNode, Comparator<TreeNode> nodeComparator) {
+    private void testSorting(TreeNode parentNode, Comparator<TreeNode> nodeComparator) {
         if (parentNode.getChildCount() > 0) {
 
-            // get children in same order as should be displayed in tree when grouped.
+            // get children in same order as should be displayed in tree when sorted.
             List<TreeNode> children = TreeUtils.getChildren(parentNode);
             children.sort(nodeComparator);
 
@@ -755,18 +754,22 @@ class TreeTableModelTest {
             for (TreeNode child : children) {
                 final int modelIndex = model.getModelIndexForTreeNode(child);
                 final int tableRow = table.convertRowIndexToView(modelIndex);
+                if (tableRow <= lastIndex) {
+                    System.out.println("oops");
+                }
                 assertTrue(tableRow > lastIndex);
                 lastIndex = tableRow;
 
-                // Test the grouping of the child's children:
-                testGrouping(child, nodeComparator);
+                // Test the sorting of the child's children:
+                testSorting(child, nodeComparator);
             }
         }
     }
 
     private void createRandomTree(int randTree, boolean showRoot) {
+        model.unbindTable();
         rootNode = buildRandomTree(randTree);
-        model = new SimpleTreeTableModel(rootNode, showRoot);
+        model = new TestTreeTableModel(rootNode, showRoot);
     }
 
     private boolean tableOrderMatches(List<TreeNode> nodeList) {
@@ -815,7 +818,7 @@ class TreeTableModelTest {
         model.expandTree();
 
         // Set a sort key on the row sorter directly, bypassing the model interface (so the model cannot cache the value).
-        table.getRowSorter().setSortKeys(Arrays.asList(new RowSorter.SortKey[] {sortKey3, sortKey2}));
+        table.getRowSorter().setSortKeys(Arrays.asList(sortKey3, sortKey2));
 
         // Unbind the table.
         model.unbindTable();
@@ -865,7 +868,96 @@ class TreeTableModelTest {
         assertTrue(sortKeys.isEmpty());
     }
 
-    //TODO: test sorting actually sorts correctly.
+    @Test
+    public void testSortingWorks() {
+        for (int trial = 0; trial < 10; trial++) {
+            createRandomTree(trial, true);
+            model.expandTree();
+            model.bindTable(table);
+
+            model.setSortKeys(sortKey1);
+            Comparator<TreeNode> comparator = new SortComparator(sortKey1);
+            testSorting(rootNode, comparator);
+
+            model.setSortKeys(sortKey3, sortKey2);
+            comparator = new SortComparator(sortKey3, sortKey2);
+            testSorting(rootNode, comparator);
+
+            model.setSortKeys(sortKeyList);
+            comparator = new SortComparator(sortKeyList);
+            testSorting(rootNode, comparator);
+        }
+    }
+
+    private class SortComparator implements Comparator<TreeNode> {
+
+        private static final int LESS_THAN = -1;
+        private static final int EQUAL_VALUE = 0;
+        private static final int GREATER_THAN = 0;
+
+        private List<RowSorter.SortKey> sortKeys;
+
+        public SortComparator(RowSorter.SortKey... keys) {
+            this(Arrays.asList(keys));
+        }
+
+        public SortComparator(List<RowSorter.SortKey> keys) {
+            this.sortKeys = keys;
+        }
+
+        @Override
+        public int compare(TreeNode o1, TreeNode o2) {
+            // null object comparisons giving a total order.
+            if (o1 == null) {
+                return o2 == null ? EQUAL_VALUE : LESS_THAN;
+            } else if (o2 == null) {
+                return GREATER_THAN;
+            }
+
+            // compare values on sort keys:
+            for (RowSorter.SortKey sortKey : sortKeys) {
+                final SortOrder order = sortKey.getSortOrder();
+                // If someone leaves in an unsorted sort key (they shouldn't really), we return unsorted order.
+                if (order == SortOrder.UNSORTED) {
+                    return getModelIndexOrder(o1, o2);
+                }
+                // Compare on the values if we have a sort direction:
+                final int comparison = compareValues(o1, o2, sortKey);
+                if (comparison != EQUAL_VALUE) {
+                    return sortKey.getSortOrder() == SortOrder.ASCENDING ? comparison : -comparison;
+                }
+            }
+
+            // fall back to model order if sort keys cannot decide.
+            return getModelIndexOrder(o1, o2);
+        }
+
+        private int compareValues(TreeNode o1, TreeNode o2, RowSorter.SortKey sortKey) {
+            final int sortedColumn = sortKey.getColumn();
+            final Object value1 = model.getColumnValue(o1, sortedColumn);
+            final Object value2 = model.getColumnValue(o2, sortedColumn);
+
+            // Use a custom column comparator if the model provides one.
+            Comparator columnComparator = model.getColumnComparator(sortedColumn);
+            if (columnComparator != null) {
+                return columnComparator.compare(value1, value2);
+            }
+
+            // See if the values are directly comparable (implement Comparable and are the same class).
+            if (value1 instanceof Comparable && value1.getClass() == value2.getClass()) {
+                final Comparable compare1 = (Comparable) value1;
+                final Comparable compare2 = (Comparable) value2;
+                return compare1.compareTo(compare2);
+            }
+
+            // Fall back on string value comparisons if they don't implement Comparable.
+            return value1.toString().compareTo(value2.toString());
+        }
+
+        private int getModelIndexOrder(TreeNode o1, TreeNode o2) {
+            return model.getModelIndexForTreeNode(o1) - model.getModelIndexForTreeNode(o2);
+        }
+    }
 
     @Test
     public void testGetSetFilteringNoTable() {
@@ -917,14 +1009,14 @@ class TreeTableModelTest {
             TreeNode rootNode = buildRandomTree(trial);
 
             // Test not showing root:
-            TreeTableModel testModel = new SimpleTreeTableModel(rootNode, false);
+            TreeTableModel testModel = new TestTreeTableModel(rootNode, false);
 
             testModelIndexAlgorithmsAreEquivalent(testModel);
 
             //TODO: test filtered tree:
 
             // Test showing root:
-            testModel = new SimpleTreeTableModel(rootNode, true);
+            testModel = new TestTreeTableModel(rootNode, true);
             testModelIndexAlgorithmsAreEquivalent(testModel);
 
             //TODO: test filtered tree:
@@ -984,7 +1076,7 @@ class TreeTableModelTest {
     @Test
     public void testShowRoot() {
         // Start with not showing root
-        model = new SimpleTreeTableModel(rootNode, false);
+        model = new TestTreeTableModel(rootNode, false);
         assertFalse(model.isVisible(rootNode));
         assertFalse(model.getShowRoot());
 
@@ -1006,13 +1098,13 @@ class TreeTableModelTest {
         assertFalse(model.isVisible(childNode)); // root node not expanded.
 
         // Visible if root is not showing, as it is expanded automatically if not showing.
-        model = new SimpleTreeTableModel(rootNode, false);
+        model = new TestTreeTableModel(rootNode, false);
         assertTrue(model.isVisible(childNode));
     }
 
     @Test
     public void testRemovedNodeNotVisibleRootShowing() {
-        TreeTableModel model = new SimpleTreeTableModel(rootNode, true);
+        TreeTableModel model = new TestTreeTableModel(rootNode, true);
 
         assertFalse(model.isVisible(child0));
         assertFalse(model.isVisible(child1));
@@ -1031,7 +1123,7 @@ class TreeTableModelTest {
 
     @Test
     public void testRemovedNodeNotVisibleRootHidden() {
-        TreeTableModel model = new SimpleTreeTableModel(rootNode, false);
+        TreeTableModel model = new TestTreeTableModel(rootNode, false);
 
         assertTrue(model.isVisible(child0));
         assertTrue(model.isVisible(child1));
@@ -1050,7 +1142,7 @@ class TreeTableModelTest {
 
     @Test
     public void testParentNotExpandedChildNotVisible() {
-        model = new SimpleTreeTableModel(rootNode, true);
+        model = new TestTreeTableModel(rootNode, true);
         assertTrue(model.isVisible(rootNode));
         assertFalse(model.isVisible(child1));
         assertFalse(model.isVisible(subchild3));
@@ -1061,7 +1153,7 @@ class TreeTableModelTest {
 
     @Test
     public void testParentsExpandedChildVisible() {
-        model = new SimpleTreeTableModel(rootNode, false);
+        model = new TestTreeTableModel(rootNode, false);
         assertFalse(model.isVisible(rootNode));
         assertTrue(model.isVisible(child1));
         assertFalse(model.isVisible(subchild2));
@@ -1082,7 +1174,7 @@ class TreeTableModelTest {
      */
     @Test
     public void testCollapseExpandHiddenRoot() {
-        model = new SimpleTreeTableModel(rootNode, false);
+        model = new TestTreeTableModel(rootNode, false);
         assertTrue(model.isExpanded(rootNode)); // hidden roots are expanded by default.
 
         model.collapseNode(rootNode);
@@ -1095,7 +1187,7 @@ class TreeTableModelTest {
 
     @Test
     public void testExpandCollapseShowingRoot() {
-        model = new SimpleTreeTableModel(rootNode, true);
+        model = new TestTreeTableModel(rootNode, true);
         assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
 
         model.expandNode(rootNode);
@@ -1110,162 +1202,6 @@ class TreeTableModelTest {
      *                                 Test utility methods and classes
      */
 
-    private DefaultMutableTreeNode buildRandomTree(int trial) {
-        Random rand = new Random(trial);
-        TestObject rootObject = new TestObject("root", 0, true);
-        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(rootObject);
-        List<DefaultMutableTreeNode> allNodes = addChildren(rootNode, rand.nextInt(50) + 5, "rootchild", 0);
-        int numSubFolders = rand.nextInt(400) + 20;
-        for (int newFolder = 0; newFolder < numSubFolders; newFolder++) {
-            DefaultMutableTreeNode randomNode = allNodes.get(rand.nextInt(allNodes.size()));
-            allNodes.addAll(addChildren(randomNode, rand.nextInt(10) + 1, "sub", rand.nextInt(10000000)));
-        }
-        return rootNode;
-    }
 
-    private void expandAndCollapseRandomNodes(TreeTableModel model, int trial, int numToExpand, int percentToCollapse) {
-        Random rand = new Random(trial);
-
-        List<TreeNode> expanded = new ArrayList<>(model.getExpandedNodes());
-        int numToCollapse = expanded.size() / 10;
-        for (int i = 0; i < numToCollapse; i++) {
-            int index = rand.nextInt(expanded.size());
-            TreeNode randomNode = expanded.get(index);
-            model.collapseNode(randomNode);
-            expanded.remove(index);
-        }
-
-        // If we've managed to not expand the root, we won't have much to look for.
-        if (model.getRowCount() == 0) {
-            model.expandNode(model.getRoot());
-        }
-
-        for (int i = 0; i < numToExpand; i++) {
-            TreeNode randomNode = model.getNodeAtModelIndex(rand.nextInt(model.getRowCount()));
-            model.expandNode(randomNode);
-        }
-    }
-
-    protected void createChildren(MutableTreeNode parentNode, Object... childValues) {
-        for (int i = 0; i < childValues.length; i++) {
-            MutableTreeNode childNodes = new DefaultMutableTreeNode(childValues[i]);
-            parentNode.insert(childNodes, i);
-        }
-    }
-
-    protected MutableTreeNode createTree() {
-        TestObject rootObject = new TestObject("root", 0, true);
-        DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode(rootObject);
-        addChildren(rootNode, 3, "child", 100);
-        DefaultMutableTreeNode childNode = (DefaultMutableTreeNode) rootNode.getChildAt(1);
-        addChildren(childNode, 4, "subchildren", 1000);
-        return rootNode;
-    }
-
-    protected List<DefaultMutableTreeNode> addChildren(DefaultMutableTreeNode parent, int numChildren, String description, int sizeStart) {
-        TestObject parentObject = (TestObject) parent.getUserObject();
-        parent.setAllowsChildren(true);
-        List<DefaultMutableTreeNode> results = new ArrayList<>();
-        for (int i = 0; i < numChildren; i++) {
-            TestObject object = new TestObject(description + i, sizeStart + i, (sizeStart + i) % 2 == 0);
-            parentObject.children.add(object);
-            DefaultMutableTreeNode childNodes = new DefaultMutableTreeNode(object, false);
-            parent.insert(childNodes, i);
-            results.add(childNodes);
-        }
-        return results;
-    }
-
-    protected static class TestObject {
-        public String description;
-        public long size;
-        public boolean enabled;
-        public List<TestObject> children = new ArrayList<>();
-
-        public TestObject(String description, long size, boolean enabled) {
-            this.description = description;
-            this.size = size;
-            this.enabled = enabled;
-        }
-
-        public List<TestObject> getChildren() {
-            return children;
-        }
-
-        public String toString() {
-            return "TestObject(" + description + "," + size + "," + enabled + ')';
-        }
-    }
-
-    protected static class SimpleTreeTableModel extends TreeTableModel {
-
-        private int columnCount = 3;
-
-        public SimpleTreeTableModel(TreeNode node) {
-            super(node);
-        }
-
-        public SimpleTreeTableModel(TreeNode node, boolean showRoot) {
-            super(node, showRoot);
-        }
-
-        public SimpleTreeTableModel(TreeNode node, boolean showRoot, int columnCount) {
-            super(node, showRoot);
-            this.columnCount = columnCount;
-        }
-
-        public void setColumnCount(int newCount) {
-            columnCount = newCount;
-        }
-
-        @Override
-        public Object getColumnValue(TreeNode node, int column) {
-            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) node;
-            TestObject test = (TestObject) treeNode.getUserObject();
-            switch (column) {
-                case 0: return test.description;
-                case 1: return test.size;
-                case 2: return test.enabled;
-                default: return 0;
-            }
-        }
-
-        @Override
-        public TableColumnModel createTableColumnModel() {
-            TableColumnModel columns = new DefaultTableColumnModel();
-            for (int columnNumber = 0; columnNumber < columnCount; columnNumber++) {
-                columns.addColumn(createColumn(columnNumber, "header" + columnNumber ));
-            }
-            return columns;
-        }
-
-        @Override
-        public void setColumnValue(final TreeNode node, int column, Object aValue) {
-            DefaultMutableTreeNode treeNode = (DefaultMutableTreeNode) node;
-            TestObject test = (TestObject) treeNode.getUserObject();
-            switch (column) {
-                case 0: {
-                    test.description = (String) aValue;
-                    break;
-                }
-                case 1: {
-                    test.size = (Long) aValue;
-                    break;
-                }
-                case 2: {
-                    test.enabled = (Boolean) aValue;
-                    break;
-                }
-            }
-        }
-
-        public void printTree() {
-            for (int row = 0; row < getRowCount(); row++) {
-                System.out.println(row + ": " + getNodeAtTableRow(row));
-            }
-            System.out.println();
-        }
-
-    }
 
 }
