@@ -552,11 +552,11 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         final Object value2 = localModel.getColumnValue(secondNode, column);
 
         // Compare null values consistently to give a total order to the sort.
-        // Two nulls are 0, then either 1 or -1 if one of them is null.
+        // Work on the "principle" that a null is "smaller" than something which is not null, and two nulls are equal.
         if (value1 == null) {
-            return value2 == null ? 0 : 1;
+            return value2 == null ? 0 : -1;
         } else if (value2 == null) {
-            return -1;
+            return 1;
         }
 
         // Compare values using the best comparator we can find for them:
