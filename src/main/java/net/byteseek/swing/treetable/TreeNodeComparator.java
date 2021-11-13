@@ -160,14 +160,4 @@ public class TreeNodeComparator implements Comparator<TreeNode> {
         return result;
     }
 
-    /**
-     * @param node1 The first node
-     * @param node2 The second node.
-     * @return the model index order of the nodes (model index of node1 - model index of node2)
-     */
-    protected int getModelIndexOrder(final TreeNode node1, final TreeNode node2) {
-        final TreeTableModel localModel = model; // reduce field access - use a local reference.
-        return localModel.getModelIndexForTreeNode(node1) - localModel.getModelIndexForTreeNode(node2);
-    }
-
 }
