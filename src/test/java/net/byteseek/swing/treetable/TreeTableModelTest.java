@@ -997,7 +997,7 @@ class TreeTableModelTest {
      */
     @Test
     public void testModelIndexAlgorithmsAreEquivalent() {
-        final int numTrials = 10;
+        final int numTrials = 1; // increase to really test this - need lots of random trees to really exercise different tree structures.
 
         // validate basic test tree:
         model.expandNode(rootNode);

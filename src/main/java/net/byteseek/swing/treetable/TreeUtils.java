@@ -47,6 +47,12 @@ import java.util.function.Function;
 public final class TreeUtils {
 
     /**
+     * Char constants when building a visual text representation of the tree.
+     */
+    private static final char TAB_CHAR = '\t';
+    private static final char NEW_LINE = '\n';
+
+    /**
      * Static utility class - cannot construct it.
      */
     private TreeUtils() {}
@@ -136,6 +142,59 @@ public final class TreeUtils {
      */
     public static <T> T getObject(final TreeNode node) {
         return (T) ((DefaultMutableTreeNode) node).getUserObject();
+    }
+
+    /**
+     * Returns the level of the node, zero being the root.
+     * @param node The node to get the level for.
+     * @return The level of the node.
+     */
+    public static int getLevel(final TreeNode node) {
+        int nodeLevel = 0;
+        TreeNode currentNode = node;
+        while ((currentNode = currentNode.getParent()) != null) {
+            nodeLevel++;
+        }
+        return nodeLevel;
+    }
+
+    /**
+     * Returns the ancestor of a TreeTableNode, given the number of levels down to go.
+     *
+     * @param node The node to get an ancestor for.
+     * @param levelsDown The number of levels down to go (1 = the parent).
+     * @return The ancestor of the node.
+     */
+    public static TreeNode getAncestor(final TreeNode node, final int levelsDown) {
+        TreeNode result = node;
+        for (int num = 0; num < levelsDown; num++) {
+            result = result.getParent();
+        }
+        return result;
+    }
+
+    /**
+     * Returns a string which (if printed or viewed in a text editor) is a visual representation of the nodes
+     * in the list provided.  The nodes are indented according to their level, with each node on a separate line (\n line endings).
+     *
+     * @param treeNodes The list of tree nodes to build a text representation of.
+     * @param includeRowNumbers If true, the row number for each table row will be put at the start of each line.
+     * @return a visual text representation of the visible tree.
+     */
+    public static String buildTextTree(final List<? extends TreeNode> treeNodes, final boolean includeRowNumbers) {
+        final StringBuilder builder = new StringBuilder();
+        for (int row = 0; row < treeNodes.size(); row++) {
+            TreeNode node = treeNodes.get(row);
+            if (includeRowNumbers) {
+                builder.append(row).append(TAB_CHAR);
+            }
+            final int depth = TreeUtils.getLevel(node);
+            for (int i = 0; i < depth; i++) {
+                builder.append(TAB_CHAR);
+            }
+            builder.append(node).append(NEW_LINE);
+        }
+        return builder.toString();
     }
 
     /**

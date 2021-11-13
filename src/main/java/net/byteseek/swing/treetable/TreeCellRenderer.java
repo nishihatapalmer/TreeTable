@@ -53,7 +53,7 @@ import javax.swing.tree.TreeNode;
 /**
  * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model
  */
-public class TreeTableCellRenderer extends DefaultTableCellRenderer implements TreeTableModel.TreeClickHandler {
+public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTableModel.TreeClickHandler {
 
     private static final int PADDING = 4;  // how many pixels to pad left and right, so display looks nice.
     private static final int DEFAULT_PIXELS_PER_LEVEL = 16; // how many pixels to indent for each level of tree node.
@@ -74,11 +74,11 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     protected TreeNode currentNode; // The node about to be rendered.
 
     /**
-     * Constructs a TreeTableCellRenderer given a TreeTableModel.
+     * Constructs a TreeCellRenderer given a TreeTableModel.
      *
      * @param treeTableModel The model to render cells for.
      */
-    public TreeTableCellRenderer(final TreeTableModel treeTableModel) {
+    public TreeCellRenderer(final TreeTableModel treeTableModel) {
         this.treeTableModel = treeTableModel;
         setExpandedIcon(UIManager.getIcon("Tree.expandedIcon"));
         setCollapsedIcon(UIManager.getIcon("Tree.collapsedIcon"));
@@ -86,7 +86,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     }
 
     /**
-     * If overriding the TreeTableCellRenderer, preferably override the get methods called in this method, or
+     * If overriding the TreeCellRenderer, preferably override the get methods called in this method, or
      * override setAdditionalProperties() to set any additional properties rather than overriding this method
      * calling super or re-implementing it.
      * <p>
@@ -312,7 +312,7 @@ public class TreeTableCellRenderer extends DefaultTableCellRenderer implements T
     /**
      * Gets the icon for the node.  By default, this implementation fetches the node from the tree table model,
      * which subclasses of it can override to get the right tree icon.  If you prefer, you can instead override
-     * this method in your TreeTableCellRenderer sub-class to get the right icon for the node.
+     * this method in your TreeCellRenderer sub-class to get the right icon for the node.
      *
      * @param node The node to get the icon for.
      * @return The icon for the node, or null if no icon exists for it.

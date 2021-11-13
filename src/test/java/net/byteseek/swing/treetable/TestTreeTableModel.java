@@ -40,7 +40,7 @@ class TestTreeTableModel extends TreeTableModel {
             case 2:
                 return test.enabled;
             default:
-                return 0;
+                return null;
         }
     }
 
@@ -74,10 +74,23 @@ class TestTreeTableModel extends TreeTableModel {
     }
 
     public void printTree() {
-        for (int row = 0; row < getRowCount(); row++) {
-            System.out.println(row + ": " + getNodeAtTableRow(row));
-        }
+        System.out.println("Model order tree:");
+        System.out.println(TreeUtils.buildTextTree(getVisibleNodes(), true));
         System.out.println();
+    }
+
+    public void printTableTree() {
+        if (table == null) {
+            printTree();
+        } else {
+            System.out.println("Table order tree:");
+            List<TreeNode> nodes = new ArrayList<>();
+            for (int row = 0; row < table.getRowCount(); row++) {
+                nodes.add(getNodeAtTableRow(row));
+            }
+            System.out.println(TreeUtils.buildTextTree(nodes, true));
+            System.out.println();
+        }
     }
 
     public static class TestObject {

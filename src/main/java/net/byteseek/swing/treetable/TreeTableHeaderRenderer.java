@@ -51,9 +51,18 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 
+/*//TODO: should we handle the UNSORTED column header icon?
+     case UNSORTED:
+                        sortIcon = DefaultLookup.getIcon(
+                            this, ui, "Table.naturalSortIcon");
+                        break;
+                    }
+ */
+
 /**
- * Renders a header for a JTable which shows multi-column sorting, putting a number for each sort key against the
- * icon for ascending or descending.
+ * Renders a header for a JTable which shows multi-column sorting,
+ * putting a number for each sort key against the icon for ascending or descending to show which is sorted first, second
+ * or third.
  */
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
 

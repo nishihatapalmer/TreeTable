@@ -51,7 +51,8 @@ import javax.swing.SortOrder;
 //TODO: re-investigate sort insert / delete rows optimisations after we've done tree model insert/delete notifications on the TreeTableModel.
 
 /**
- * A configurable class that decides what the next set of sort keys will be, given the current set and a request to sort on a column.
+ * A class that decides what the next set of sort keys will be, given the current set and a request to sort on a column.
+ * //TODO: rewrite once this is finished.
  * It defaults to adding new sort columns to the end of current sorted columns, and removing the column and all subsequent sort columns
  * if a column becomes unsorted.
  * <p>
@@ -69,35 +70,31 @@ import javax.swing.SortOrder;
  *     <li>Remove all sort columns.</li>
  * </ul>
  */
-public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
+public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
-    public enum ExistingColumnAction { MAKE_FIRST, STAY_STILL }
-    public enum NewColumnAction { ADD_TO_START_IF_ROOM, ADD_TO_START, ADD_TO_END_IF_ROOM, ADD_TO_END }
-    public enum WhenUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
+    //TODO: review all these actions.  They seem a bit arbitrary still - need some system.
+    public enum ToggleExistingColumnAction { MAKE_FIRST, KEEP_POSITION }
+    public enum ToggleNewColumnAction { MAKE_FIRST, MAKE_FIRST_IF_ROOM, ADD_TO_END, ADD_TO_END_IF_ROOM,  }
+    public enum WhenColumnUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
 
     private static final int DEFAULT_MAX_SORT_KEYS = 3;
-    private static final NewColumnAction DEFAULT_NEW_COLUMN_ACTION = NewColumnAction.ADD_TO_START;
-    private static final ExistingColumnAction DEFAULT_EXISTING_COLUMN_ACTION = ExistingColumnAction.MAKE_FIRST;
-    private static final WhenUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenUnsortedAction.REMOVE;
+    private static final ToggleNewColumnAction DEFAULT_NEW_COLUMN_ACTION = ToggleNewColumnAction.MAKE_FIRST;
+    private static final ToggleExistingColumnAction DEFAULT_EXISTING_COLUMN_ACTION = ToggleExistingColumnAction.MAKE_FIRST;
+    private static final WhenColumnUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenColumnUnsortedAction.REMOVE;
 
     private int maximumSortKeys;
-    private NewColumnAction newColumnAction;
-    private ExistingColumnAction existingColumnAction;
-    private WhenUnsortedAction whenUnsortedAction;
+    private ToggleNewColumnAction newColumnAction;
+    private ToggleExistingColumnAction existingColumnAction;
+    private WhenColumnUnsortedAction whenUnsortedAction;
 
-    /**
-     * The list of default sort keys which are used if no other sort specified.
-     */
-    protected List<RowSorter.SortKey> defaultSortKeys;
-
-    public TreeTableSortStrategy() {
+    public ColumnSortStrategy() {
         this(DEFAULT_MAX_SORT_KEYS, DEFAULT_NEW_COLUMN_ACTION, DEFAULT_EXISTING_COLUMN_ACTION, DEFAULT_WHEN_UNSORTED_ACTION);
     }
 
-    public TreeTableSortStrategy(final int maximumSortKeys,
-                                 final NewColumnAction newColumnAction,
-                                 final ExistingColumnAction existingColumnAction,
-                                 final WhenUnsortedAction whenUnsortedAction) {
+    public ColumnSortStrategy(final int maximumSortKeys,
+                              final ToggleNewColumnAction newColumnAction,
+                              final ToggleExistingColumnAction existingColumnAction,
+                              final WhenColumnUnsortedAction whenUnsortedAction) {
         this.maximumSortKeys = maximumSortKeys;
         this.newColumnAction = newColumnAction;
         this.existingColumnAction = existingColumnAction;
@@ -116,27 +113,27 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
         return newKeys;
     }
 
-    public NewColumnAction getNewColumnAction() {
+    public ToggleNewColumnAction getNewColumnAction() {
         return newColumnAction;
     }
 
-    public void setNewColumnAction(NewColumnAction newColumnAction) {
+    public void setNewColumnAction(ToggleNewColumnAction newColumnAction) {
         this.newColumnAction = newColumnAction;
     }
 
-    public WhenUnsortedAction getWhenUnsortedAction() {
+    public WhenColumnUnsortedAction getWhenUnsortedAction() {
         return whenUnsortedAction;
     }
 
-    public void setWhenUnsortedAction(WhenUnsortedAction whenUnsortedAction) {
+    public void setWhenUnsortedAction(WhenColumnUnsortedAction whenUnsortedAction) {
         this.whenUnsortedAction = whenUnsortedAction;
     }
 
-    public ExistingColumnAction getExistingColumnAction() {
+    public ToggleExistingColumnAction getExistingColumnAction() {
         return existingColumnAction;
     }
 
-    public void setExistingColumnAction(ExistingColumnAction existingColumnAction) {
+    public void setExistingColumnAction(ToggleExistingColumnAction existingColumnAction) {
         this.existingColumnAction = existingColumnAction;
     }
 
@@ -170,13 +167,13 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
                 }
                 break;
             }
-            case ADD_TO_START_IF_ROOM: { // adds to the start if we aren't already at maximum sort columns.
+            case MAKE_FIRST_IF_ROOM: { // adds to the start if we aren't already at maximum sort columns.
                 if (newKeys.size() < maximumSortKeys) {
                     newKeys.add(0, newKey);
                 }
                 break;
             }
-            case ADD_TO_START: { // adds to the start, and removes any existing ones past the max number of sorted columns.
+            case MAKE_FIRST: { // adds to the start, and removes any existing ones past the max number of sorted columns.
                 newKeys.add(0, newKey);
                 truncateList(newKeys, maximumSortKeys);
                 break;
@@ -197,7 +194,7 @@ public class TreeTableSortStrategy implements TreeTableRowSorter.ColumnSortStrat
                     newKeys.add(0, newKey);
                     break;
                 }
-                case STAY_STILL: {
+                case KEEP_POSITION: {
                     newKeys.set(sortKeyIndex, newKey);
                     break;
                 }

@@ -630,8 +630,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
             if (rowSorter == null) { // row sorter not set on table - create one to hold the sort keys.
                 rowSorter = new TreeTableRowSorter(this);
-                rowSorter.setSortKeys(sortKeys);
                 table.setRowSorter(rowSorter);
+                rowSorter.setSortKeys(sortKeys);
             } else {
                 rowSorter.setSortKeys(sortKeys); // we have a table and a rowsorter - just set the keys!
             }
@@ -1500,7 +1500,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Scans through the columns in the TableColumnModel looking for the column with a model index of 0
      * (TREE_COLUMN_INDEX).  If this column does not have a CellRenderer set on it, the default
-     * TreeTableCellRenderer will be set.  The column with a model index of 0 is always the column
+     * TreeCellRenderer will be set.  The column with a model index of 0 is always the column
      * which renders the tree and responds to expand or collapse clicks.
      *
      * @param columnModel The TableColumnModel to scan.
@@ -1509,7 +1509,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         for (int columnIndex = 0; columnIndex < columnModel.getColumnCount(); columnIndex++) {
             TableColumn column = columnModel.getColumn(columnIndex);
             if (column.getModelIndex() == TREE_COLUMN_INDEX && column.getCellRenderer() == null) {
-                column.setCellRenderer(new TreeTableCellRenderer(this));
+                column.setCellRenderer(new TreeCellRenderer(this));
             }
         }
     }
@@ -1517,7 +1517,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Utility method to simplify creating columns for subclasses.
      * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
-     * The tree column at model index 0 will automatically get a TreeTableCellRenderer if it isn't specified.
+     * The tree column at model index 0 will automatically get a TreeCellRenderer if it isn't specified.
      * @param modelIndex The model index of the column.  0 is always the tree rendering column.
      * @param headerValue The header value
      * @return a TableColumn with the values provided and defaults for the others.
@@ -1529,7 +1529,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Utility method to simplify creating columns for subclasses.
      * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
-     * The tree column at model index 0 will automatically get a TreeTableCellRenderer if it isn't specified.     *
+     * The tree column at model index 0 will automatically get a TreeCellRenderer if it isn't specified.     *
      * @param modelIndex The model index of the column.  0 is always the tree rendering column.
      * @param headerValue The header value
      * @param width The width of the column.
@@ -2214,7 +2214,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 return (TreeClickHandler) renderer;
             }
         }
-        return new TreeTableCellRenderer(this); // set a default click handler.
+        return new TreeCellRenderer(this); // set a default click handler.
     }
 
     protected TableColumn getColumnWithModelIndex(final int modelIndex) {
