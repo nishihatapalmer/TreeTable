@@ -85,12 +85,13 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     protected int pixelsPerLevel = DEFAULT_PIXELS_PER_LEVEL;
 
     /**
-     * The label used to render icons.
+     * The label used to render expand or collapse handle icons.
      *
-     * We use a JLabel to render the icons, because for some reason GTK icons won't paint on Graphic objects,
-     * but when embedded in a JLabel it paints fine.  They seem to be using some kind of Icon proxy object...
+     * We use a JLabel to render the expand and collapse icons,
+     * because for some reason GTK icons won't paint on Graphic objects.
+     * When embedded in a JLabel they paint fine.  They seem to be using some kind of Icon proxy object...
      */
-    protected final JLabel iconRenderer;
+    protected final JLabel expandCollapseIconRenderer;
 
     /**
      * The expand icon, dependent on the look and feel theme.
@@ -112,6 +113,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
 
     /**
      * The current node about to be rendered.  Must be set before any methods that depend on it.
+     * It is set as the first action in {@link #getTableCellRendererComponent(JTable, Object, boolean, boolean, int, int)}
      */
     protected TreeNode currentNode;
 
@@ -126,8 +128,8 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
             throw new IllegalArgumentException("TreeTableModel cannot be null.");
         }
         this.treeTableModel = treeTableModel;
-        iconRenderer = new JLabel("", SwingConstants.RIGHT);
-        iconRenderer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
+        expandCollapseIconRenderer = new JLabel("", SwingConstants.RIGHT);
+        expandCollapseIconRenderer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
         setExpandedIcon(UIManager.getIcon("Tree.expandedIcon"));
         setCollapsedIcon(UIManager.getIcon("Tree.collapsedIcon"));
         setBorder(new ExpandHandleBorder());
@@ -146,7 +148,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     @Override
     public Component getTableCellRendererComponent(final JTable table, final Object value, final boolean isSelected,
                                                    final boolean hasFocus, final int row, final int column) {
-        setNode(treeTableModel.getNodeAtTableRow(row));
+        setNode(treeTableModel.getNodeAtTableRow(row)); // Ensure current node is set before anything else.
         setForeground( isSelected? getSelectedForegroundColor(table, value, hasFocus, row, column)
                                  : getUnselectedForegroundColor(table, value, hasFocus, row, column));
         setBackground( isSelected? getSelectedBackgroundColor(table, value, hasFocus, row, column)
@@ -426,7 +428,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         public void paintBorder(final Component c, final Graphics g, final int x, final int y,
                                 final int width, final int height) {
             if (currentNode.getAllowsChildren()) {
-                final JLabel localRenderer = iconRenderer;
+                final JLabel localRenderer = expandCollapseIconRenderer;
                 localRenderer.setIcon(treeTableModel.isExpanded(currentNode) ? expandedIcon : collapsedIcon);
                 localRenderer.setSize(insets.left, height);
                 localRenderer.paint(g);
