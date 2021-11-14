@@ -34,6 +34,7 @@ package net.byteseek.swing.treetable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.Comparator;
@@ -41,8 +42,8 @@ import java.util.List;
 import java.util.function.Function;
 
 /**
- * A collection of miscellaneous static utility methods and objects to build trees, group nodes and process
- * tree data.
+ * A collection of miscellaneous static utility methods and objects to build trees, group nodes, process
+ * tree nodes and column data.
  */
 public final class TreeUtils {
 
@@ -171,6 +172,21 @@ public final class TreeUtils {
             result = result.getParent();
         }
         return result;
+    }
+
+    /**
+     * Calculates the space taken up by columns to the left of a column in the TableColumnModel.
+     *
+     * @param columnModel The table column model
+     * @param colIndex The column index of the column in the table column model (not the model index of the column).
+     * @return the space taken up by columns to the left of the column with colIndex in the TableColumnModel.
+     */
+    public static int calculateWidthToLeftOfColumn(final TableColumnModel columnModel, final int colIndex) {
+        int width = 0;
+        for (int col = colIndex - 1; col >= 0; col--) {
+            width += columnModel.getColumn(col).getWidth();
+        }
+        return width;
     }
 
     /**

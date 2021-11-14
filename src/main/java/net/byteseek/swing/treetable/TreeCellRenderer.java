@@ -48,15 +48,14 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.TreeNode;
 
-//TODO: what about rendering arbitrary data types *within* the tree cell?  Just subclass this renderer and replace it in the model?
-//      would be better with composition - then you can use arbitrary renderers which already exist for other purposes, you don't have to make a specialized class.
-
 /**
  * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model.
  * It also implements the TreeTableModel.TreeClickHandler, so it can respond to clicks where the expand or collapse
  * handles are drawn for each node.
  */
 public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTableModel.TreeClickHandler {
+
+    protected static final int TREE_COLUMN_MODEL_INDEX = 0;
 
     /**
      * How many pixels to pad left and right, so display looks nice.
@@ -132,7 +131,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         expandCollapseIconRenderer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
         setExpandedIcon(UIManager.getIcon("Tree.expandedIcon"));
         setCollapsedIcon(UIManager.getIcon("Tree.collapsedIcon"));
-        setBorder(new ExpandHandleBorder());
+        setBorder(new ExpandHandleBorder()); // The border paints the expand/collapse handles and handles the indentation of the node from the left.
     }
 
     /**
@@ -155,7 +154,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
                                  : getUnselectedBackgroundColor(table, value, hasFocus, row, column));
         setFont( getFont(table, value, isSelected, hasFocus, row, column));
         setValue( getValue(table, value, isSelected, hasFocus, row, column));
-        setToolTipText( getTooltipText(table, value, isSelected, hasFocus, row, column));
+        setToolTipText( getToolTipText(table, value, isSelected, hasFocus, row, column));
         setNodeIndent( calculateNodeIndent(currentNode, table, value, isSelected, hasFocus, row, column));
         setIcon( getNodeIcon(currentNode, table, value, isSelected, hasFocus, row, column));
         setAdditionalProperties(currentNode, table, value, isSelected, hasFocus, row, column);
@@ -166,8 +165,8 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     public boolean clickOnExpand(final TreeNode node, final int column, final MouseEvent evt) {
         final TableColumnModel columnModel = treeTableModel.getTableColumnModel();
         final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
-        if (columnModelIndex == 0 && node != null && node.getAllowsChildren()) {
-            final int columnStart = calculateWidthToLeft(columnModel, column);
+        if (columnModelIndex == TREE_COLUMN_MODEL_INDEX && node != null && node.getAllowsChildren()) {
+            final int columnStart = TreeUtils.calculateWidthToLeftOfColumn(columnModel, column);
             final int expandEnd = columnStart + calculateNodeIndent(node);
             final int mouseX = evt.getPoint().x;
             return mouseX > columnStart && mouseX < expandEnd;
@@ -223,16 +222,23 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * @param column The column of the cell being rendered.
      * @return How many pixels to indent a tree node.
      */
-    protected int calculateNodeIndent(TreeNode currentNode, JTable table, Object value, boolean isSelected,
-                                      boolean hasFocus, int row, int column) {
+    protected int calculateNodeIndent(final TreeNode currentNode, final JTable table, final Object value,
+                                      final boolean isSelected, final boolean hasFocus, final int row, final int column) {
         return calculateNodeIndent(currentNode);
+    }
+
+    /**
+     * @return The current node indent set.
+     */
+    protected int getNodeIndent() {
+        return insets.left;
     }
 
     /**
      * Sets the indent for the current node.
      * @param indent The ident to set.
      */
-    protected void setNodeIndent(int indent) {
+    protected void setNodeIndent(final int indent) {
         insets.left = indent;
     }
 
@@ -295,21 +301,21 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
+     * @param isSelected Whether it is selected.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
      *
      * @return The text to use for a tooltip for this cell.
      */
-    protected String getTooltipText(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+    protected String getToolTipText(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
         return value == null ? "" : value.toString();
     }
 
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
+     * @param isSelected Whether it is selected.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -323,7 +329,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     /**
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
+     * @param isSelected Whether it is selected.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -342,7 +348,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * @param treeNode the tree node to be rendered.
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
+     * @param isSelected Whether it is selected.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -353,11 +359,10 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     }
 
     /**
-     * @return The number of pixels to indent for a node.
+     * @return The node which will be rendered if painted.
      */
-    protected int calculateNodeIndent(final TreeNode node) {
-        final int adjustShowRoot = treeTableModel.getShowRoot()? 0 : 1;
-        return PADDING + maxIconWidth + ((TreeUtils.getLevel(node) - adjustShowRoot) * pixelsPerLevel);
+    protected TreeNode getCurrentNode() {
+        return currentNode;
     }
 
     /**
@@ -384,7 +389,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * @param node the tree node to be rendered.
      * @param table The table
      * @param value The value of the current cell.
-     * @param isSelected Whether it is selectd.
+     * @param isSelected Whether it is selected.
      * @param hasFocus   Whether it has focus.
      * @param row        The row of the table
      * @param column     The column of the table.
@@ -405,18 +410,11 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     }
 
     /**
-     * Calculates the space taken up by columns to the left of the column in the TableColumnModel.
-     *
-     * @param columnModel The table column model
-     * @param colIndex The column index
-     * @return the space taken up by columns to the left of the column with colIndex in the TableColumnModel.
+     * @return The number of pixels to indent for a node.
      */
-    protected final int calculateWidthToLeft(final TableColumnModel columnModel, final int colIndex) {
-        int width = 0;
-        for (int col = colIndex - 1; col >= 0; col--) {
-            width += columnModel.getColumn(col).getWidth();
-        }
-        return width;
+    protected int calculateNodeIndent(final TreeNode node) {
+        final int adjustShowRoot = treeTableModel.getShowRoot()? 0 : 1;
+        return PADDING + maxIconWidth + ((TreeUtils.getLevel(node) - adjustShowRoot) * pixelsPerLevel);
     }
 
     /**

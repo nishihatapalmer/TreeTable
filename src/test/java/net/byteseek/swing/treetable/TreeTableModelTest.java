@@ -1,6 +1,36 @@
+/*
+ * BSD 3-Clause License
+ *
+ * Copyright (c) 2021, Matt Palmer
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package net.byteseek.swing.treetable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -16,55 +46,11 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.MutableTreeNode;
 import javax.swing.tree.TreeNode;
-import static net.byteseek.swing.treetable.TestUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class TreeTableModelTest {
-
-    private MutableTreeNode rootNode;
-    private MutableTreeNode child0;
-    private MutableTreeNode child1;
-    private MutableTreeNode child2;
-    private MutableTreeNode subchild0;
-    private MutableTreeNode subchild1;
-    private MutableTreeNode subchild2;
-    private MutableTreeNode subchild3;
-
-    private RowSorter.SortKey sortKey1;
-    private RowSorter.SortKey sortKey2;
-    private RowSorter.SortKey sortKey3;
-    List<RowSorter.SortKey> sortKeyList;
-
-    private TestTreeTableModel model;
-    private JTable table;
-
-    @BeforeEach
-    public void setup() {
-        rootNode = createTree();
-        child0 = (MutableTreeNode) rootNode.getChildAt(0);
-        child1 = (MutableTreeNode) rootNode.getChildAt(1);
-        subchild0 = (MutableTreeNode) child1.getChildAt(0);
-        subchild1 = (MutableTreeNode) child1.getChildAt(1);
-        subchild2 = (MutableTreeNode) child1.getChildAt(2);
-        subchild3 = (MutableTreeNode) child1.getChildAt(3);
-        child2 = (MutableTreeNode) rootNode.getChildAt(2);
-
-        sortKey1 = new RowSorter.SortKey(0, SortOrder.ASCENDING);
-        sortKey2 = new RowSorter.SortKey(0, SortOrder.DESCENDING);
-        sortKey3 = new RowSorter.SortKey(2, SortOrder.DESCENDING);
-
-        sortKeyList = new ArrayList<>();
-        sortKeyList.add(sortKey1);
-        sortKeyList.add(sortKey2);
-        sortKeyList.add(sortKey3);
-
-        model = new TestTreeTableModel(rootNode, true);
-        table = new JTable();
-    }
+class TreeTableModelTest extends BaseTestClass {
 
 
     //TODO: test using a TreeModel to update nodes while inside an expand or collapse event.
@@ -766,12 +752,6 @@ class TreeTableModelTest {
         }
     }
 
-    private void createRandomTree(int randTree, boolean showRoot) {
-        model.unbindTable();
-        rootNode = buildRandomTree(randTree);
-        model = new TestTreeTableModel(rootNode, showRoot);
-    }
-
     private boolean tableOrderMatches(List<TreeNode> nodeList) {
         assertEquals(nodeList.size(), model.getRowCount());
         for (int i = 0; i < nodeList.size(); i++) {
@@ -997,7 +977,7 @@ class TreeTableModelTest {
      */
     @Test
     public void testModelIndexAlgorithmsAreEquivalent() {
-        final int numTrials = 1; // increase to really test this - need lots of random trees to really exercise different tree structures.
+        final int numTrials = 10; // increase to really test this - need lots of random trees to really exercise different tree structures.
 
         // validate basic test tree:
         model.expandNode(rootNode);
