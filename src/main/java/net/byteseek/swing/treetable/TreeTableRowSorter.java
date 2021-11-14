@@ -34,6 +34,7 @@ package net.byteseek.swing.treetable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.swing.RowSorter;
@@ -90,13 +91,12 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     /**
      * The node comparator to use to compare nodes.
      */
-    protected TreeNodeComparator nodeComparator;
+    protected Comparator<TreeNode> nodeComparator;
 
     /**
-     * The sort strategy to use to build new sort keys after sort is requested on a column.
+     * The sort strategy that builds new sort keys after sort is requested on a column.
      * This lets us change the behaviour when a column is clicked on to sort.  For example,
      * we could make it the primary sort column, or add it to the existing sort columns, or remove other columns.
-     * Defaults to the {@link net.byteseek.swing.treetable.ColumnSortStrategy} if not supplied.
      */
     protected ColumnSortStrategy sortStrategy;
 
@@ -278,6 +278,22 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
+    /**
+     * @return the node comparator currently being used to compare node values.
+     */
+    public Comparator<TreeNode> getNodeComparator() {
+        return nodeComparator;
+    }
+
+    /**
+     * Sets the node comparator to use when comparing node values.
+     *
+     * @param nodeComparator The node comparator to use.
+     */
+    public void setNodeComparator(final Comparator<TreeNode> nodeComparator) {
+        this.nodeComparator = nodeComparator;
+    }
+
     //TODO: do we need this once we are satisfied through testing and profiling that dynamic updates are better than full rebuilds?
     public boolean getRebuildIndices() {
         return rebuildIndices;
@@ -416,18 +432,18 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     }
 
     /**
-     * @return the SortStrategy for this RowSorter.  If none is defined, a {@link net.byteseek.swing.treetable.ColumnSortStrategy} will be created.
+     * @return the SortStrategy for this RowSorter.  If none is defined, a {@link TreeTableColumnSortStrategy} will be created.
      */
     public ColumnSortStrategy getSortStrategy() {
         if (sortStrategy == null) {
-            sortStrategy = new net.byteseek.swing.treetable.ColumnSortStrategy();
+            sortStrategy = new TreeTableColumnSortStrategy();
         }
         return sortStrategy;
     }
 
     /**
-     * Sets the ColumnSortStrategy for this RowSorter.  If set to null, it will revert to a {@link TreeTableRowSorter}.
-     * @param sortStrategy The ColumnSortStrategy to use.
+     * Sets the TreeTableColumnSortStrategy for this RowSorter.  If set to null, it will revert to a {@link TreeTableRowSorter}.
+     * @param sortStrategy The TreeTableColumnSortStrategy to use.
      */
     public void setSortStrategy(final ColumnSortStrategy sortStrategy) {
         this.sortStrategy = sortStrategy;
