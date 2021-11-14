@@ -41,6 +41,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -51,35 +52,82 @@ import javax.swing.tree.TreeNode;
 //      would be better with composition - then you can use arbitrary renderers which already exist for other purposes, you don't have to make a specialized class.
 
 /**
- * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model
+ * Renders a tree column, including collapse/expand handles, and an icon if supplied by the model.
+ * It also implements the TreeTableModel.TreeClickHandler, so it can respond to clicks where the expand or collapse
+ * handles are drawn for each node.
  */
 public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTableModel.TreeClickHandler {
 
-    private static final int PADDING = 4;  // how many pixels to pad left and right, so display looks nice.
-    private static final int DEFAULT_PIXELS_PER_LEVEL = 16; // how many pixels to indent for each level of tree node.
+    /**
+     * How many pixels to pad left and right, so display looks nice.
+     */
+    protected static final int PADDING = 4;
 
+    /**
+     * How many pixels to indent for each level of tree node.
+     */
+    protected static final int DEFAULT_PIXELS_PER_LEVEL = 16;
+
+    /**
+     * The TreeTableModel this renderer uses to obtain tree nodes.
+     */
     protected final TreeTableModel treeTableModel;
+
+    /**
+     * The current indentations at the border of the tree cell being rendered.
+     * The left inset is set to indent the tree nodes.
+     */
     protected final Insets insets = new Insets(0, 0, 0, 0);
 
+    /**
+     * The number of pixels to indent per level of tree node.
+     */
     protected int pixelsPerLevel = DEFAULT_PIXELS_PER_LEVEL;
-    protected Icon expandedIcon;  // expand icon, dependent on the look and feel theme.
-    protected Icon collapsedIcon; // collapse icon, dependent on the look and feel theme.
 
-    // We have labels for each of the icons, because for some reason GTK icons won't paint on Graphic objects,
-    // but when embedded in a JLabel it paints fine.  They seem to be some kind of Icon proxy object...
-    protected JLabel expandedIconLabel;
-    protected JLabel collapsedIconLabel;
+    /**
+     * The label used to render icons.
+     *
+     * We use a JLabel to render the icons, because for some reason GTK icons won't paint on Graphic objects,
+     * but when embedded in a JLabel it paints fine.  They seem to be using some kind of Icon proxy object...
+     */
+    protected final JLabel iconRenderer;
 
-    protected int maxIconWidth; // Calculated max icon width of expand and collapse icons, to get consistent indentation levels.
-    protected TreeNode currentNode; // The node about to be rendered.
+    /**
+     * The expand icon, dependent on the look and feel theme.
+     * You can set your own icon using {@link #setExpandedIcon(Icon)}
+     */
+    protected Icon expandedIcon;
+
+    /**
+     * The collapse icon, dependent on the look and feel theme.
+     * You can set your own icon using {@link #setCollapsedIcon(Icon)}
+     */
+    protected Icon collapsedIcon;
+
+    /**
+     * Calculated max icon width of expand and collapse icons, to get consistent indentation levels.
+     * when expanded or collapsed.
+     */
+    protected int maxIconWidth;
+
+    /**
+     * The current node about to be rendered.  Must be set before any methods that depend on it.
+     */
+    protected TreeNode currentNode;
 
     /**
      * Constructs a TreeCellRenderer given a TreeTableModel.
      *
      * @param treeTableModel The model to render cells for.
+     * @throws IllegalArgumentException if the treeTableModel is null.
      */
     public TreeCellRenderer(final TreeTableModel treeTableModel) {
+        if (treeTableModel == null) {
+            throw new IllegalArgumentException("TreeTableModel cannot be null.");
+        }
         this.treeTableModel = treeTableModel;
+        iconRenderer = new JLabel("", SwingConstants.RIGHT);
+        iconRenderer.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
         setExpandedIcon(UIManager.getIcon("Tree.expandedIcon"));
         setCollapsedIcon(UIManager.getIcon("Tree.collapsedIcon"));
         setBorder(new ExpandHandleBorder());
@@ -87,8 +135,11 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
 
     /**
      * If overriding the TreeCellRenderer, preferably override the get methods called in this method, or
-     * override setAdditionalProperties() to set any additional properties rather than overriding this method
-     * calling super or re-implementing it.
+     * override {@link #setAdditionalProperties(TreeNode, JTable, Object, boolean, boolean, int, int)}
+     * to set any additional properties, rather than overriding this method and calling super or re-implementing it.
+     * <p>
+     * All of the common actions such as changing values, colors, fonts, icons, tooltips values have dedicated methods
+     * which can be separately overridden.
      * <p>
      * {@inheritDoc}
      */
@@ -103,18 +154,10 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         setFont( getFont(table, value, isSelected, hasFocus, row, column));
         setValue( getValue(table, value, isSelected, hasFocus, row, column));
         setToolTipText( getTooltipText(table, value, isSelected, hasFocus, row, column));
-        setNodeIndent( getNodeIndent(currentNode, table, value, isSelected, hasFocus, row, column));
+        setNodeIndent( calculateNodeIndent(currentNode, table, value, isSelected, hasFocus, row, column));
         setIcon( getNodeIcon(currentNode, table, value, isSelected, hasFocus, row, column));
         setAdditionalProperties(currentNode, table, value, isSelected, hasFocus, row, column);
         return this;
-    }
-
-    protected int getNodeIndent(TreeNode currentNode, JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-        return getNodeIndent(currentNode);
-    }
-
-    protected void setNodeIndent(int indent) {
-        insets.left = indent;
     }
 
     @Override
@@ -123,7 +166,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
         if (columnModelIndex == 0 && node != null && node.getAllowsChildren()) {
             final int columnStart = calculateWidthToLeft(columnModel, column);
-            final int expandEnd = columnStart + getNodeIndent(node);
+            final int expandEnd = columnStart + calculateNodeIndent(node);
             final int mouseX = evt.getPoint().x;
             return mouseX > columnStart && mouseX < expandEnd;
         }
@@ -150,12 +193,6 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * @param expandedIcon the icon to use to indicate an expanded tree node.
      */
     public void setExpandedIcon(final Icon expandedIcon) {
-        if (expandedIconLabel == null) {
-            expandedIconLabel = new JLabel(expandedIcon, JLabel.RIGHT);
-            expandedIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
-        } else {
-            expandedIconLabel.setIcon(expandedIcon);
-        }
         this.expandedIcon = expandedIcon;
         setMaxIconWidth();
     }
@@ -165,19 +202,36 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * @param collapsedIcon the icon to use to indicate a collapsed tree node.
      */
     public void setCollapsedIcon(final Icon collapsedIcon) {
-        if (collapsedIconLabel == null) {
-            collapsedIconLabel = new JLabel(collapsedIcon, JLabel.RIGHT);
-            collapsedIconLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, PADDING));
-        } else {
-            collapsedIconLabel.setIcon(collapsedIcon);
-        }
-        this.collapsedIcon = expandedIcon;
+        this.collapsedIcon = collapsedIcon;
         setMaxIconWidth();
     }
 
     @Override
     public String toString() {
         return getClass().getSimpleName() + '('+ treeTableModel + ')';
+    }
+
+    /**
+     * @param currentNode The current node to be rendered.
+     * @param table The JTable it is rendered in.
+     * @param value The value of the cell (e.g. name or other column value).
+     * @param isSelected Whether the cell is selected.
+     * @param hasFocus Whether the cell has focus.
+     * @param row The row of the cell being rendered.
+     * @param column The column of the cell being rendered.
+     * @return How many pixels to indent a tree node.
+     */
+    protected int calculateNodeIndent(TreeNode currentNode, JTable table, Object value, boolean isSelected,
+                                      boolean hasFocus, int row, int column) {
+        return calculateNodeIndent(currentNode);
+    }
+
+    /**
+     * Sets the indent for the current node.
+     * @param indent The ident to set.
+     */
+    protected void setNodeIndent(int indent) {
+        insets.left = indent;
     }
 
     /**
@@ -283,7 +337,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * Override this method to set any additional properties on the label before it is rendered.
      * This is a blank implementation that does nothing.
      *
-     * @param treeNode the tree node to be renderered.
+     * @param treeNode the tree node to be rendered.
      * @param table The table
      * @param value The value of the current cell.
      * @param isSelected Whether it is selectd.
@@ -291,14 +345,17 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
      * @param row        The row of the table
      * @param column     The column of the table.
      */
-    protected void setAdditionalProperties(final TreeNode treeNode, final JTable table, final Object value, final boolean isSelected,
-                                           final boolean hasFocus, final int row, final int column) {
+    protected void setAdditionalProperties(final TreeNode treeNode, final JTable table, final Object value,
+                                           final boolean isSelected, final boolean hasFocus, final int row, final int column) {
         // No implementation here; subclasses can use this to set whatever addditional properties they like.
     }
 
-    protected int getNodeIndent(final TreeNode node) {
+    /**
+     * @return The number of pixels to indent for a node.
+     */
+    protected int calculateNodeIndent(final TreeNode node) {
         final int adjustShowRoot = treeTableModel.getShowRoot()? 0 : 1;
-        return PADDING + maxIconWidth + ((getLevel(node) - adjustShowRoot) * pixelsPerLevel);
+        return PADDING + maxIconWidth + ((TreeUtils.getLevel(node) - adjustShowRoot) * pixelsPerLevel);
     }
 
     /**
@@ -321,24 +378,28 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         return treeTableModel.getNodeIcon(node);
     }
 
-    protected final Icon getNodeIcon(final TreeNode node, final JTable table, final Object value, final boolean isSelected,
-                                     final boolean hasFocus, final int row, final int column) {
+    /**
+     * @param node the tree node to be rendered.
+     * @param table The table
+     * @param value The value of the current cell.
+     * @param isSelected Whether it is selectd.
+     * @param hasFocus   Whether it has focus.
+     * @param row        The row of the table
+     * @param column     The column of the table.
+     * @return The icon for the tree node.
+     */
+    protected final Icon getNodeIcon(final TreeNode node, final JTable table, final Object value,
+                                     final boolean isSelected, final boolean hasFocus, final int row, final int column) {
         return getNodeIcon(node);
     }
 
+    /**
+     * Sets the maximum icon width to be the biggest of the expand icon and the collapse icon.
+     */
     protected final void setMaxIconWidth() {
         int expandedWidth = expandedIcon == null? 0 : expandedIcon.getIconWidth();
         int collapsedWidth = collapsedIcon == null? 0 : collapsedIcon.getIconWidth();
         maxIconWidth = Math.max(expandedWidth, collapsedWidth);
-    }
-
-    protected final int getLevel(final TreeNode node) {
-        int nodeLevel = 0;
-        TreeNode currentNode = node;
-        while ((currentNode = currentNode.getParent()) != null) {
-            nodeLevel++;
-        }
-        return nodeLevel;
     }
 
     /**
@@ -356,7 +417,6 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         return width;
     }
 
-
     /**
      * A class which provides an expanded border to render the tree expand/collapse handle icon, indented by insets.left.
      */
@@ -366,9 +426,10 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         public void paintBorder(final Component c, final Graphics g, final int x, final int y,
                                 final int width, final int height) {
             if (currentNode.getAllowsChildren()) {
-                final JLabel labelToPaint = treeTableModel.isExpanded(currentNode) ? expandedIconLabel : collapsedIconLabel;
-                labelToPaint.setSize(insets.left, height);
-                labelToPaint.paint(g);
+                final JLabel localRenderer = iconRenderer;
+                localRenderer.setIcon(treeTableModel.isExpanded(currentNode) ? expandedIcon : collapsedIcon);
+                localRenderer.setSize(insets.left, height);
+                localRenderer.paint(g);
             }
         }
 
