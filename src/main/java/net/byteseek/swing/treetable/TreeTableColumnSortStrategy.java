@@ -36,65 +36,50 @@ import java.util.List;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 
-//TODO: sort strategy of remove subsequent combined with default sort column means you can only ever sort on the primary column.
-//      how to move to a new sort column when you're removing subsequent?  Getting to unsorted allows you to pick a new primary.
-//      If you can't get to unsorted, you can't change the primary sort column.
-//      You could if you only removed the column moving to unsorted, after picking the new column as a secondary sort.
-//      You also can if you make each column clicked the primary sort column (but this makes multi column sorting kind of
-//      pointless, because sorting secondarily on your prior primary isn't making a lot of sense to me in terms of
-//      a strategy to explore the data set.
-
-//      COULD introduce a Ctrl-click to set additional sort column.  Awkward, most people will never discover it,
-//      but multi-column sort not massively useful on small data anyway.
-//      CTRL - click to set additional column OR to set primary column?
-
-//TODO: re-investigate sort insert / delete rows optimisations after we've done tree model insert/delete notifications on the TreeTableModel.
-
 /**
- * A class that decides what the next set of sort keys will be, given the current set and a request to sort on a column.
- * //TODO: rewrite once this is finished.
- * It defaults to adding new sort columns to the end of current sorted columns, and removing the column and all subsequent sort columns
- * if a column becomes unsorted.
+ * A class that decides what the next set of sort keys will be, given the current set, a request to sort on a column,
+ * and a maximum number of columns to sort on.
  * <p>
- * This sort strategy allows a variety of configurable behaviour. For new columns, we can choose to:
- * <ul>
- *     <li>Make the new column the first sort column</li
- *     <li>Make the new column the first sort column, as long as we aren't already at the maximum number of sorts</li>
- *     <li>Add the new column to the end of the current sort columns</li>
- *     <li>Add the new column to the end of the current sort columns, as long as we aren't already at the maximum number of sorts</li>
- * </ul>
- * <p>For existing columns, the sort order will flip from ascending, to descending, to unsorted.  When a column becomes unsorted, we can choose to:
- * <ul>
- *     <li>Remove the unsorted column</li>
- *     <li>Remove the unsorted column and all subsequent sort columns</li>
- *     <li>Remove all sort columns.</li>
- * </ul>
+ * It defaults to adding new sort columns to the end of current sorted columns, replacing the last column if we're
+ * at the maximum number of sort columns.  Existing columns maintain their sort position if clicked again, and cycle
+ * round ascending/descending/unsorted.  Once a column is unsorted, it is removed from the sorted column keys.
  */
-public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
+public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
-    //TODO: review all these actions.  They seem a bit arbitrary still - need some system.
     public enum ToggleExistingColumnAction { MAKE_FIRST, KEEP_POSITION }
-    public enum ToggleNewColumnAction { MAKE_FIRST, MAKE_FIRST_IF_ROOM, ADD_TO_END, ADD_TO_END_IF_ROOM,  }
+    public enum ToggleNewColumnAction { MAKE_FIRST, ADD_TO_END }
     public enum WhenColumnUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
 
     private static final int DEFAULT_MAX_SORT_KEYS = 3;
-    private static final ToggleNewColumnAction DEFAULT_NEW_COLUMN_ACTION = ToggleNewColumnAction.MAKE_FIRST;
-    private static final ToggleExistingColumnAction DEFAULT_EXISTING_COLUMN_ACTION = ToggleExistingColumnAction.MAKE_FIRST;
-    private static final WhenColumnUnsortedAction DEFAULT_WHEN_UNSORTED_ACTION = WhenColumnUnsortedAction.REMOVE;
 
     private int maximumSortKeys;
     private ToggleNewColumnAction newColumnAction;
     private ToggleExistingColumnAction existingColumnAction;
     private WhenColumnUnsortedAction whenUnsortedAction;
 
-    public ColumnSortStrategy() {
-        this(DEFAULT_MAX_SORT_KEYS, DEFAULT_NEW_COLUMN_ACTION, DEFAULT_EXISTING_COLUMN_ACTION, DEFAULT_WHEN_UNSORTED_ACTION);
+    /**
+     * Constructs a TreeTableColumnSortStrategy with the default settings.
+     * New columns clicked are added to end of existing sort columns, replacing the last sort column if we're at max columns.
+     * Existing columns clicked are cycled around ascending/descending/unsorted, and maintain their sort position when clicked again.
+     * Once unsorted, the column is removed from the sort keys.
+     */
+    public TreeTableColumnSortStrategy() {
+        this(DEFAULT_MAX_SORT_KEYS, ToggleNewColumnAction.ADD_TO_END, ToggleExistingColumnAction.KEEP_POSITION,
+                WhenColumnUnsortedAction.REMOVE);
     }
 
-    public ColumnSortStrategy(final int maximumSortKeys,
-                              final ToggleNewColumnAction newColumnAction,
-                              final ToggleExistingColumnAction existingColumnAction,
-                              final WhenColumnUnsortedAction whenUnsortedAction) {
+    /**
+     * Constructs a TreeTableColumnSortStrategy with the particular configuration passed in.
+     *
+     * @param maximumSortKeys The maximum number of sorted columns at any one time.
+     * @param newColumnAction What to do if a new column is sorted.
+     * @param existingColumnAction What to do if an existing sorted column is toggled again.
+     * @param whenUnsortedAction What to do when a column becomes unsorted.
+     */
+    public TreeTableColumnSortStrategy(final int maximumSortKeys,
+                                       final ToggleNewColumnAction newColumnAction,
+                                       final ToggleExistingColumnAction existingColumnAction,
+                                       final WhenColumnUnsortedAction whenUnsortedAction) {
         this.maximumSortKeys = maximumSortKeys;
         this.newColumnAction = newColumnAction;
         this.existingColumnAction = existingColumnAction;
@@ -113,34 +98,62 @@ public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy
         return newKeys;
     }
 
+    /**
+     * @return the action to take on a new column becoming sorted.
+     */
     public ToggleNewColumnAction getNewColumnAction() {
         return newColumnAction;
     }
 
+    /**
+     * Sets the action to take when a new column is sorted.
+     * @param newColumnAction the action to take when a new column is sorted.
+     */
     public void setNewColumnAction(ToggleNewColumnAction newColumnAction) {
         this.newColumnAction = newColumnAction;
     }
 
+    /**
+     * @return the action to take on a sorted column becoming unsorted.
+     */
     public WhenColumnUnsortedAction getWhenUnsortedAction() {
         return whenUnsortedAction;
     }
 
+    /**
+     * Sets the action to take when a sorted column becomes unsorted.
+     * @param whenUnsortedAction The action to take when a sorted column becomes unsorted.
+     */
     public void setWhenUnsortedAction(WhenColumnUnsortedAction whenUnsortedAction) {
         this.whenUnsortedAction = whenUnsortedAction;
     }
 
+    /**
+     * @return the action to take on an existing sorted column being toggled again.
+     */
     public ToggleExistingColumnAction getExistingColumnAction() {
         return existingColumnAction;
     }
 
+    /**
+     * Sets the action to take when an existing sorted column is toggled.
+     * @param existingColumnAction the action to take when an existing sorted column is toggled.
+     */
     public void setExistingColumnAction(ToggleExistingColumnAction existingColumnAction) {
         this.existingColumnAction = existingColumnAction;
     }
 
+    /**
+     * @return The maximum number of sorted columns.
+     */
     public int getMaximumSortKeys() {
         return maximumSortKeys;
     }
 
+    /**
+     * Sets the maximum number of sorted columns.
+     * @param maximumSortKeys the maximum number of sorted columns.
+     */
     public void setMaximumSortKeys(final int maximumSortKeys) {
         this.maximumSortKeys = maximumSortKeys;
     }
@@ -150,26 +163,19 @@ public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy
         return getClass().getSimpleName() + "(max keys: " + maximumSortKeys + ", new sort columns: " + newColumnAction + ", when unsorted: " + whenUnsortedAction + ')';
     }
 
+    /**
+     * Takes the appropriate action when a new column is sorted.
+     * @param newKeys A list of SortKeys to manipulate.
+     * @param columnToSort The index of the newly sorted column.
+     */
     protected void processNewColumn(final List<RowSorter.SortKey> newKeys, final int columnToSort) {
         final RowSorter.SortKey newKey = new RowSorter.SortKey(columnToSort, SortOrder.ASCENDING);
         switch(newColumnAction) {
-            case ADD_TO_END_IF_ROOM: { // adds to the end if we aren't past the max number of sorted columns.
-                if (newKeys.size() < maximumSortKeys) {
-                    newKeys.add(newKey);
-                }
-                break;
-            }
             case ADD_TO_END: { // always add to the end - if there isn't enough room, the last sort key is replaced.
                 if (newKeys.size() < maximumSortKeys) {
                     newKeys.add(newKey);
                 } else {
                     newKeys.set(newKeys.size() - 1, newKey);
-                }
-                break;
-            }
-            case MAKE_FIRST_IF_ROOM: { // adds to the start if we aren't already at maximum sort columns.
-                if (newKeys.size() < maximumSortKeys) {
-                    newKeys.add(0, newKey);
                 }
                 break;
             }
@@ -181,6 +187,11 @@ public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy
         }
     }
 
+    /**
+     * Takes the appropriate action when an existing sorted column is toggled.
+     * @param newKeys The list of sort keys to manipulate.
+     * @param sortKeyIndex The index of the existing sort key in the list of sort keys.
+     */
     protected void processExistingColumn(final List<RowSorter.SortKey> newKeys, final int sortKeyIndex) {
         final RowSorter.SortKey currentKey = newKeys.get(sortKeyIndex);
         final SortOrder nextState = nextOrder(currentKey.getSortOrder());
@@ -202,6 +213,11 @@ public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy
         }
     }
 
+    /**
+     * The action to taken when a sorted column becomes unsorted.
+     * @param newKeys A list of new keys to manipulate.
+     * @param sortKeyIndex The index of the SortKey for the column which is becoming unsorted.
+     */
     protected void processRemoveSortedColumn(final List<RowSorter.SortKey> newKeys, final int sortKeyIndex) {
         switch (whenUnsortedAction) {
             case REMOVE: {
@@ -253,6 +269,15 @@ public class ColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy
         return -1;
     }
 
+    /**
+     * Truncates a list down to a new size by removing elements from the end until it's the right size.
+     * This isn't particularly efficient, and could be avoided by refactoring the code that uses this to return lists
+     * rather than manipulating an existing List in place (then we could just return a subList).
+     * But the lists of sort keys are tiny (mostly just 3 elements at max), so we won't bother to do this small optimisation.
+     *
+     * @param list The list to truncate.
+     * @param newSize The new size of the truncated list.
+     */
     protected final void truncateList(final List<?> list, final int newSize) {
         while (list.size() > newSize) {
             list.remove(list.size() - 1);
