@@ -634,7 +634,7 @@ class TreeCellRendererTest extends BaseTestClass  {
 
             // click will only happen if we're on a tree column:
             MouseEvent event = mouseEvent( columnStart + 8, 0);
-            boolean expectedClick = column.getModelIndex() == 0;
+            boolean expectedClick = column.getModelIndex() == 0; // the tree column always has model index of 0.
             assertEquals(expectedClick, renderer.clickOnExpand(rootNode, colIndex, event));
 
             // If the click happens outside of the node indent of the column, it will always be false, no matter what column it is.

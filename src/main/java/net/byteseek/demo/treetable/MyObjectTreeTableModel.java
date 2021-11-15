@@ -36,7 +36,6 @@ import javax.swing.Icon;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableColumnModel;
-import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeUtils;
@@ -56,7 +55,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public boolean isCellEditable(final int rowIndex, final int columnIndex) {
-        return true;
+        return columnIndex < 3; // can't edit the "num children" column as that is calculated, not stored.
     }
 
     @Override
@@ -65,6 +64,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
             case 0: return String.class;
             case 1: return Long.class;
             case 2: return Boolean.class;
+            case 3: return Integer.class;
         }
         return Object.class;
     }
@@ -78,6 +78,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
                 case 0: return obj.getDescription();
                 case 1: return obj.getSize();
                 case 2: return obj.isEnabled();
+                case 3: return node.getChildCount();
             }
         }
         return null;
@@ -89,6 +90,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
         result.addColumn(createColumn(0, "description"));
         result.addColumn(createColumn(1, "size"));
         result.addColumn(createColumn(2, "enabled"));
+        result.addColumn(createColumn(3, "children"));
         return result;
     }
 

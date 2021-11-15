@@ -39,6 +39,9 @@ import javax.swing.tree.TreeNode;
 
 /**
  * Compares two tree nodes to see if the first is smaller, equal or bigger than the second.
+ * <b>It does NOT support comparing null TreeNodes</b> as null nodes are not compared by byteseek.
+ * Consistent behaviour is not guaranteed if null nodes are passed in,
+ * but it will probably throw a NullPointerException.
  * <p>
  * If first attempts to use a grouping comparator, if one is set on the TreeTableModel.
  * If no grouping comparator is set, or the grouping comparator says the nodes are equal,
@@ -146,16 +149,13 @@ public class TreeNodeComparator implements Comparator<TreeNode> {
 
         // Compare values using the best comparator we can find for them:
         final int result;
-        // Get a comparator from the model, if one has been defined:
         final Comparator<?> columnComparator = localModel.getColumnComparator(sortedColumn);
-        if (columnComparator != null) {
+        if (columnComparator != null) { // use defined comparator:
             result = ((Comparator) columnComparator).compare(value1, value2);
-        } else { // If they're Comparable and the same class, compare them using their native comparison function.
-            if ((value1 instanceof Comparable) && (value2.getClass().equals(value1.getClass()))) {
-                result = ((Comparable) value1).compareTo(value2);
-            } else { // Compare them on a simple string comparison.
-                result = value1.toString().compareTo(value2.toString());
-            }
+        } else if ((value1 instanceof Comparable) && (value2.getClass().equals(value1.getClass()))) { // compare values
+            result = ((Comparable) value1).compareTo(value2);
+        } else { // Compare them on a simple string comparison.
+            result = value1.toString().compareTo(value2.toString());
         }
         return result;
     }

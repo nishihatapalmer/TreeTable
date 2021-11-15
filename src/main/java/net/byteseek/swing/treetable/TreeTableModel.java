@@ -591,6 +591,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     * Clears any grouping comparator set on the model.
+     */
+    public void clearGroupingComparator() {
+        setGroupingComparator(null);
+    }
+
+    /**
      * Returns true if sort keys are set.
      * @return true if any sort keys are set.
      */
@@ -651,6 +658,15 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public void setSortKeys(final RowSorter.SortKey... keys) {
         setSortKeys(keys == null ? Collections.emptyList() : Arrays.asList(keys));
+    }
+
+    /**
+     * Clears sort keys from the model.
+     * Note that if the TreeTableRowSorter has default keys defined (to use in case
+     * of any empty set of sort keys), they will be set to the defaults by clearing.
+     */
+    public void clearSortKeys() {
+        setSortKeys(Collections.emptyList());
     }
 
     /**

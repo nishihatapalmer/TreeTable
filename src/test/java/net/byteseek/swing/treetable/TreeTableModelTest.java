@@ -369,9 +369,10 @@ class TreeTableModelTest extends BaseTestClass {
 
     @Test
     public void testColumnComparatorNullByDefault() {
-        for (int column = 0; column < 3; column++) {
+        for (int column = 0; column < 2; column++) {
             assertNull(model.getColumnComparator(column));
         }
+        assertNotNull(model.getColumnComparator(2)); // column 2 has a custom comparator.
     }
 
     /* *****************************************************************************************************************
@@ -498,7 +499,7 @@ class TreeTableModelTest extends BaseTestClass {
     @Test
     public void testGetColumnCount() {
         TestTreeTableModel model = new TestTreeTableModel(rootNode, true);
-        assertEquals(3, model.getColumnCount());
+        assertEquals(5, model.getColumnCount());
 
         model = new TestTreeTableModel(rootNode, true, 10);
         assertEquals(10, model.getColumnCount());

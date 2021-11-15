@@ -32,6 +32,7 @@
 package net.byteseek.swing.treetable;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import javax.swing.JTable;
@@ -165,7 +166,9 @@ public class BaseTestClass {
 
     public static class TestTreeTableModel extends TreeTableModel {
 
-        private int columnCount = 3;
+        private static final Comparator<Boolean> ALL_BOOLS_EQUAL_TEST_COMPARATOR = (o1, o2) -> 0;
+
+        private int columnCount = 5;
 
         public TestTreeTableModel(TreeNode node) {
             super(node);
@@ -195,9 +198,18 @@ public class BaseTestClass {
                     return test.size;
                 case 2:
                     return test.enabled;
+                case 3: // return an object which is not comparable.
+                    return test;
+                case 4: // return alternating null and "not null" string.
+                    return getModelIndexForTreeNode(node) % 2 == 0 ? null : "not null";
                 default:
                     return null;
             }
+        }
+
+        @Override
+        public Comparator<?> getColumnComparator(final int column) {
+            return column == 2 ? ALL_BOOLS_EQUAL_TEST_COMPARATOR : null;
         }
 
         @Override
