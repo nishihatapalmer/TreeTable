@@ -32,17 +32,24 @@
 package net.byteseek.swing.treetable;
 
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Graphics;
 import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
+import javax.swing.DebugGraphics;
 import javax.swing.Icon;
+import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.border.BevelBorder;
+import javax.swing.border.Border;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.TreeNode;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class TreeCellRendererTest extends BaseTestClass  {
 
@@ -645,6 +652,42 @@ class TreeCellRendererTest extends BaseTestClass  {
 
     private MouseEvent mouseEvent(int x, int y) {
         return new MouseEvent(table, MouseEvent.MOUSE_RELEASED, 1, 0, x, y, 1, false, MouseEvent.BUTTON1);
+    }
+
+    @Test
+    public void testBorderNotOpaque() {
+        renderer = new TreeCellRenderer(model);
+        Border border = renderer.getBorder();
+        assertFalse(border.isBorderOpaque());
+    }
+
+    @Test
+    public void testRenderPropertiesSetOnPaint() {
+        //TODO; test paint method by examining properties of JLabel.
+        renderer = new TreeCellRenderer(model);
+        model.bindTable(table);
+        model.expandTree();
+        Graphics graphics = mock(Graphics.class);
+        when(graphics.create()).thenReturn(graphics);
+        when(graphics.getFont()).thenReturn(table.getFont());
+
+        Border border = renderer.getBorder();
+
+        JLabel label = renderer.expandCollapseIconRenderer;
+        assertNull(label.getIcon());
+        Dimension size = label.getSize();
+        assertEquals(0, size.width);
+
+        // set properties for row 0 - rootNode.
+        renderer.getTableCellRendererComponent(table, "value", false, false, 0, 0);
+
+        // paint the border.
+        border.paintBorder(table, graphics, 0, 0, 128, 32);
+
+        // Test properties for node are now set on the label.
+        assertEquals(renderer.expandedIcon, label.getIcon());
+        size = label.getSize();
+        assertEquals(renderer.getNodeIndent(), size.width);
     }
 
     @Test
