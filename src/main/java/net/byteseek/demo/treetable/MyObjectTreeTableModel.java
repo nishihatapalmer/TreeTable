@@ -71,17 +71,15 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public Object getColumnValue(final TreeNode node, final int column) {
-        final Object o = TreeUtils.getObject(node);
-        if (o instanceof MyObject) {
-            final MyObject obj = (MyObject) o;
-            switch (column) {
-                case 0: return obj.getDescription();
-                case 1: return obj.getSize();
-                case 2: return obj.isEnabled();
-                case 3: return node.getChildCount();
-            }
+        final MyObject obj = TreeUtils.getUserObject(node);
+        switch (column) {
+            case 0: return obj.getDescription();
+            case 1: return obj.getSize();
+            case 2: return obj.isEnabled();
+            case 3: return node.getChildCount();
+            default: return null;
         }
-        return null;
+
     }
 
     @Override
@@ -96,7 +94,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
 
     @Override
     public void setColumnValue(final TreeNode node, final int column, final Object value) {
-        final Object o = TreeUtils.getObject(node);
+        final Object o = TreeUtils.getUserObject(node);
         if (o instanceof MyObject) {
             final MyObject obj = (MyObject) o;
             switch (column) {

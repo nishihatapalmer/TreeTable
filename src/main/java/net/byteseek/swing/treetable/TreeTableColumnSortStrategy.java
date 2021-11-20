@@ -46,16 +46,91 @@ import javax.swing.SortOrder;
  */
 public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
-    public enum ToggleExistingColumnAction { MAKE_FIRST, KEEP_POSITION }
-    public enum ToggleNewColumnAction { MAKE_FIRST, ADD_TO_END }
-    public enum WhenColumnUnsortedAction { REMOVE, REMOVE_SUBSEQUENT, REMOVE_ALL }
+    /**
+     * The action to take when a sorted column is toggled for sorting.
+     * These actions don't affect how the sort is toggled to another sort, only what happens to the column sort position.
+     */
+    public enum ToggleExistingColumnAction {
+        /**
+         * When sort is toggled, the existing sorted column is made first in the sorted columns.
+         */
+        MAKE_FIRST,
 
-    private static final int DEFAULT_MAX_SORT_KEYS = 3;
+        /**
+         * When sort is toggled, don't move the sorted column in the sort.
+         * This is the default action.
+         */
+        KEEP_POSITION
+    }
 
-    private int maximumSortKeys;
-    private ToggleNewColumnAction newColumnAction;
-    private ToggleExistingColumnAction existingColumnAction;
-    private WhenColumnUnsortedAction whenUnsortedAction;
+    /**
+     * The action to take when an unsorted column is toggled for sorting.
+     * These actions don't affect how the sort for the column is set, only what happens to the column sort position.
+     */
+    public enum ToggleNewColumnAction {
+        /**
+         * When sort is toggled, the new sorted column is made first in the sorted columns.
+         */
+        MAKE_FIRST,
+
+        /**
+         * When sort is toggled, the new sorted column is added to the end of the currently sorted columns,
+         * or replaces the last sorted column if we're at the maximum number of sorted columns allowed.
+         * This is the default action.
+         */
+        ADD_TO_END
+    }
+
+    /**
+     * The action to take when a sorted column becomes unsorted.
+     */
+    public enum WhenColumnUnsortedAction {
+        /**
+         * Removes the column from the list of sorted columns. This is the default.
+         */
+        REMOVE,
+
+        /**
+         * Removes the column from the list of sorted columns, and also any subsequent columns defined.
+         * If we have 3 sorted columns, and we make the second one unsorted, the second and third column would
+         * be removed from the sort.
+         */
+        REMOVE_SUBSEQUENT,
+
+        /**
+         * Removes all sorted columns from the list of sorted columns.
+         */
+        REMOVE_ALL
+    }
+
+    /**
+     * The default maximum number of sort keys.
+     *
+     * In practice, more than 3 levels of sort will produce no real or useful change in any tree sort order.
+     * Even 3 levels is mostly unnecessary, unless you are sorting small-domain values first
+     * like booleans or other data that has a reduced number of different values.
+     */
+    protected static final int DEFAULT_MAX_SORT_KEYS = 3;
+
+    /**
+     * The maximum number of sort columns allowed.
+     */
+    protected int maximumSortKeys;
+
+    /**
+     * The action to take when an unsorted column is sorted.
+     */
+    protected ToggleNewColumnAction newColumnAction;
+
+    /**
+     * The action to take when a sorted column is sorted.
+     */
+    protected ToggleExistingColumnAction existingColumnAction;
+
+    /**
+     * The action to take when a column becomes unsorted.
+     */
+    protected WhenColumnUnsortedAction whenUnsortedAction;
 
     /**
      * Constructs a TreeTableColumnSortStrategy with the default settings.
@@ -75,11 +150,15 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
      * @param newColumnAction What to do if a new column is sorted.
      * @param existingColumnAction What to do if an existing sorted column is toggled again.
      * @param whenUnsortedAction What to do when a column becomes unsorted.
+     * @throws IllegalArgumentException if any of the actions are null.
      */
     public TreeTableColumnSortStrategy(final int maximumSortKeys,
                                        final ToggleNewColumnAction newColumnAction,
                                        final ToggleExistingColumnAction existingColumnAction,
                                        final WhenColumnUnsortedAction whenUnsortedAction) {
+        if (newColumnAction == null || existingColumnAction == null || whenUnsortedAction == null) {
+            throw new IllegalArgumentException("Actions to take cannot be null.");
+        }
         this.maximumSortKeys = maximumSortKeys;
         this.newColumnAction = newColumnAction;
         this.existingColumnAction = existingColumnAction;
@@ -160,7 +239,11 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "(max keys: " + maximumSortKeys + ", new sort columns: " + newColumnAction + ", when unsorted: " + whenUnsortedAction + ')';
+        return getClass().getSimpleName() +
+                "(max columns: " + maximumSortKeys +
+                ", existing sort columns: " + existingColumnAction +
+                ", new sort columns: " + newColumnAction +
+                ", when unsorted: " + whenUnsortedAction + ')';
     }
 
     /**

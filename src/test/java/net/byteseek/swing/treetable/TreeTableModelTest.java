@@ -114,42 +114,48 @@ class TreeTableModelTest extends BaseTestClass {
 
     @Test
     public void testBindTableWithNullDefaultSortKey() {
-        model.bindTable(table, (RowSorter.SortKey) null);
+        model.bindTable(table);
+        model.setDefaultSortKeys((RowSorter.SortKey) null);
         testDefaultTableBinding();
         testNoSortKeys();
     }
 
     @Test
     public void testBindTableWithDefaultSortKey() {
-        model.bindTable(table, sortKey1);
+        model.bindTable(table);
+        model.setDefaultSortKeys(sortKey1);
         testDefaultTableBinding();
         testOneSortKey();
     }
 
     @Test
     public void testBindTableWithTwoDefaultSortKeys() {
-        model.bindTable(table, sortKey1, sortKey2);
+        model.bindTable(table);
+        model.setDefaultSortKeys(sortKey1, sortKey2);
         testDefaultTableBinding();
         testTwoSortKeys();
     }
 
     @Test
     public void testBindTableWitDefaultSortKeyList() {
-        model.bindTable(table, sortKeyList);
+        model.bindTable(table);
+        model.setDefaultSortKeys(sortKeyList);
         testDefaultTableBinding();
         testListOfKeys();
     }
 
     @Test
     public void testBindTableWitDefaultEmptySortKeyList() {
-        model.bindTable(table, Collections.emptyList());
+        model.bindTable(table);
+        model.setDefaultSortKeys(Collections.emptyList());
         testDefaultTableBinding();
         testNoSortKeys();
     }
 
     @Test
     public void testBindTableWitDefaultNullSortKeyList() {
-        model.bindTable(table, (List<RowSorter.SortKey>) null);
+        model.bindTable(table);
+        model.setDefaultSortKeys((List<RowSorter.SortKey>) null);
         testDefaultTableBinding();
         testNoSortKeys();
     }
@@ -195,60 +201,6 @@ class TreeTableModelTest extends BaseTestClass {
         assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
     }
 
-    @Test
-    public void testBindTableWithCustomHeaderAndNullSortKey() {
-        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-
-        // Test null sort key
-        model.bindTable(table, headerRenderer, (RowSorter.SortKey) null);
-        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
-        testDefaultTableBinding();
-        testNoSortKeys();
-    }
-
-    @Test
-    public void testBindTableWithCustomHeaderAndOneSortKey() {
-        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-
-        // Test single sort key
-        model.bindTable(table, headerRenderer, sortKey1);
-        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
-        testDefaultTableBinding();
-        testOneSortKey();
-    }
-
-    @Test
-    public void testBindTableWithCustomHeaderAndTwoSortKeys() {
-        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-
-        // Test multi key parameters
-        model.bindTable(table, headerRenderer, sortKey1, sortKey2);
-        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
-        testDefaultTableBinding();
-        testTwoSortKeys();
-    }
-
-    @Test
-    public void testBindTableWithCustomHeaderAndSortKeysList() {
-        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-
-        // Test list method
-        model.bindTable(table, headerRenderer, sortKeyList);
-        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
-        testDefaultTableBinding();
-        testListOfKeys();
-    }
-
-    @Test
-    public void testBindTableWithCustomHeaderAndNullSortKeysList() {
-        TableCellRenderer headerRenderer = new DefaultTableCellRenderer();
-
-        // Test list method
-        model.bindTable(table, headerRenderer, (List<? extends RowSorter.SortKey>) null);
-        assertEquals(headerRenderer, table.getTableHeader().getDefaultRenderer());
-        testDefaultTableBinding();
-        testNoSortKeys();
-    }
 
     @Test
     public void testBindToAnotherTable() {
@@ -397,7 +349,8 @@ class TreeTableModelTest extends BaseTestClass {
     @Test
     public void testGroupsByAllowsChildrenNodeComparatorSorted() {
         assertNull(model.getGroupingComparator());
-        model.bindTable(table, sortKey1);
+        model.bindTable(table);
+        model.setDefaultSortKeys(sortKey1);
         testGroupsByAllowsChildrenNodeComparator();
     }
 
@@ -478,7 +431,7 @@ class TreeTableModelTest extends BaseTestClass {
 
     @Test
     public void testGetRowCountWithSortedTable() {
-        model.bindTable(table, sortKey1);
+        model.setSortKeys(sortKey1);
         testGetRowCount();
     }
 
@@ -492,7 +445,8 @@ class TreeTableModelTest extends BaseTestClass {
     @Test
     public void testGetRowCountWithSortedGroupedTable() {
         model.setGroupingComparator(TreeUtils.GROUP_BY_ALLOWS_CHILDREN);
-        model.bindTable(table, sortKey1);
+        model.bindTable(table);
+        model.setSortKeys(sortKey1);
         testGetRowCount();
     }
 
@@ -820,14 +774,14 @@ class TreeTableModelTest extends BaseTestClass {
         assertTrue(sortKeys.isEmpty());
 
         model.setSortKeys(sortKey1);
-        assertTrue(model.isSorting());
+        assertEquals(tableBound, model.isSorting());
         assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(1, sortKeys.size());
         assertEquals(sortKey1, sortKeys.get(0));
 
         model.setSortKeys(sortKey2, sortKey1);
-        assertTrue(model.isSorting());
+        assertEquals(tableBound, model.isSorting());
         assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(2, sortKeys.size());
@@ -835,7 +789,7 @@ class TreeTableModelTest extends BaseTestClass {
         assertEquals(sortKey1, sortKeys.get(1));
 
         model.setSortKeys(sortKeyList);
-        assertTrue(model.isSorting());
+        assertEquals(tableBound, model.isSorting());
         assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(sortKeyList.size(), sortKeys.size());

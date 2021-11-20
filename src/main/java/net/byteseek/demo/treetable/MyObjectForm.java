@@ -50,6 +50,7 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeUtils;
+import static net.byteseek.swing.treetable.TreeUtils.getChildren;
 
 //TODO: toggle button for group by.
 
@@ -103,7 +104,7 @@ public class MyObjectForm {
      */
     public void initForm() {
         MyObject myObjectTree = buildRandomTree(MAX_LEVELS, CHANCE_OUT_OF_TEN_FOR_CHILDREN);
-        TreeNode rootNode = TreeUtils.buildTree(myObjectTree, (Object parent) -> ((MyObject) parent).getChildren());
+        TreeNode rootNode = TreeUtils.buildTree(myObjectTree, parent -> parent.getChildren(), parent -> parent.getChildren().size() > 0);
         table1.setRowHeight(24);
         treeTableModel = createTreeTableModel(rootNode);
         treeModel = createTreeModel(rootNode);

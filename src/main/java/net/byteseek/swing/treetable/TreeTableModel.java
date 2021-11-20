@@ -72,6 +72,8 @@ import net.byteseek.utils.collections.BlockModifyArrayList;
 //                        TreeStructureChanged  rebuildnodes is weird on root (also try it on other nodes)
 //TODO: bug - show root and filtering
 
+//TODO: should we be able to disable sorting easily?
+
 //TODO: check logic
 //  check logic around when child counts are updated, and whether there are any missing updates for tree building...
 
@@ -166,13 +168,24 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected List<? extends RowSorter.SortKey> sortKeys = Collections.emptyList();
 
     /**
+     * The sort keys to use if no other sort keys are set (to maintain a table in an always-sorted state).
+     */
+    protected List<? extends RowSorter.SortKey> defaultSortKeys = Collections.emptyList();
+
+    /**
+     * The sort strategy to set on a row sorter.  If null, the default strategy will be used.
+     */
+    protected TreeTableRowSorter.ColumnSortStrategy sortStrategy;
+
+    /**
      * Groups sibling nodes together based on a grouping comparator (e.g. has children or doesn't).
      */
     protected Comparator<TreeNode> groupingComparator;
 
     /**
-     * A filter predicate applied to the tree.  Any nodes which the predicate returns true for are filtered,
-     * null if not filtering.
+     * A filter predicate applied to tree nodes.
+     * Any nodes which the predicate test returns true for are filtered out.
+     * Set to null if not filtering.
      */
     private Predicate<TreeNode> filterPredicate;
 
@@ -181,11 +194,17 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * of a node in the tree rather than using a tree scan.
      * Defaults to 100 after profiling with the jmh benchmarking tool, which showed tree scans consistently outperformed
      * linear scans at around that size of visible nodes in the tree, and that unsurprisingly, linear scans get
-     * consistently worse the larger the number of visible nodes, on average.
+     * consistently worse the larger the number of visible nodes, on average, while tree scan performance declines much less rapidly.
      * There are edge cases where this won't be true, such as a large and very flat or deep tree, but should not
      * be a lot worse than a linear scan of all the nodes in those cases.
      */
     protected final int linearScanThreshold = 100;
+
+    /**
+     * The default column sort strategy to use when setting a row sorter.
+     * If null, the default strategy of the row sorter will be used.
+     */
+    protected TreeTableRowSorter.ColumnSortStrategy defaultColumnSortStrategy;
 
     /*
      * Cached/calculated properties of the model.
@@ -326,40 +345,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      */
     public void bindTable(final JTable table) {
-        bindTable(table, new TreeTableRowSorter(this), new TreeTableHeaderRenderer());
-    }
-
-    /**
-     * Binds a JTable to use this model and configures columns, sorters and listeners to
-     * react to mouse and keyboard events.
-     * <p><b>Default Sort Keys</b><p>
-     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
-     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
-     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
-     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
-     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
-     *
-     * @param table The JTable to bind to this TreeTableModel.
-     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
-     */
-    public void bindTable(final JTable table, final RowSorter.SortKey... defaultSortKeys) {
-        bindTable(table, Arrays.asList(defaultSortKeys));
-    }
-
-    /**
-     * Binds a JTable to use this model and configures columns, sorters and listeners to
-     * react to mouse and keyboard events.
-     * <p><b>Default Sort Keys</b><p>
-     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
-     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
-     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
-     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
-     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
-     *
-     * @param table The JTable to bind to this TreeTableModel.
-     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
-     */
-    public void bindTable(final JTable table, final List<? extends RowSorter.SortKey> defaultSortKeys) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), new TreeTableHeaderRenderer());
     }
 
@@ -382,50 +367,15 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param headerRenderer The renderer to use to draw the table header.
      */
     public void bindTable(final JTable table,  final TableCellRenderer headerRenderer) {
-        bindTable(table, new TreeTableRowSorter(this), headerRenderer);
-    }
-
-    /**
-     * Binds a JTable to use this model and configures columns, sorters and listeners to
-     * react to mouse and keyboard events.
-     * <p><b>Default Sort Keys</b><p>
-     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
-     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
-     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
-     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
-     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
-     *
-     * @param table The JTable to bind to this TreeTableModel.
-     * @param headerRenderer The renderer to use to draw the table header.
-     * @param defaultSortKey The default sort key the table will have if no other sort defined.
-     */
-    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final RowSorter.SortKey... defaultSortKey) {
-        bindTable(table, new TreeTableRowSorter(this, Arrays.asList(defaultSortKey)), headerRenderer);
-    }
-
-    /**
-     * Binds a JTable to use this model and configures columns, sorters and listeners to
-     * react to mouse and keyboard events.
-     * <p><b>Default Sort Keys</b><p>
-     * It allows you to also set the default sort keys for the row sorter.  Default sort keys are not simply
-     * the initial set of sort keys to sort on.  They are the set of sort keys to be used when no other sort
-     * has been set (i.e. an empty list of sort keys).  It allows you to always have a table sorted by something.
-     * If any clicks on other headers end up with nothing sorted, the default sort keys are what the table will
-     * be sorted as.  The default sort keys can be empty (but this is the default without specifying them).
-     *
-     * @param table The JTable to bind to this TreeTableModel.
-     * @param headerRenderer The renderer to use to draw the table header.
-     * @param defaultSortKeys The default sort keys the table will have if no other sort defined.
-     */
-    public void bindTable(final JTable table,  final TableCellRenderer headerRenderer, final List<? extends RowSorter.SortKey> defaultSortKeys) {
         bindTable(table, new TreeTableRowSorter(this, defaultSortKeys), headerRenderer);
     }
+
 
     /**
      * Binds a JTable to use this model and configures columns, sorters and listeners to
      * react to mouse and keyboard events.  Also unbinds from any table which is currently bound.
      *
-     * @param tableToBind The JTable to bind to this TreeTableModel.  Cannot be null.
+     * @param tableToBind The JTable to bind to this TreeTableModel.  If null, then no new table will be bound, but no error is thrown.
      * @param rowSorter The row sorter to use with the table.  Can be null if no sorting required.
      * @param headerRenderer The renderer to use to draw the table header.  Can be null if no special header rendering required.
      */
@@ -440,9 +390,17 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             tableToBind.setAutoCreateColumnsFromModel(false);
             tableToBind.setModel(this);
             tableToBind.setColumnModel(getTableColumnModel());
+            tableToBind.setAutoCreateRowSorter(false); // the default table row sorter cannot sort tree structures.
             if (rowSorter != null) {
                 rowSorter.setSortKeys(sortKeys);
+                if (rowSorter instanceof TreeTableRowSorter) {
+                    TreeTableRowSorter sorter = (TreeTableRowSorter) rowSorter;
+                    sorter.setDefaultSortKeys(defaultSortKeys);
+                    sorter.setSortStrategy(defaultColumnSortStrategy);
+                }
                 tableToBind.setRowSorter(rowSorter);
+            } else {
+                tableToBind.setRowSorter(null);
             }
             oldHeaderRenderer = tableToBind.getTableHeader().getDefaultRenderer();
             if (headerRenderer != null) {
@@ -598,11 +556,43 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Returns true if sort keys are set.
-     * @return true if any sort keys are set.
+     * Enables sorting on a bound JTable by setting a row sorter if it doesn't exist.
+     */
+    public void enableSorting() {
+        if (table != null && table.getRowSorter() == null) {
+            final TreeTableRowSorter rowSorter = new TreeTableRowSorter(this, defaultSortKeys);
+            rowSorter.setSortStrategy(defaultColumnSortStrategy);
+            table.setRowSorter(rowSorter);
+        }
+    }
+
+    /**
+     * Disables sorting on a bound JTable by setting a null row sorter on the JTable.
+     */
+    public void disableSorting() {
+        if (table != null) {
+            table.setRowSorter(null);
+        }
+    }
+
+    /**
+     * Returns true if the JTable has a RowSorter with sort keys set.
+     * @return true if any sort keys are set and the JTable is using a RowSorter.
      */
     public boolean isSorting() {
-        return !getSortKeys().isEmpty();
+        return  table != null && table.getRowSorter() != null && !getSortKeys().isEmpty();
+    }
+
+    /**
+     * Sets the column sort strategy to use (if using a TreeTableRowSorter to sort with).
+     *
+     * @param defaultColumnSortStrategy the default column sort strategy to use.
+     */
+    public void setColumnSortStrategy(TreeTableRowSorter.ColumnSortStrategy defaultColumnSortStrategy) {
+        this.defaultColumnSortStrategy = defaultColumnSortStrategy;
+        if (table != null & table.getRowSorter() instanceof TreeTableRowSorter) {
+            ((TreeTableRowSorter) table.getRowSorter()).setSortStrategy(defaultColumnSortStrategy);
+        }
     }
 
     /**
@@ -625,6 +615,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * You can set sort keys before binding occurs, and they will be cached for future binding.
      * If bound to a table, it will also set those sort keys on its RowSorter,
      * and create a TreeTableRowSorter for the table if one does not already exist.
+     * Setting sort keys will enable sorting on a bound table.
      *
      * @param keys The list of sort keys to sort with.
      */
@@ -633,16 +624,45 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         sortKeys = keys == null || keys.isEmpty()? Collections.emptyList() : Collections.unmodifiableList(keys);
 
         // If we're bound to a table, set those keys on the table, creating a row sorter if one does not exist.
-        if (table != null) { // We are bound to a table - use its RowSorter, or create one if it doesn't have one.
+        if (table != null) {
             RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-            if (rowSorter == null) { // row sorter not set on table - create one to hold the sort keys.
-                rowSorter = new TreeTableRowSorter(this);
+            if (rowSorter == null) {
+                rowSorter = new TreeTableRowSorter(this, defaultSortKeys);
+                ((TreeTableRowSorter) rowSorter).setSortStrategy(defaultColumnSortStrategy);
                 table.setRowSorter(rowSorter);
-                rowSorter.setSortKeys(sortKeys);
-            } else {
-                rowSorter.setSortKeys(sortKeys); // we have a table and a rowsorter - just set the keys!
             }
+            rowSorter.setSortKeys(sortKeys);
         }
+    }
+
+    /**
+     * Sets the default sort keys to use if no other columns were selected for sort.
+     * @param defaultKeys The default sort keys to use if no other columns are sorted.
+     */
+    public void setDefaultSortKeys(final List<? extends RowSorter.SortKey> defaultKeys) {
+        // Cache the keys set.
+        this.defaultSortKeys = defaultKeys == null ? Collections.emptyList() : defaultKeys;
+
+        // If a table is set and we're using a TreeTableRowSorter, set the default sort keys.
+        if (table != null && table.getRowSorter() instanceof TreeTableRowSorter) {
+            TreeTableRowSorter rowSorter = (TreeTableRowSorter) table.getRowSorter();
+            rowSorter.setDefaultSortKeys(defaultSortKeys);
+        }
+    }
+
+    /**
+     * Sets the default sort keys to use if no other columns were selected for sort.
+     * @param defaultKeys  The default sort keys to use if no other columns are sorted.
+     */
+    public void setDefaultSortKeys(final RowSorter.SortKey... defaultKeys) {
+        setDefaultSortKeys(Arrays.asList(defaultKeys));
+    }
+
+    /**
+     * @return An unmodifiable list of the default sort keys currently set.
+     */
+    public List<? extends RowSorter.SortKey> getDefaultSortKeys() {
+        return Collections.unmodifiableList(defaultSortKeys);
     }
 
     /**
@@ -662,7 +682,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Clears sort keys from the model.
-     * Note that if the TreeTableRowSorter has default keys defined (to use in case
+     * Note that if the TreeTableRowSorter has default sort keys defined (to use in case
      * of any empty set of sort keys), they will be set to the defaults by clearing.
      */
     public void clearSortKeys() {
@@ -700,7 +720,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     //  Look at code around building tree and see how root node is handled when filtering is active.
 
     /**
-     * @return true if a filter predicate is set.
+     * @return true if a filter is set.
      */
     public boolean isFiltering() {
         return filterPredicate != null;
@@ -1629,6 +1649,14 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     * Toggles the expansion state of the node.
+     * @param node the node to toggle expansion.
+     */
+    public void toggleNode(final TreeNode node) {
+        toggleExpansion(node, getModelIndexForTreeNode(node));
+    }
+
+    /**
      * @return a read only set of tree nodes which are currently expanded.  This will change as expanded nodes change.
      */
     public Set<TreeNode> getExpandedNodes() {
@@ -1844,10 +1872,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     * Toggles the expansion state of the node.  If the node is currently visible, the model index of the node
+     * must be supplied, otherwise supply -1 for the model index.
      * Listeners may change the node structure (e.g. dynamically add, remove or change nodes).
-     * If we're going to remove nodes (currently expanded), we need to get the number of nodes that are
-     * *currently* visible, before any listeners run, so we know how many current nodes to remove, and
-     * whether the node was already expanded or not.
      *
      * @param node The node to toggle expansion.
      * @param modelIndex The row in the model the node exists at.

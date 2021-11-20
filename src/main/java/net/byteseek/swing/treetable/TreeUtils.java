@@ -61,7 +61,7 @@ public final class TreeUtils {
     /**
      * Mirrors a tree of user objects as a tree of MutableTreeNodes, with each MutableTreeNode associated with the
      * appropriate user object.  If your user objects already have a tree structure, this is a quick way to
-     * obtain a parallel tree of TreeNodes.
+     * obtain a parallel tree of TreeNodes.  All nodes will be set to allow children.
      *
      * <p>
      * It will build a root DefaultMutableTreeNode and all sub children given the user object which is the parent,
@@ -73,14 +73,45 @@ public final class TreeUtils {
      *
      * @param parent The user object which is at the root of the tree.
      * @param childProvider An object which provides a list of user objects from the parent user object.
+     *
      * @return A DefaultMutableTreeNode with all child nodes built and associated with their corresponding user objects.
      */
-    public static DefaultMutableTreeNode buildTree(final Object parent, final Function<Object, List<?>> childProvider) {
-        final List<?> children = childProvider.apply(parent);
-        final DefaultMutableTreeNode parentNode = new DefaultMutableTreeNode(parent, children.size() > 0);
-        int indexToInsert = 0;
-        for (Object child : children) {
-            parentNode.insert(buildTree(child, childProvider), indexToInsert++);
+    public static <T> DefaultMutableTreeNode buildTree(final T parent,
+                                                       final Function<T, List<T>> childProvider) {
+        return buildTree(parent, childProvider, allowsChildren -> true);
+    }
+
+    /**
+     * Mirrors a tree of user objects as a tree of MutableTreeNodes, with each MutableTreeNode associated with the
+     * appropriate user object.  If your user objects already have a tree structure, this is a quick way to
+     * obtain a parallel tree of TreeNodes.   It allows you to set whether each node should allow children.
+     *
+     * <p>
+     * It will build a root DefaultMutableTreeNode and all sub children given the user object which is the parent,
+     * and a ChildProvider method which returns the list of children for user objects in the tree.
+     * This can be provided as a one line lambda expression, or by implementing the TreeTableModel.ChildProvider interface.
+     * <p>
+     * Note - this will not keep the tree of MutableTreeNodes up to date if your user object tree structure changes.
+     * You must inform the TreeTableModel of any changes to your tree structure to keep it in sync.
+     *
+     * @param parent The user object which is at the root of the tree.
+     * @param childProvider An object which provides a list of user objects from the parent user object.
+     * @param allowChildrenTest A predicate that decides whether a node should have children given the parent object.
+     *
+     * @return A DefaultMutableTreeNode with all child nodes built and associated with their corresponding user objects.
+     */
+    public static <T> DefaultMutableTreeNode buildTree(final T parent,
+                                                       final Function<T, List<T>> childProvider,
+                                                       final Predicate<T> allowChildrenTest) {
+        final boolean allowsChildren = allowChildrenTest.test(parent);
+        final DefaultMutableTreeNode parentNode = new DefaultMutableTreeNode(parent, allowsChildren);
+        if (allowsChildren) {
+            final List<T> children = childProvider.apply(parent);
+            int indexToInsert = 0;
+            for (T child : children) {
+                final DefaultMutableTreeNode childNode = buildTree(child, (childProvider), allowChildrenTest);
+                parentNode.insert(childNode, indexToInsert++);
+            }
         }
         return parentNode;
     }
@@ -141,7 +172,7 @@ public final class TreeUtils {
      * @param <T> The type of the user object.
      * @return The user object associated with the DefaultMutableTreeNode passed in.
      */
-    public static <T> T getObject(final TreeNode node) {
+    public static <T> T getUserObject(final TreeNode node) {
         return (T) ((DefaultMutableTreeNode) node).getUserObject();
     }
 

@@ -168,6 +168,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         buildSortIndices();
     }
 
+
     @Override
     public TreeTableModel getModel() {
         return model;
@@ -294,14 +295,17 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         this.nodeComparator = nodeComparator;
     }
 
+
+
     //TODO: do we need this once we are satisfied through testing and profiling that dynamic updates are better than full rebuilds?
     public boolean getRebuildIndices() {
         return rebuildIndices;
     }
-
     public void setRebuildIndices(final boolean rebuildIndices) {
         this.rebuildIndices = rebuildIndices;
     }
+
+
 
     protected void insertSortedRows(int firstModelIndex, int endModelIndex) {
         // Initialize useful constants:
@@ -442,11 +446,16 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     }
 
     /**
-     * Sets the TreeTableColumnSortStrategy for this RowSorter.  If set to null, it will revert to a {@link TreeTableRowSorter}.
-     * @param sortStrategy The TreeTableColumnSortStrategy to use.
+     * Sets the TreeTableColumnSortStrategy for this RowSorter.
+     * If set to null, it will revert to a default TreeTableColumnSortStrategy.
+     * @param sortStrategy The TreeTableColumnSortStrategy to use, or null if the default should be used.
      */
     public void setSortStrategy(final ColumnSortStrategy sortStrategy) {
-        this.sortStrategy = sortStrategy;
+        if (sortStrategy == null) {
+            this.sortStrategy = new TreeTableColumnSortStrategy();
+        } else {
+            this.sortStrategy = sortStrategy;
+        }
     }
 
     /**
