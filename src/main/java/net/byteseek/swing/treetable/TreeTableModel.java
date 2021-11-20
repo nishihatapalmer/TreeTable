@@ -763,6 +763,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return filterPredicate;
     }
 
+    /**
+     * Clears any filtering set on the model.
+     */
+    public void clearNodeFilter() {
+        setNodeFilter(null);
+    }
+
 
     /* *****************************************************************************************************************
      *                                    TableModel interface methods.

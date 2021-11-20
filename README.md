@@ -289,7 +289,7 @@ You can filter nodes from the visible tree by specifying a `Predicate<TreeNode>`
     model.setNodeFilter(treeNode -> !treeNode.getAllowsChildren());
 ```
 
-You can turn off filtering by setting a null filter, or by calling `clearGroupingComparator()`, and you can determine if you are currently filtering by calling `isFiltering()`.
+You can turn off filtering by setting a null filter, or by calling `clearNodeFilter()`, and you can determine if you are currently filtering by calling `isFiltering()`.
 
 
 ## Editing
