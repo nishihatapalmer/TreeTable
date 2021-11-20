@@ -283,17 +283,17 @@ For example, some nodes represent files and some folders, and you'd like all the
 If a grouping comparator is set, sibling nodes will always be grouped by the comparator, even if no other columns are being sorted on.  You can remove grouping by setting a null grouping comparator or calling `clearGroupingComparator()`.
 
 ## Filtering
-You can filter nodes from the visible tree by specifying a `Predicate<TreeNode>`.  Any node that passes the predicate test will be filtered out from display.   For example, to filter out all the nodes that have children:
+You can filter nodes from the visible tree by specifying a `Predicate<TreeNode>`.  Any node that passes the predicate test will be filtered out from display.   For example, to filter out all the nodes that don't allow children:
 
 ```java
-    model.setNodeFilter(treeNode -> treeNode.getAllowsChildren());
+    model.setNodeFilter(treeNode -> !treeNode.getAllowsChildren());
 ```
 
 You can turn off filtering by setting a null filter, or by calling `clearGroupingComparator()`, and you can determine if you are currently filtering by calling `isFiltering()`.
 
 
 ## Editing
-If you want to edit cells in the tree table, you have to override the following method: `TreeTableModel.isCellEditable()` and return `true` if a particular cell is editable.
+If you want to edit cells in the tree table, you have to override  `TreeTableModel.isCellEditable()` and return `true` if a particular cell is editable.
 ```java
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
