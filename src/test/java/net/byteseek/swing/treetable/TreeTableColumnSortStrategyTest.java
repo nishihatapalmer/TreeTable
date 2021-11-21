@@ -67,6 +67,7 @@ class TreeTableColumnSortStrategyTest {
     @BeforeEach
     public void setup() {
         currentSortKeys = new ArrayList<>();
+        builtSortKeys = new ArrayList<>();
     }
 
     @Test
@@ -109,6 +110,60 @@ class TreeTableColumnSortStrategyTest {
     }
 
     @Test
+    public void testConstructMaxSortKeys() {
+        for (int i = 0; i < 10; i++) {
+            TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(i,
+                    TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                    TreeTableColumnSortStrategy.ToggleExistingColumnAction.MAKE_FIRST,
+                    TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
+            assertEquals(i, strategy.getMaximumSortKeys());
+        }
+    }
+
+    @Test
+    public void testGetSetMaxSortKeys() {
+        for (int i = 0; i < 10; i++) {
+            TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(1000,
+                    TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                    TreeTableColumnSortStrategy.ToggleExistingColumnAction.MAKE_FIRST,
+                    TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
+            assertEquals(1000, strategy.getMaximumSortKeys());
+            strategy.setMaximumSortKeys(i);
+            assertEquals(i, strategy.getMaximumSortKeys());
+        }
+    }
+
+    @Test
+    public void testConstructAllVariants() {
+        for (TreeTableColumnSortStrategy.ToggleNewColumnAction newAction : TreeTableColumnSortStrategy.ToggleNewColumnAction.values()) {
+            for (TreeTableColumnSortStrategy.ToggleExistingColumnAction existingAction : TreeTableColumnSortStrategy.ToggleExistingColumnAction.values()) {
+                for (TreeTableColumnSortStrategy.WhenColumnUnsortedAction unsortedAction : TreeTableColumnSortStrategy.WhenColumnUnsortedAction.values()) {
+                    for (int col = 0; col < 10; col++) {
+                        testConstructVariant(col, newAction, existingAction, unsortedAction);
+                    }
+                }
+            }
+        }
+    }
+
+    private void testConstructVariant(int maxColumns,
+                              TreeTableColumnSortStrategy.ToggleNewColumnAction newColumn,
+                              TreeTableColumnSortStrategy.ToggleExistingColumnAction existingColumn,
+                              TreeTableColumnSortStrategy.WhenColumnUnsortedAction removeAction) {
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(maxColumns, newColumn, existingColumn, removeAction);
+        assertEquals(maxColumns, strategy.getMaximumSortKeys());
+        assertEquals(newColumn, strategy.getNewColumnAction());
+        assertEquals(existingColumn, strategy.getExistingColumnAction());
+        assertEquals(removeAction, strategy.getWhenUnsortedAction());
+
+        assertTrue(strategy.toString().contains(TreeTableColumnSortStrategy.class.getSimpleName()));
+        assertTrue(strategy.toString().contains(Integer.toString(maxColumns)));
+        assertTrue(strategy.toString().contains(newColumn.toString()));
+        assertTrue(strategy.toString().contains(existingColumn.toString()));
+        assertTrue(strategy.toString().contains(removeAction.toString()));
+    }
+
+    @Test
     public void testGetSetNewColumnActions() {
         TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy();
 
@@ -140,18 +195,311 @@ class TreeTableColumnSortStrategyTest {
 
     @Test
     public void testToggleNewColumnMakeFirst() {
-        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(7,
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
                 TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
                 TreeTableColumnSortStrategy.ToggleExistingColumnAction.MAKE_FIRST,
                 TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
 
-        builtSortKeys = strategy.buildNewSortKeys(0, NO_SORT_KEYS);
-        assertEquals(1, builtSortKeys.size());
-        assertEquals(sortKey0Asc, builtSortKeys.get(0));
+        // Test setting a new column beyond the MAX_KEYS limit with no existing sort keys:
+        // Always only have a single column if the input is an empty list of sort keys.
+        for (int column = 0; column < MAX_KEYS * 2; column++) {
+            builtSortKeys = strategy.buildNewSortKeys(column, NO_SORT_KEYS);
+            assertEquals(1, builtSortKeys.size());
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(expected, builtSortKeys.get(0)); // always first, but only one of them.
+        }
 
+        // Test setting a new column beyond max keys using the previous state as input:
+        // Will add columns up to MAX_COLUMNS.
+        builtSortKeys = NO_SORT_KEYS;
+        for (int column = 0; column < MAX_KEYS * 2; column++) {
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            final int expectedSize = Math.min(column + 1, MAX_KEYS);
+            assertEquals(expectedSize, builtSortKeys.size());
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(expected, builtSortKeys.get(0)); // always first.
+        }
+    }
 
+    @Test
+    public void testToggleNewColumnAddToEnd() {
+        final int MAX_KEYS = 10;
 
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.ADD_TO_END,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
 
+        // Test setting a new column beyond the MAX_KEYS limit with no existing sort keys:
+        // Always only have a single column if the input is an empty list of sort keys.
+        for (int column = 0; column < MAX_KEYS * 2; column++) {
+            builtSortKeys = strategy.buildNewSortKeys(column, NO_SORT_KEYS);
+            assertEquals(1, builtSortKeys.size());
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(expected, builtSortKeys.get(0)); // always last, but only one of them.
+        }
+
+        // Test setting a new column beyond max keys using the previous state as input:
+        // Will add columns up to MAX_COLUMNS.
+        builtSortKeys = NO_SORT_KEYS;
+        for (int column = 0; column < MAX_KEYS * 2; column++) {
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            final int expectedSize = Math.min(column + 1, MAX_KEYS);
+            assertEquals(expectedSize, builtSortKeys.size());
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(expected, builtSortKeys.get(expectedSize - 1)); // always last
+        }
+    }
+
+    @Test
+    public void testToggleExistingColumnMakeFirst() {
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
+
+        // Set up a list of columns:
+        for (int column = 0; column < MAX_KEYS; column++) {
+            currentSortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
+        }
+
+        // For each of them from the end, make them first, using a new list each time.
+        for (int column = MAX_KEYS -1; column >= 0; column--) {
+            builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position, column key is ascending.
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.DESCENDING);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            assertEquals(MAX_KEYS, builtSortKeys.size());
+            assertEquals(expected, builtSortKeys.get(0)); // it is now first and switched to descending.
+        }
+
+        // For the last one MAX_KEYS times, make it first:
+        builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+        for (int column = MAX_KEYS -1; column >= 0; column--) {
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(MAX_KEYS - 1)); // at end it's ascending.
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.DESCENDING);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            assertEquals(MAX_KEYS, builtSortKeys.size());
+            assertEquals(expected, builtSortKeys.get(0)); // it is now first and switched to descending.
+        }
+    }
+
+    @Test
+    public void testToggleExistingColumnKeepPosition() {
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.KEEP_POSITION,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
+
+        // Set up a list of columns:
+        for (int column = 0; column < MAX_KEYS; column++) {
+            currentSortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
+        }
+
+        // For each of them from the end, toggle them, using a new list each time.
+        for (int column = MAX_KEYS -1; column >= 0; column--) {
+            builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position, column key is ascending.
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.DESCENDING);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            assertEquals(MAX_KEYS, builtSortKeys.size());
+            assertEquals(expected, builtSortKeys.get(column)); // it is still at current position and switched to descending.
+        }
+
+        // For each one using the same list modified each time:
+        builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+        for (int column = MAX_KEYS -1; column >= 0; column--) {
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position it's ascending.
+            RowSorter.SortKey expected = new RowSorter.SortKey(column, SortOrder.DESCENDING);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            assertEquals(MAX_KEYS, builtSortKeys.size());
+            assertEquals(expected, builtSortKeys.get(column)); // at current position and switched to descending.
+        }
+    }
+
+    @Test
+    public void testRemoveOnUnsorted() {
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.KEEP_POSITION,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE);
+
+        // Set up a list of columns:
+        for (int column = 0; column < MAX_KEYS; column++) {
+            currentSortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
+        }
+
+        // For each of them toggle them to unsorted, using a new list each time.
+        for (int column = 0; column < MAX_KEYS; column++) {
+            builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position, column key is ascending.
+
+            // Toggle the ascending column twice to make it unsorted:
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+
+            // New size is one 1 less than MAX_KEYS:
+            assertEquals(MAX_KEYS - 1, builtSortKeys.size()); //
+
+            // Cannot find this sort key with any sort order in the sort keys:
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.ASCENDING)));
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.DESCENDING)));
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.UNSORTED)));
+        }
+
+        // For each one using the same list modified each time (the list will shrink as we remove).
+        builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+        for (int column = 0; column < MAX_KEYS; column++) {
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(0)); // the first column is always the one we want, as we remove them successively.
+
+            assertEquals(MAX_KEYS - column, builtSortKeys.size());
+
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+
+            assertEquals(MAX_KEYS - column - 1, builtSortKeys.size());
+            // Cannot find this sort key with any sort order in the sort keys:
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.ASCENDING)));
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.DESCENDING)));
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.UNSORTED)));
+        }
+
+    }
+
+    @Test
+    public void testRemoveSubsequentOnUnsorted() {
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.KEEP_POSITION,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_SUBSEQUENT);
+
+        // Set up a list of columns:
+        for (int column = 0; column < MAX_KEYS; column++) {
+            currentSortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
+        }
+
+        // For each of them toggle them to unsorted, using a new list each time.
+        for (int column = 0; column < MAX_KEYS; column++) {
+            builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position, column key is ascending.
+
+            // Toggle the ascending column twice to make it unsorted:
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+
+            // New size is number of columns to the one we made unsorted (it and all others after it are gone:
+            assertEquals(column, builtSortKeys.size()); //
+
+            // Cannot find this sort key with any sort order in the sort keys:
+            for (int missingColumn = column; missingColumn < MAX_KEYS; missingColumn++) {
+                assertFalse(builtSortKeys.contains(new RowSorter.SortKey(missingColumn, SortOrder.ASCENDING)));
+                assertFalse(builtSortKeys.contains(new RowSorter.SortKey(missingColumn, SortOrder.DESCENDING)));
+                assertFalse(builtSortKeys.contains(new RowSorter.SortKey(missingColumn, SortOrder.UNSORTED)));
+            }
+        }
+
+        // Going in reverse back through the list, the list reduces in size by one each time.
+        builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+        for (int column = MAX_KEYS - 1; column >= 0; column--) {
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column));
+
+            assertEquals( column + 1, builtSortKeys.size());
+
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+
+            assertEquals( column, builtSortKeys.size());
+
+            // Cannot find this sort key with any sort order in the sort keys:
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.ASCENDING)));
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.DESCENDING)));
+            assertFalse(builtSortKeys.contains(new RowSorter.SortKey(column, SortOrder.UNSORTED)));
+        }
+
+    }
+
+    @Test
+    public void testRemoveAllOnUnsorted() {
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.MAKE_FIRST,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.KEEP_POSITION,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_ALL);
+
+        // Set up a list of columns:
+        for (int column = 0; column < MAX_KEYS; column++) {
+            currentSortKeys.add(new RowSorter.SortKey(column, SortOrder.ASCENDING));
+        }
+
+        // For each of them toggle them to unsorted, using a new list each time.
+        for (int column = 0; column < MAX_KEYS; column++) {
+            builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position, column key is ascending.
+
+            // Toggle the ascending column twice to make it unsorted:
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+
+            // No sort keys left after one is removed.
+            assertEquals(0, builtSortKeys.size()); //
+        }
+
+    }
+
+    /**
+     * The TreeTableColumnSortStrategy will never put a key with SortKey.UNSORTED into its sort key list when building.
+     * This test is for the circumstance when a list of sort keys containing an UNSORTED key is passed into the strategy.
+     */
+    @Test
+    public void testUnsortedKeyBecomesAscendingWhenToggledInCaseSomeonePassesOneIn() {
+        final int MAX_KEYS = 10;
+
+        TreeTableColumnSortStrategy strategy = new TreeTableColumnSortStrategy(MAX_KEYS,
+                TreeTableColumnSortStrategy.ToggleNewColumnAction.ADD_TO_END,
+                TreeTableColumnSortStrategy.ToggleExistingColumnAction.KEEP_POSITION,
+                TreeTableColumnSortStrategy.WhenColumnUnsortedAction.REMOVE_ALL);
+
+        // Set up a list of columns that are unsorted:
+        for (int column = 0; column < MAX_KEYS; column++) {
+            currentSortKeys.add(new RowSorter.SortKey(column, SortOrder.UNSORTED));
+        }
+
+        // For each of them toggle them to ascending, using a new list each time.
+        for (int column = 0; column < MAX_KEYS; column++) {
+            builtSortKeys = new ArrayList<>(currentSortKeys); // start with a fresh list.
+
+            RowSorter.SortKey existing = new RowSorter.SortKey(column, SortOrder.UNSORTED);
+            assertEquals(existing, builtSortKeys.get(column)); // at current position, column key is unsorted.
+
+            // Toggle the ascending column to make it ascending:
+            builtSortKeys = strategy.buildNewSortKeys(column, builtSortKeys);
+
+            RowSorter.SortKey toggled = new RowSorter.SortKey(column, SortOrder.ASCENDING);
+            assertEquals(toggled, builtSortKeys.get(column)); // at current position, column key is ascending.
+        }
     }
 
 

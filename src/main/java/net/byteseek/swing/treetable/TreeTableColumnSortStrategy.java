@@ -241,8 +241,8 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     public String toString() {
         return getClass().getSimpleName() +
                 "(max columns: " + maximumSortKeys +
-                ", existing sort columns: " + existingColumnAction +
                 ", new sort columns: " + newColumnAction +
+                ", existing sort columns: " + existingColumnAction +
                 ", when unsorted: " + whenUnsortedAction + ')';
     }
 
@@ -319,19 +319,12 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     }
 
     /**
+     * Cycles through and wraps around the SortOrder enum, from ASCENDING -> DESCENDING -> UNSORTED -> ASCENDING -> ...
      * @param sortOrder A SortOrder enumeration.
      * @return The next sort order (wrapping around).
      */
     protected SortOrder nextOrder(final SortOrder sortOrder) {
-        switch (sortOrder) {
-            case UNSORTED:
-                return SortOrder.ASCENDING;
-            case ASCENDING:
-                return SortOrder.DESCENDING;
-            case DESCENDING:
-                return SortOrder.UNSORTED;
-        }
-        return SortOrder.UNSORTED; // If there's another sort order we can't handle, we just go to unsorted.
+        return SortOrder.values()[(sortOrder.ordinal() + 1) % SortOrder.values().length];
     }
 
     /**
