@@ -373,11 +373,8 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         if (boldOnSorted) {
             if (!headerFont.equals(cachedHeaderFont)) {
                 cachedHeaderFont = headerFont;
-                if (((headerFont.getStyle() & Font.BOLD) == Font.BOLD)) {
-                    boldHeaderFont = headerFont;
-                } else {
-                    boldHeaderFont = headerFont.deriveFont(headerFont.getStyle() | Font.BOLD);
-                }
+                boldHeaderFont = headerFont.isBold() ? headerFont
+                                                     : headerFont.deriveFont(headerFont.getStyle() | Font.BOLD);
             }
             return boldHeaderFont;
         }
