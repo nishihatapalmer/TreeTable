@@ -371,14 +371,24 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      */
     protected Font getSortedColumnHeaderFont(final Font headerFont) {
         if (boldOnSorted) {
-            if (!headerFont.equals(cachedHeaderFont)) {
-                cachedHeaderFont = headerFont;
-                boldHeaderFont = headerFont.isBold() ? headerFont
-                                                     : headerFont.deriveFont(headerFont.getStyle() | Font.BOLD);
-            }
+            updateCachedFonts(headerFont);
             return boldHeaderFont;
         }
         return headerFont;
+    }
+
+    /**
+     * Checks that our cached font is up to date.  If not, it caches the new font and a new bold
+     * version of it to use on sorted columns.
+     *
+     * @param headerFont The font used by the JTableHeader.
+     */
+    protected void updateCachedFonts(final Font headerFont) {
+        if (!headerFont.equals(cachedHeaderFont)) {
+            cachedHeaderFont = headerFont;
+            boldHeaderFont = headerFont.isBold() ? headerFont
+                                                 : headerFont.deriveFont(headerFont.getStyle() | Font.BOLD);
+        }
     }
 
     /**
