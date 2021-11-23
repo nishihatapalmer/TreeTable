@@ -396,29 +396,45 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      */
     protected class SortIconBorder implements Border {
 
-        private final Insets insets = new Insets(VERTICAL_PADDING, 0, VERTICAL_PADDING, 0);
+        protected final Insets insets = new Insets(VERTICAL_PADDING, 0, VERTICAL_PADDING, 0);
 
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
             if (sortOrderNumber >= 0 && sortOrder != SortOrder.UNSORTED) {
+                if (showNumber) {
+                    setNumber(g);
+                } else {
+                    setNoNumber();
+                }
                 final JLabel labelToPaint = paintLabel;
                 labelToPaint.setIcon(sortOrder == SortOrder.ASCENDING ? sortAscendingIcon : sortDescendingIcon);
-                if (showNumber) {
-                    final String sortNumber = Integer.toString(sortOrderNumber + 1);
-                    final FontMetrics metrics = g.getFontMetrics(cachedHeaderFont);
-                    sortNumberTextWidth = metrics.stringWidth(sortNumber) + TEXT_PADDING;
-                    insets.left = maxIconWidth + sortNumberTextWidth;
-                    labelToPaint.setText(sortNumber);
-                } else {
-                    sortNumberTextWidth = 0;
-                    insets.left = maxIconWidth;
-                    labelToPaint.setText("");
-                }
                 labelToPaint.setSize(insets.left, height);
                 labelToPaint.setFont(cachedHeaderFont);
                 labelToPaint.setForeground(TreeTableHeaderRenderer.this.getForeground());
                 labelToPaint.paint(g);
             }
+        }
+
+        /**
+         * Sets the sort icon border with a sort order number.
+         *
+         * @param g the Graphics object which will be rendered on.
+         */
+        protected void setNumber(Graphics g) {
+            final String sortNumber = Integer.toString(sortOrderNumber + 1);
+            final FontMetrics metrics = g.getFontMetrics(cachedHeaderFont);
+            sortNumberTextWidth = metrics.stringWidth(sortNumber) + TEXT_PADDING;
+            insets.left = maxIconWidth + sortNumberTextWidth;
+            paintLabel.setText(sortNumber);
+        }
+
+        /**
+         * Sets the sort icon border with no sort number.
+         */
+        protected void setNoNumber() {
+            sortNumberTextWidth = 0;
+            insets.left = maxIconWidth;
+            paintLabel.setText("");
         }
 
         @Override
