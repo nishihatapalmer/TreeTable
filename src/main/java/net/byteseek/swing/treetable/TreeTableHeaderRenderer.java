@@ -31,9 +31,9 @@
  */
 package net.byteseek.swing.treetable;
 
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.util.List;
@@ -51,59 +51,182 @@ import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 
-/*//TODO: should we handle the UNSORTED column header icon?
-     case UNSORTED:
-                        sortIcon = DefaultLookup.getIcon(
-                            this, ui, "Table.naturalSortIcon");
-                        break;
-                    }
- */
-
 /**
  * Renders a header for a JTable which shows multi-column sorting,
- * putting a number for each sort key against the icon for ascending or descending to show which is sorted first, second
- * or third.
+ * painting a number for each sort key against the icon for ascending or descending
+ * to show which is sorted first, second, or third.
+ * <p>
+ * It takes the font, foreground and background colors from the JTableHeader on the JTable.
  */
 public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer {
 
-    private static final int ICON_AND_NUMBER_WIDTH = 32; //TODO: hard coded value for ascend/descend icon and text... should calculate?
-    private static final int VERTICAL_PADDING = 4; // white space above and below to raise header.
-
-    private final SortIconBorder sortIconBorder;
-
-    private Icon sortAscendingIcon;
-    private Icon sortDescendingIcon;
-    private int maxIconWidth;
-    private JLabel sortAscendingIconLabel;
-    private JLabel sortDescendingIconLabel;
-    private Color sortcolumnTextColor;
-    private Font headerFont;
-    private Font boldHeaderFont;
-    private boolean boldOnSorted;
-    private Border focusHeaderBorder;
-    private Border headerBorder;
-
-    private int sortColumn;
-    private SortOrder sortOrder;
+    /* *****************************************************************************************************************
+     *                                                Constants
+     */
 
     /**
-     * Constructs a TreeTableHeaderRenderer.
+     * White space above and below to raise header height a bit.
+     * Looks cramped if it is just the height of the text and icons.
+     */
+    protected static final int VERTICAL_PADDING = 4;
+
+    /**
+     * Padding to ensure sufficient room to paint text.
+     * If you try to paint in something exactly the size of the text,
+     * you get ellipses, it needs some margin.
+     */
+    protected static final int TEXT_PADDING = 8;
+
+    /**
+     * The inner border which contains the sort icons and sort order number
+     * to the left of the header when a column is sorted, and has no
+     * width if the column isn't sorted.
+     */
+    protected final SortIconBorder sortIconBorder = new SortIconBorder();
+
+    /**
+     * The JLabel used to paint the icon and sort order number.
+     */
+    protected final JLabel paintLabel;
+
+
+    /* *****************************************************************************************************************
+     *                                                Variables
+     */
+
+    /**
+     * Whether to render the column header name in bold if the column is sorted.
+     */
+    protected boolean boldOnSorted;
+
+    /**
+     * Whether to show the sort order number or not.
+     */
+    protected boolean showNumber;
+
+    /**
+     * The icon for an ascending sort.
+     */
+    protected Icon sortAscendingIcon;
+
+    /**
+     * The icon for a descending sort.
+     */
+    protected Icon sortDescendingIcon;
+
+
+    /* *****************************************************************************************************************
+     *                          Cached or calculated properties of the TreeTableHeader.
+     */
+
+    /**
+     * The last font set in the header on a call to getTableCellRendererComponent().
+     * Cached in order that we can use it in the paintBorder() method of the SortIconBorder,
+     * and also so we can determine if we need to generate a new Bold version of it if bold on sorted is selected.
+     */
+    protected Font cachedHeaderFont;
+
+    /**
+     * A bold version of the cached header font to use when rendering the sort column header if sorted.
+     * If the cached header font is already bold, it will just be that font.
+     */
+    protected Font boldHeaderFont;
+
+    /**
+     * The number of the sort which is rendered with the icon, first column to be sorted, second, etc.
+     */
+    protected int sortOrderNumber;
+
+    /**
+     * The order of the current sort - ascending or descending (or unsorted, which will not be painted).
+     */
+    protected SortOrder sortOrder;
+
+    /**
+     * The maximum width of the ascending and descending icons,
+     * calculated to ensure we consistently use the same space no
+     * matter which one is showing (avoids jumping around visually).
+     */
+    protected int maxIconWidth;
+
+    /**
+     * The width of the sort number as text.  This is calculated from the font metrics when painting.
+     */
+    protected int sortNumberTextWidth;
+
+
+    /* *****************************************************************************************************************
+     *                                          Constructors
+     */
+
+    /**
+     * Constructs a TreeTableHeaderRenderer, showing sort order numbers on columns, and column headers are bold on sort.
      */
     public TreeTableHeaderRenderer() {
-        sortIconBorder = new SortIconBorder();
-        setSortAscendingIcon(UIManager.getIcon("Table.ascendingSortIcon"));
-        setSortDescendingIcon(UIManager.getIcon("Table.descendingSortIcon"));
-        setBorder(new EtchedBorder());
-        focusHeaderBorder = UIManager.getBorder( "TableHeader.focusCellBorder");
-        headerBorder = UIManager.getBorder("TableHeader.cellBorder");
-        setSortColumnTextColor(Color.GRAY);
-        setHorizontalAlignment(JLabel.CENTER);
-        setBoldOnSorted(true);
+        this(true);
     }
 
+    /**
+     * Constructs a TreeTableHeaderRenderer given whether to display the column number or not.
+     * @param showNumber whether to display the sort order number or not on sorted columns.
+     */
+    public TreeTableHeaderRenderer(final boolean showNumber) {
+        this(showNumber, true);
+    }
+
+    /**
+     * Constructs a TreeTableHeaderRenderer given whether to display the column number or not.
+     * @param showNumber whether to display the sort order number or not on sorted columns.
+     * @param boldOnSorted whether the column header should be bold when it is sorted.
+     */
+    public TreeTableHeaderRenderer(final boolean showNumber, final boolean boldOnSorted) {
+        setBorder(new EtchedBorder());
+        paintLabel = new JLabel();
+        paintLabel.setBorder(BorderFactory.createEmptyBorder());
+        sortNumberTextWidth = 16; // start with 16 so we have something before a string is actually painted.
+        setShowNumber(showNumber);
+        setBoldOnSorted(boldOnSorted);
+        setSortAscendingIcon(UIManager.getIcon("Table.ascendingSortIcon"));
+        setSortDescendingIcon(UIManager.getIcon("Table.descendingSortIcon"));
+        setHorizontalAlignment(JLabel.CENTER);
+    }
+
+
+    /* *****************************************************************************************************************
+     *                                      TableCellRenderer main method
+     */
+
+    @Override
+    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        if (table != null) {
+            JTableHeader header = table.getTableHeader();
+            if (header != null) {
+                setForeground(header.getForeground());
+                setBackground(header.getBackground());
+                String displayText = value == null? "" : value.toString();
+                setText(displayText);
+                setToolTipText(displayText);
+                setColumnSortedProperties(table, column);
+            }
+        }
+        return this;
+    }
+
+
+    /* *****************************************************************************************************************
+     *                                            Getters and setters
+     */
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This implementation ensures that whatever border is set, it is always wrapped in a CompoundBorder that
+     * has the SortIconBorder field as its inner border.  This inner border paints the sort icon and number.
+     */
     @Override
     public void setBorder(final Border border) {
-        // If the border is already a compound with an inner SortIconBorder, just set it directly.
+        // If the border is already a compound with our inner SortIconBorder,
+        // just set it directly to avoid repeatedly nesting compound borders.
         if (border instanceof CompoundBorder && ((CompoundBorder) border).getInsideBorder() == sortIconBorder) {
             super.setBorder(border);
         } else {  // Wrap the border in a CompoundBorder using the SortIconBorder inside to render sort icon and number.
@@ -111,94 +234,129 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
         }
     }
 
-    //TODO: configure whether number shows up in header for column sort.
-    //      could have greyed out sort icons for later sort keys...?
-
-    //TODO: provide standard getter / setting methods to allow override.
-    @Override
-    public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-        if (table != null) {
-            JTableHeader header = table.getTableHeader();
-            if (header != null) {
-                setFont(header.getFont());
-                setForeground(header.getForeground());
-                setBackground(header.getBackground());
-                String displayText = value == null? "" : value.toString();
-                setText(displayText);
-                setToolTipText(displayText);
-                setColumnSorted(table, column);
-            }
-        }
-        return this;
-    }
-
-    @Override
-    public void setFont(Font newFont) {
-        if (newFont != headerFont || newFont != boldHeaderFont) {
-            headerFont = newFont;
-            boldHeaderFont = getBoldFont(newFont);
-        }
-        super.setFont(newFont);
-    }
-
+    /**
+     * Sets whether the column headers should be in a bold font if they are sorted.
+     *
+     * @param boldOnSorted whether the column headers should be in a bold font if they are sorted.
+     */
     public void setBoldOnSorted(boolean boldOnSorted) {
         this.boldOnSorted = boldOnSorted;
     }
 
+    /**
+     * @return whether the column headers should be in a bold font if they are sorted.
+     */
     public boolean getBoldOnSorted() {
         return boldOnSorted;
     }
 
-    public void setSortColumnTextColor(final Color sortcolumnTextColor) {
-        this.sortcolumnTextColor = sortcolumnTextColor;
+    /**
+     * @return Whether the sort order number of the column should be displayed.
+     */
+    public boolean getShowNumber() {
+        return showNumber;
     }
 
-    public Color getSortColumnTextColor() {
-        return sortcolumnTextColor;
+    /**
+     * Sets whether the sort order number of the column should be displayed.
+     * @param showNumber whether the sort order number of the column should be displayed.
+     */
+    public void setShowNumber(final boolean showNumber) {
+        this.showNumber = showNumber;
     }
 
+    /**
+     * Sets the icon for an ascending sort.
+     * @param sortAscendingIcon the icon for an ascending sort.
+     */
     public void setSortAscendingIcon(final Icon sortAscendingIcon) {
         this.sortAscendingIcon = sortAscendingIcon;
-        if (sortAscendingIconLabel == null) {
-            sortAscendingIconLabel = new JLabel(sortAscendingIcon);
-            sortAscendingIconLabel.setBorder(BorderFactory.createEmptyBorder());
-        } else {
-            sortAscendingIconLabel.setIcon(sortAscendingIcon);
-        }
         setMaxIconWidth();
     }
 
+    /**
+     * @return the icon for an ascending sort.
+     */
     public Icon getSortAscendingIcon() {
         return sortAscendingIcon;
     }
 
+    /**
+     * Sets the icon for a descending sort.
+     * @param sortDescendingIcon the icon for a descending sort.
+     */
     public void setSortDescendingIcon(final Icon sortDescendingIcon) {
         this.sortDescendingIcon = sortDescendingIcon;
-        if (sortDescendingIconLabel == null) {
-            sortDescendingIconLabel = new JLabel(sortDescendingIcon);
-            sortDescendingIconLabel.setBorder(BorderFactory.createEmptyBorder());
-        } else {
-            sortDescendingIconLabel.setIcon(sortDescendingIcon);
-        }
         setMaxIconWidth();
     }
 
+    /**
+     * @return the icon for a descending sort.
+     */
+    public Icon getSortDescendingIcon() {
+        return sortDescendingIcon;
+    }
+
+    /**
+     * Mostly make this available for test purposes.
+     * @return the inner border which is responsible for rendering the ascending / descending icons and column number.
+     */
+    protected Border getSortIconBorder() {
+        return sortIconBorder;
+    }
+
+    /**
+     * Mostly make this available for test purposes.
+     * @return the JLabel that paints the icon and number.
+     */
+    protected JLabel getSortIconPainter() {
+        return paintLabel;
+    }
+
+    /**
+     * Sets the maximum icon width for the descending and ascending icons.
+     */
     protected final void setMaxIconWidth() {
         int descendingWidth = sortDescendingIcon == null? 0 : sortDescendingIcon.getIconWidth();
         int ascendingWidth = sortAscendingIcon == null? 0 : sortAscendingIcon.getIconWidth();
         maxIconWidth = Math.max(descendingWidth, ascendingWidth);
     }
 
-    public Icon getSortDescendingIcon() {
-        return sortDescendingIcon;
-    }
-
     @Override
     public String toString() {
-        return getClass().getSimpleName();
+        return getClass().getSimpleName() + "(show sort number: " + showNumber + ')';
     }
 
-    protected void setColumnSorted(JTable table, int column) {
+    /**
+     * Looks for a sort key for the column.
+     * If one is found, set the sort properties for rendering a sorted column,
+     * otherwise set the properties for an unsorted column.
+     * @param table The table we are rendering for.
+     * @param column The column we need to set the sort properties for.
+     */
+    protected void setColumnSortedProperties(JTable table, int column) {
+        final Font headerFont = table.getTableHeader().getFont();
+        final int sortKeyIndex = getSortKeyIndex(table, column);
+        if (sortKeyIndex >= 0) {
+            sortOrder = table.getRowSorter().getSortKeys().get(sortKeyIndex).getSortOrder();
+            sortOrderNumber = sortKeyIndex;
+            sortIconBorder.insets.left = maxIconWidth + (showNumber? sortNumberTextWidth : 0);
+            setFont(getSortedColumnHeaderFont(headerFont));
+        } else {
+            sortOrder = SortOrder.UNSORTED;
+            sortOrderNumber = -1;
+            sortIconBorder.insets.left = 0;
+            setFont(headerFont);
+        }
+    }
+
+    /**
+     * Returns the index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
+     * @param table The table being sorted.
+     * @param column The column to find a sort key for.
+     * @return The index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
+     */
+    protected int getSortKeyIndex(final JTable table, final int column) {
         final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
         if (rowSorter != null) {
             List<? extends RowSorter.SortKey> sortKeys = rowSorter.getSortKeys();
@@ -207,32 +365,34 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
                 for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
                     RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
                     if (key.getColumn() == columnModelIndex && key.getSortOrder() != SortOrder.UNSORTED) {
-                        sortOrder = key.getSortOrder();
-                        sortColumn = sortKeyIndex;
-                        sortIconBorder.insets.left = ICON_AND_NUMBER_WIDTH;
-                        setBold(true);
-                        return;
+                        return sortKeyIndex;
                     }
                 }
             }
         }
-        setBold(false);
-        sortOrder = SortOrder.UNSORTED;
-        sortColumn = -1;
-        sortIconBorder.insets.left = 0;
+        return -1;
     }
 
-    protected void setBold(final boolean bold) {
+    /**
+     * If boldOnSorted is true, then a bold font will be returned,
+     * otherwise the standard JTableHeader font is returned.
+     *
+     * @param headerFont The font used by the JTableHeader.
+     * @return the font to use for a sorted column header.
+     */
+    protected Font getSortedColumnHeaderFont(final Font headerFont) {
         if (boldOnSorted) {
-            setFont(bold ? boldHeaderFont : headerFont);
+            if (!headerFont.equals(cachedHeaderFont)) {
+                cachedHeaderFont = headerFont;
+                if (((headerFont.getStyle() & Font.BOLD) == Font.BOLD)) {
+                    boldHeaderFont = headerFont;
+                } else {
+                    boldHeaderFont = headerFont.deriveFont(headerFont.getStyle() | Font.BOLD);
+                }
+            }
+            return boldHeaderFont;
         }
-    }
-
-    protected Font getBoldFont(Font font) {
-        if ((font.getStyle() & Font.BOLD) == Font.BOLD) {
-            return font;
-        }
-        return font.deriveFont(font.getStyle() | Font.BOLD);
+        return headerFont;
     }
 
     /**
@@ -240,16 +400,27 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      */
     protected class SortIconBorder implements Border {
 
-        private final Insets insets = new Insets(VERTICAL_PADDING, ICON_AND_NUMBER_WIDTH, VERTICAL_PADDING, 0);
+        private final Insets insets = new Insets(VERTICAL_PADDING, 0, VERTICAL_PADDING, 0);
 
         @Override
         public void paintBorder(Component c, Graphics g, int x, int y, int width, int height) {
-            if (sortColumn >= 0 && sortOrder != SortOrder.UNSORTED) {
-                final JLabel labelToPaint = sortOrder == SortOrder.ASCENDING ? sortAscendingIconLabel : sortDescendingIconLabel;
-                labelToPaint.setSize(ICON_AND_NUMBER_WIDTH, height);
-                labelToPaint.setFont(headerFont);
-                labelToPaint.setText(Integer.toString(sortColumn + 1));
-                labelToPaint.setForeground(sortcolumnTextColor);
+            if (sortOrderNumber >= 0 && sortOrder != SortOrder.UNSORTED) {
+                final JLabel labelToPaint = paintLabel;
+                labelToPaint.setIcon(sortOrder == SortOrder.ASCENDING ? sortAscendingIcon : sortDescendingIcon);
+                if (showNumber) {
+                    final String sortNumber = Integer.toString(sortOrderNumber + 1);
+                    final FontMetrics metrics = g.getFontMetrics(cachedHeaderFont);
+                    sortNumberTextWidth = metrics.stringWidth(sortNumber) + TEXT_PADDING;
+                    insets.left = maxIconWidth + sortNumberTextWidth;
+                    labelToPaint.setText(sortNumber);
+                } else {
+                    sortNumberTextWidth = 0;
+                    insets.left = maxIconWidth;
+                    labelToPaint.setText("");
+                }
+                labelToPaint.setSize(insets.left, height);
+                labelToPaint.setFont(cachedHeaderFont);
+                labelToPaint.setForeground(TreeTableHeaderRenderer.this.getForeground());
                 labelToPaint.paint(g);
             }
         }

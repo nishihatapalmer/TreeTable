@@ -48,6 +48,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
+import net.byteseek.swing.treetable.TreeTableHeaderRenderer;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeUtils;
 import static net.byteseek.swing.treetable.TreeUtils.getChildren;
@@ -148,7 +149,11 @@ public class MyObjectForm {
 
     private TreeTableModel createTreeTableModel(TreeNode rootNode) {
         TreeTableModel localTreeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
-        localTreeTableModel.bindTable(table1); //, new RowSorter.SortKey(0, SortOrder.ASCENDING));
+
+        TreeTableHeaderRenderer renderer = new TreeTableHeaderRenderer();
+        renderer.setShowNumber(true); // true is default, this code is just for testing the false option.
+
+        localTreeTableModel.bindTable(table1, renderer); //, new RowSorter.SortKey(0, SortOrder.ASCENDING));
         localTreeTableModel.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
             @Override
             public boolean nodeExpanding(TreeNode node) {
