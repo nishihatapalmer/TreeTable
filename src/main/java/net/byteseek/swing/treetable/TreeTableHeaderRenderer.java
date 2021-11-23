@@ -36,12 +36,10 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Insets;
-import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JTable;
-import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
@@ -49,7 +47,6 @@ import javax.swing.border.CompoundBorder;
 import javax.swing.border.EtchedBorder;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableModel;
 
 /**
  * Renders a header for a JTable which shows multi-column sorting,
@@ -105,12 +102,12 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     protected boolean showNumber;
 
     /**
-     * The icon for an ascending sort.
+     * The icon for an ascending sort column.
      */
     protected Icon sortAscendingIcon;
 
     /**
-     * The icon for a descending sort.
+     * The icon for a descending sort column.
      */
     protected Icon sortDescendingIcon;
 
@@ -328,49 +325,41 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     }
 
     /**
-     * Looks for a sort key for the column.
-     * If one is found, set the sort properties for rendering a sorted column,
-     * otherwise set the properties for an unsorted column.
+     * Sets the properties for a column, depending on whether it is sorted or not.
+     *
      * @param table The table we are rendering for.
      * @param column The column we need to set the sort properties for.
      */
-    protected void setColumnSortedProperties(JTable table, int column) {
-        final Font headerFont = table.getTableHeader().getFont();
-        final int sortKeyIndex = getSortKeyIndex(table, column);
-        if (sortKeyIndex >= 0) {
-            sortOrder = table.getRowSorter().getSortKeys().get(sortKeyIndex).getSortOrder();
-            sortOrderNumber = sortKeyIndex;
-            sortIconBorder.insets.left = maxIconWidth + (showNumber? sortNumberTextWidth : 0);
-            setFont(getSortedColumnHeaderFont(headerFont));
+    protected void setColumnSortedProperties(final JTable table, final int column) {
+        final int sortKeyIndex = TreeUtils.getSortKeyIndex(table, column);
+        sortOrder = sortKeyIndex >= 0 ? table.getRowSorter().getSortKeys().get(sortKeyIndex).getSortOrder() : SortOrder.UNSORTED;
+        if (sortOrder == SortOrder.UNSORTED) {
+            setUnsortedColumnProperties(table);
         } else {
-            sortOrder = SortOrder.UNSORTED;
-            sortOrderNumber = -1;
-            sortIconBorder.insets.left = 0;
-            setFont(headerFont);
+            setSortedColumnProperties(table, sortKeyIndex);
         }
     }
 
     /**
-     * Returns the index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
-     * @param table The table being sorted.
-     * @param column The column to find a sort key for.
-     * @return The index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
+     * Sets the column properties for a sorted column.
+     * @param table The table for the the unsorted column.
+     * @param sortOrderNumber The sort number of the column.
      */
-    protected int getSortKeyIndex(final JTable table, final int column) {
-        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-        if (rowSorter != null) {
-            List<? extends RowSorter.SortKey> sortKeys = rowSorter.getSortKeys();
-            if (sortKeys != null) {
-                final int columnModelIndex = table.convertColumnIndexToModel(column);
-                for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
-                    RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
-                    if (key.getColumn() == columnModelIndex && key.getSortOrder() != SortOrder.UNSORTED) {
-                        return sortKeyIndex;
-                    }
-                }
-            }
-        }
-        return -1;
+    protected void setSortedColumnProperties(final JTable table, final int sortOrderNumber) {
+        this.sortOrderNumber = sortOrderNumber;
+        sortIconBorder.insets.left = maxIconWidth + (showNumber ? sortNumberTextWidth : 0);
+        setFont(getSortedColumnHeaderFont(table.getTableHeader().getFont()));
+    }
+
+    /**
+     * Sets the column properties if the column is not sorted.
+     * @param table The table for the the unsorted column.
+     */
+    protected void setUnsortedColumnProperties(final JTable table) {
+        sortOrder = SortOrder.UNSORTED;
+        sortOrderNumber = -1;
+        sortIconBorder.insets.left = 0;
+        setFont(table.getTableHeader().getFont());
     }
 
     /**

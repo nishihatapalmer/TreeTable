@@ -34,7 +34,11 @@ package net.byteseek.swing.treetable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import javax.swing.JTable;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.Comparator;
@@ -362,6 +366,29 @@ public final class TreeUtils {
      * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN_DESCENDING = (o1, o2) -> o2.getChildCount() - o1.getChildCount();
+
+    /**
+     * Returns the index of the sort key for a column in a table, or -1 if that column doesn't have a sort key for it.
+     * @param table The table being sorted.
+     * @param column The column to find a sort key for.
+     * @return The index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
+     */
+    public static int getSortKeyIndex(final JTable table, final int column) {
+        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
+        if (rowSorter != null) {
+            List<? extends RowSorter.SortKey> sortKeys = rowSorter.getSortKeys();
+            if (sortKeys != null) {
+                final int columnModelIndex = table.convertColumnIndexToModel(column);
+                for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
+                    RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
+                    if (key.getColumn() == columnModelIndex) {
+                        return sortKeyIndex;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
 
     /**
      * Given a sorted array of indices, and a position to start looking in them,

@@ -277,6 +277,7 @@ class TreeTableHeaderRendererTest {
         assertEquals(ascending, renderer.getSortDescendingIcon());
     }
 
+
     @Test
     public void testPaintSortIconBorderSortedColumnShowNumber() {
         setColumnOneSorted();
