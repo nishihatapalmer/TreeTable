@@ -46,7 +46,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
 
     private static final int DEFAULT_CAPACITY = 256;
 
-    private int growMultiplierPercent = 200;
+    private float growMultiplier = 1.25f;
     private E[] elements = (E[]) new Object[DEFAULT_CAPACITY];
     private int size;
 
@@ -81,9 +81,14 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             checkIndex(index);
             checkResize(1);
             // Shift the others along one:
-            for (int position = size - 1; position >= index; position--) {
+            if (size - index >= 0) {
+                System.arraycopy(elements, index, elements, index + 1, size - index);
+            }
+            /*
+               for (int position = size - 1; position >= index; position--) {
                 elements[position + 1] = elements[position];
             }
+             */
             // insert the new element:
             elements[index] = element;
             size++;
@@ -119,9 +124,14 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             final int numToShift = size - index;
             final int newPosition = index + numToAdd;
             // move the existing elements up to create a gap
-            for (int position = numToShift - 1; position >= 0; position--) {
+            if (numToShift >= 0) {
+                System.arraycopy(this.elements, index, this.elements, newPosition, numToShift);
+            }
+            /*
+                    for (int position = numToShift - 1; position >= 0; position--) {
                 this.elements[newPosition + position] = this.elements[index + position];
             }
+             */
 
             // insert the new elements in the gap.
             for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
@@ -138,9 +148,14 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         final int numToShift = size - index;
         final int newPosition = index + numToAdd;
         // move the existing elements up to create a gap
-        for (int position = numToShift - 1; position >= 0; position--) {
+        if (numToShift - 1 + 1 >= 0) {
+            System.arraycopy(this.elements, index, this.elements, newPosition, numToShift - 1 + 1);
+        }
+        /*
+                for (int position = numToShift - 1; position >= 0; position--) {
             this.elements[newPosition + position] = this.elements[index + position];
         }
+         */
         // Insert the new elements
         int insertPos = index;
         for (E element : c) {
@@ -161,9 +176,13 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
     public E remove(final int index) {
         checkIndex(index);
         final E elementToRemove = elements[index];
-        for (int position = index; position < size - 1; position++) {
+        if (size - 1 - index >= 0) {
+            System.arraycopy(elements, index + 1, elements, index, size - 1 - index);
+        }
+        /*        for (int position = index; position < size - 1; position++) {
             elements[position] = elements[position + 1];
         }
+         */
         size--;
         return elementToRemove;
     }
@@ -177,16 +196,21 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      */
     public void remove(final int from, final int to) {
         checkIndex(from);
-        checkFromTo(from, to);
+        checkFromTo(from, to); //TODO: to >= size?  doesn't this mean if to = size -1 (last position), then we miss that case?
         if (to >= size) { // If we're removing everything up to or past the end, just set the size down.
             size = from;
         } else { // got some stuff at the end we have to move over to cover the gap:
             final int rowAfterRemoved = to + 1;
             final int numToRemove = rowAfterRemoved - from;
             final int numToMove = size - rowAfterRemoved;
-            for (int position = 0; position < numToMove; position++) {
+            if (numToMove >= 0) {
+                System.arraycopy(elements, rowAfterRemoved, elements, from, numToMove);
+            }
+            /*
+      for (int position = 0; position < numToMove; position++) {
                 elements[from + position] = elements[rowAfterRemoved + position];
             }
+             */
             size -= numToRemove;
         }
     }
@@ -295,18 +319,18 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      */
     private void checkResize(final int numToAdd) {
         if (size + numToAdd >= elements.length) {
-            growArray();
+            growArray(numToAdd);
         }
     }
 
     /**
      * Grows the array up to the maximum array size.
      */
-    private void growArray() {
-        if (elements.length == Integer.MAX_VALUE) {
+    private void growArray(final int numToAdd) {
+        if (elements.length == Integer.MAX_VALUE - 1) {
             throw new OutOfMemoryError("Cannot increase the list size beyond Integer.MAX_VALUE: " + this);
         }
-        E[] newArray = (E[]) new Object[getGrowSize()];
+        final E[] newArray = (E[]) new Object[getGrowSize(numToAdd)];
         System.arraycopy(elements, 0, newArray, 0, elements.length);
         elements = newArray;
     }
@@ -315,19 +339,16 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      * Returns the amount to grow to.  Grows faster initially, then slows down growth as we get a lot larger.
      * @return A new size for the array.
      */
-    private int getGrowSize() {
+    private int getGrowSize(final int numToAdd) {
         // We grow by a multiplier that gradually reduces.
         // This is because we want to grow faster when we're smaller (to avoid frequent re-sizes if large
         // numbers of elements are being added), but to grow proportionally a bit slower once we're getting quite big
         // (or we will waste a lot of space on average).
-        long newSize = (long) elements.length * growMultiplierPercent / 100;
-        if (growMultiplierPercent > 120) {
-            growMultiplierPercent -= 17; // the next time we grow, it will be by a smaller proportion (more absolute).
+        long newSize = (long) ((elements.length + numToAdd) * growMultiplier);
+        if (growMultiplier > 1.05f) {
+            growMultiplier -= 0.02f;
         }
-        if (newSize > Integer.MAX_VALUE) {
-            newSize = Integer.MAX_VALUE;
-        }
-        return (int) newSize;
+        return (int) Math.min(newSize, Integer.MAX_VALUE - 1);
     }
 
 }
