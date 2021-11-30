@@ -34,11 +34,8 @@ package net.byteseek.swing.treetable;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.swing.JTable;
 import javax.swing.RowSorter;
-import javax.swing.SortOrder;
 import javax.swing.table.TableColumnModel;
-import javax.swing.table.TableModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.Comparator;
@@ -77,8 +74,8 @@ public final class TreeUtils {
      *
      * @param parent The user object which is at the root of the tree.
      * @param childProvider An object which provides a list of user objects from the parent user object.
-     *
      * @return A DefaultMutableTreeNode with all child nodes built and associated with their corresponding user objects.
+     * @throws NullPointerException if the node passed in is null.
      */
     public static <T> DefaultMutableTreeNode buildTree(final T parent,
                                                        final Function<T, List<T>> childProvider) {
@@ -101,8 +98,8 @@ public final class TreeUtils {
      * @param parent The user object which is at the root of the tree.
      * @param childProvider An object which provides a list of user objects from the parent user object.
      * @param allowChildrenTest A predicate that decides whether a node should have children given the parent object.
-     *
      * @return A DefaultMutableTreeNode with all child nodes built and associated with their corresponding user objects.
+     * @throws NullPointerException if the node passed in is null.
      */
     public static <T> DefaultMutableTreeNode buildTree(final T parent,
                                                        final Function<T, List<T>> childProvider,
@@ -128,6 +125,7 @@ public final class TreeUtils {
      *
      * @param parentNode The node to get a list of itself and all children and sub-children.
      * @return  a list of all the nodes in the tree structure starting from the parent node.
+     * @throws NullPointerException if the node passed in is null.
      */
     public static List<TreeNode> getNodeList(final TreeNode parentNode) {
         final List<TreeNode> results = new ArrayList<>();
@@ -140,6 +138,7 @@ public final class TreeUtils {
      *
      * @param parentNode The parent tree node to get the list of children for.
      * @return A list of the children of the parent node.
+     * @throws NullPointerException if the node passed in is null.
      */
     public static List<TreeNode> getChildren(final TreeNode parentNode) {
         final List<TreeNode> children = new ArrayList<>();
@@ -175,6 +174,7 @@ public final class TreeUtils {
      * @param node The TreeNode to obtain the user object from (which must be a DefaultMutableTreeNode).
      * @param <T> The type of the user object.
      * @return The user object associated with the DefaultMutableTreeNode passed in.
+     * @throws NullPointerException if the node passed in is null.
      */
     public static <T> T getUserObject(final TreeNode node) {
         return (T) ((DefaultMutableTreeNode) node).getUserObject();
@@ -184,6 +184,7 @@ public final class TreeUtils {
      * Returns the level of the node, zero being the root.
      * @param node The node to get the level for.
      * @return The level of the node.
+     * @throws NullPointerException if the node passed in is null.
      */
     public static int getLevel(final TreeNode node) {
         int nodeLevel = 0;
@@ -367,23 +368,28 @@ public final class TreeUtils {
      */
     public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN_DESCENDING = (o1, o2) -> o2.getChildCount() - o1.getChildCount();
 
+
+    /**
+     * @param sortKeys The sort keys to check.
+     * @param modelIndex The model index of the column to check.
+     * @return true if a column with the column model index exists in the list of sort keys.
+     */
+    public static boolean columnInSortKeys(final List<? extends RowSorter.SortKey> sortKeys, final int modelIndex) {
+        return findSortKeyIndex(sortKeys, modelIndex) >= 0;
+    }
+
     /**
      * Returns the index of the sort key for a column in a table, or -1 if that column doesn't have a sort key for it.
-     * @param table The table being sorted.
-     * @param column The column to find a sort key for.
+     * @param sortKeys The list of sort keys to look in.
+     * @param modelIndex The model index of the column to find a sort key for.
      * @return The index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
      */
-    public static int getSortKeyIndex(final JTable table, final int column) {
-        final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-        if (rowSorter != null) {
-            List<? extends RowSorter.SortKey> sortKeys = rowSorter.getSortKeys();
-            if (sortKeys != null) {
-                final int columnModelIndex = table.convertColumnIndexToModel(column);
-                for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
-                    RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
-                    if (key.getColumn() == columnModelIndex) {
-                        return sortKeyIndex;
-                    }
+    public static int findSortKeyIndex(final List<? extends RowSorter.SortKey> sortKeys, final int modelIndex) {
+        if (sortKeys != null) {
+            for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
+                RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
+                if (key.getColumn() == modelIndex) {
+                    return sortKeyIndex;
                 }
             }
         }
