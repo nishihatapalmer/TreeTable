@@ -51,7 +51,6 @@ import javax.swing.tree.TreeNode;
 import net.byteseek.swing.treetable.TreeTableHeaderRenderer;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeUtils;
-import static net.byteseek.swing.treetable.TreeUtils.getChildren;
 
 //TODO: toggle button for group by.
 

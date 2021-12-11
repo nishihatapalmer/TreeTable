@@ -31,7 +31,18 @@
  */
 package net.byteseek.swing.treetable;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import javax.swing.JTable;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.TableColumnModel;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
 import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class TreeUtilsTest extends BaseTestClass {

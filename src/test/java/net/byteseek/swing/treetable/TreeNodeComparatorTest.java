@@ -80,7 +80,7 @@ class TreeNodeComparatorTest  extends BaseTestClass {
         testAlwaysEqualIfNotSorting();
 
         // A grouping comparator set will cause a NPE with null nodes.
-        model.setGroupingComparator(TreeUtils.GROUP_BY_HAS_CHILDREN);
+        model.setGroupingComparator(Comparators.GROUP_BY_HAS_CHILDREN);
         assertThrows(NullPointerException.class,
                 ()-> comparator.compare(null, rootNode));
         assertThrows(NullPointerException.class,

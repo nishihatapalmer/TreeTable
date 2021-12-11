@@ -36,10 +36,12 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Insets;
+import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
@@ -331,8 +333,10 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
      * @param column The column we need to set the sort properties for.
      */
     protected void setColumnSortedProperties(final JTable table, final int column) {
-        final int sortKeyIndex = TreeUtils.getSortKeyIndex(table, column);
-        sortOrder = sortKeyIndex >= 0 ? table.getRowSorter().getSortKeys().get(sortKeyIndex).getSortOrder() : SortOrder.UNSORTED;
+        final List<? extends RowSorter.SortKey> sortKeys = table.getRowSorter().getSortKeys();
+        final int columnModelIndex = table.convertColumnIndexToModel(column);
+        final int sortKeyIndex = TreeUtils.findSortKeyIndex(sortKeys, columnModelIndex);
+        sortOrder = sortKeyIndex >= 0 ? sortKeys.get(sortKeyIndex).getSortOrder() : SortOrder.UNSORTED;
         if (sortOrder == SortOrder.UNSORTED) {
             setUnsortedColumnProperties(table);
         } else {

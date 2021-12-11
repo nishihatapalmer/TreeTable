@@ -31,19 +31,14 @@
  */
 package net.byteseek.swing.treetable;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import javax.swing.ListSelectionModel;
 import javax.swing.RowSorter;
 import javax.swing.tree.TreeNode;
 import static net.byteseek.swing.treetable.TreeNodeComparator.EQUAL_VALUE;
@@ -289,7 +284,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     @Override
     public void rowsUpdated(final int firstModelIndex, final int endModelIndex) {
         checkValidIndices(firstModelIndex, endModelIndex);
-        /**
+        /*
          * If updating more than one row, it gets a little complex to determine the most efficient set of nodes to re-sort.
          * There's more than one workable method, but it's a lot of additional complexity for not much gain.
          * So we will just resort if updating more than one row at a time.
@@ -378,7 +373,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         if (newDefaults == null) {
             this.defaultSortKeys = Collections.emptyList();
         } else {
-            List<? extends SortKey> noNullElementList = newDefaults.stream().filter(sortKey -> sortKey != null).collect(Collectors.toList());
+            List<? extends SortKey> noNullElementList = newDefaults.stream().filter(Objects::nonNull).collect(Collectors.toList());
             this.defaultSortKeys = noNullElementList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(noNullElementList);
         }
 
@@ -600,11 +595,44 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         //TODO: BUG - if we check indices here, model has already changed.
         //      checkValidIndices(firstModelIndex, endModelIndex);
         if (isSorting()) {
-            final int[] oldViewToModel = buildViewToModelAsInts();
-            insertSortedRowsToIndices(firstModelIndex, endModelIndex);
-            fireRowSorterChanged(oldViewToModel);
+            //TODO: turns out, you don't have to supply this.  If you do, selection and editing are preserved.  If you don't, they aren't.
+            //      could make it configurable behaviour - if you want more efficient (not creating a new copy of the entire index on every update),
+            //      then just provide a null old view to model and it will still work.
+            //final int[] oldViewToModel = buildViewToModelAsInts();
+            //insertSortedRowsToIndices(firstModelIndex, endModelIndex);
+            //fireRowSorterChanged(oldViewToModel);
+
+            final int[] selectedIndices = getSelectedRows();
+            try {
+                insertSortedRowsToIndices(firstModelIndex, endModelIndex);
+                fireRowSorterChanged(null); // no prior index supplied.
+            } finally {
+                restoreSelectedRows(selectedIndices);
+            }
         }
     }
+
+    private int[] getSelectedRows() {
+        final ListSelectionModel selectModel = model.getSelectionModel();
+        if (selectModel != null) {
+            final int[] selectedIndices = model.getSelectedRowModelIndexes();
+            selectModel.setValueIsAdjusting(true);
+            selectModel.clearSelection();
+            return selectedIndices;
+        }
+        return EMPTY_ARRAY;
+    }
+    
+    private void restoreSelectedRows(final int[] selectedIndices) {
+        final int[] localIndex = modelToViewIndex;
+        final ListSelectionModel selectModel = model.getSelectionModel();
+        for (int i = 0; i < selectedIndices.length; i++) {
+            final int selectedViewIndex = localIndex[selectedIndices[i]];
+            selectModel.addSelectionInterval(selectedViewIndex, selectedViewIndex);
+        }
+        selectModel.setValueIsAdjusting(false);
+    }
+
 
     protected void removeSortIndices(final int firstModelIndex, final int endModelIndex) {
         //TODO: BUG - if we check indices here, model has already changed.
@@ -650,7 +678,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
                 final SortRow childSortRow = localViewToModelIndex[childPosition];
                 sortedChildren[row] = childSortRow;
                 final TreeNode childNode = localModel.getNodeAtModelIndex(childSortRow.modelIndex);
-                childPosition += (1 + localModel.getExpandedChildCount(childNode));
+                childPosition += (1 + localModel.getLastKnownSubTreeCount(childNode));
             }
             Arrays.sort(sortedChildren);
 
@@ -659,7 +687,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
              * by copying each SortRow into a new index along with its children.
              * Once the new section is assembled, copy it back into the original index.
              */
-            final int numParentChildren = localModel.getExpandedChildCount(parent);
+            final int numParentChildren = localModel.getLastKnownSubTreeCount(parent);
             final SortRow[] viewToModelIndexSection = new SortRow[numParentChildren];
             int copyPosition = 0;
             for (int row = 0; row < numRows; row++) {
@@ -667,7 +695,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
                 final int modelIndex = sortRow.modelIndex;
                 final int viewIndex = localModelToViewIndex[modelIndex];
                 final TreeNode node = localModel.getNodeAtModelIndex(modelIndex);
-                final int numChildren = localModel.getExpandedChildCount(node);
+                final int numChildren = localModel.getLastKnownSubTreeCount(node);
                 System.arraycopy(localViewToModelIndex, viewIndex, viewToModelIndexSection, copyPosition, 1 + numChildren);
                 copyPosition += numChildren;
             }
@@ -678,6 +706,90 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
              */
             for (int viewIndex = parentViewIndex + 1; viewIndex <= parentViewIndex + numParentChildren; viewIndex++) {
                 localModelToViewIndex[viewToModelIndex[viewIndex].modelIndex] = viewIndex;
+            }
+        }
+    }
+
+    protected void updateSiblings2(final int modelIndex) {
+        final TreeTableModel localModel = model;
+        final TreeNode parent = localModel.getNodeAtModelIndex(modelIndex).getParent();
+        if (parent != null) { // root node has null parent - updating root node doesn't change sort order of anything.
+            final SortRow[] localViewToModelIndex = viewToModelIndex;
+            final int[] localModelToViewIndex = modelToViewIndex;
+            final SortRow updatedRow = localViewToModelIndex[localModelToViewIndex[modelIndex]];
+            final int parentViewIndex = localModelToViewIndex[localModel.getModelIndexForTreeNode(parent)];
+            final int numChildRows = localModel.getVisibleChildCount(parent);
+
+            /*
+             * Get the siblings of the updated node and find its current sort position.
+             *
+             * We can quickly identify the child view rows of the updating node's parent in the view index.
+             * The model can efficiently tell us how many visible children each node has beneath it.
+             * We also identify the current sort order in the siblings, so we can see if the update actually
+             * changes its sort order (despite update, sort order could stay the same).
+             */
+            final SortRow[] childrenMinusUpdatedRow = new SortRow[numChildRows - 1];
+            int childRowIndex = 0;
+            int childViewIndex = parentViewIndex + 1; // first child starts immediately after parent in tree.
+            int currentSortPosition = -1;
+            for (int row = 0; row < numChildRows; row++) {
+                final SortRow childRow = localViewToModelIndex[childViewIndex];
+                if (childRow == updatedRow) {
+                    currentSortPosition = childRowIndex;
+                } else {
+                    childrenMinusUpdatedRow[childRowIndex++] = childRow;
+                }
+                // Move to the next child view index, which is located after this child and all its visible children:
+                final TreeNode childNode = localModel.getNodeAtModelIndex(childRow.modelIndex);
+                childViewIndex += (1 + localModel.getLastKnownSubTreeCount(childNode));
+            }
+
+            /*
+             * Find the new position to insert the now updated row relative to its other siblings.
+             */
+            final int updatedSortPosition = -1 - Arrays.binarySearch(childrenMinusUpdatedRow, updatedRow);
+
+            /*
+             * As long as the new sorted position is different to the current sorted position,
+             * move the index entries around and update the modelToViewIndex for changed view positions.
+             * The currentSortPosition cannot fail to have been set in the loop above, as we were scanning all
+             * the children of a parent we got from one of its own children (the updating node).
+             */
+            if (updatedSortPosition != currentSortPosition) {
+                /*
+                 * Grab a copy of the SortRows for the updating node and its children, so we can move them
+                 * to their new location in the index.
+                 */
+                final TreeNode updatingNode = localModel.getNodeAtModelIndex(updatedRow.modelIndex);
+                final int currentRowViewPosition = localModelToViewIndex[updatedRow.modelIndex];
+                final int numToMove = 1 + localModel.getLastKnownSubTreeCount(updatingNode);
+                final SortRow[] rowsToMove = Arrays.copyOfRange(localViewToModelIndex, currentRowViewPosition, currentRowViewPosition + numToMove);
+
+                /*
+                 * Re-arrange the existing rows to make space for the updated node and children.
+                 * TODO: Need to draw pictures of the different move scenarios...
+                 */
+
+
+                final int updatedRowViewPosition; //TODO: bug here - new position has to accomodate shifting of other rows.  Need to calculate move parameters, not just existing positions.
+                if (updatedSortPosition == childrenMinusUpdatedRow.length) {
+                    final SortRow rowBeforeUpdatePosition = childrenMinusUpdatedRow[updatedSortPosition - 1];
+                    final TreeNode node = localModel.getNodeAtModelIndex(rowBeforeUpdatePosition.modelIndex);
+                    final int numChildren = localModel.getLastKnownSubTreeCount(node);
+                    updatedRowViewPosition = localModelToViewIndex[rowBeforeUpdatePosition.modelIndex] + numChildren + 1;
+                } else {
+                    final SortRow rowAtUpdatePosition = childrenMinusUpdatedRow[updatedSortPosition];
+                    updatedRowViewPosition = localModelToViewIndex[rowAtUpdatePosition.modelIndex];
+                }
+
+
+
+                /*
+                 * Fix up the model to view index for the moved view entries:
+                 */
+                //for (int viewIndex = parentViewIndex + 1; viewIndex <= parentViewIndex + numParentChildren; viewIndex++) {
+                //    localModelToViewIndex[viewToModelIndex[viewIndex].modelIndex] = viewIndex;
+                //}
             }
         }
     }

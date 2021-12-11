@@ -35,10 +35,10 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.swing.RowSorter;
+import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
-import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 
@@ -134,6 +134,33 @@ public final class TreeUtils {
     }
 
     /**
+     * Applies an action to each child of a parent node.
+     * @param parentNode the parent node.
+     * @param action the action to apply for each child of the parent.
+     */
+    public static void forEachChild(final TreeNode parentNode, final Consumer<TreeNode> action) {
+        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+            action.accept(parentNode.getChildAt(childIndex));
+        }
+    }
+
+    /**
+     * Applies an action to each child of a parent node if it meets a condition.
+     *
+     * @param parentNode the parent node.
+     * @param condition the condition to meet in order to apply the action.
+     * @param action the action to apply for each child of the parent that meets the condition.
+     */
+    public static void forEachChild(final TreeNode parentNode, final Predicate<TreeNode> condition, final Consumer<TreeNode> action) {
+        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
+            final TreeNode child = parentNode.getChildAt(childIndex);
+            if (condition.test(child)) {
+                action.accept(child);
+            }
+        }
+    }
+
+    /**
      * Builds a list of the children of a parent node.
      *
      * @param parentNode The parent tree node to get the list of children for.
@@ -142,9 +169,7 @@ public final class TreeUtils {
      */
     public static List<TreeNode> getChildren(final TreeNode parentNode) {
         final List<TreeNode> children = new ArrayList<>();
-        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
-            children.add(parentNode.getChildAt(childIndex));
-        }
+        forEachChild(parentNode, children::add);
         return children;
     }
 
@@ -157,12 +182,11 @@ public final class TreeUtils {
      */
     public static List<TreeNode> getChildren(final TreeNode parentNode, final Predicate<TreeNode> childPredicate) {
         final List<TreeNode> children = new ArrayList<>();
-        for (int childIndex = 0; childIndex < parentNode.getChildCount(); childIndex++) {
-            final TreeNode childNode = parentNode.getChildAt(childIndex);
-            if (childPredicate.test(childNode)) {
-                children.add(childNode);
+        forEachChild(parentNode, treeNode -> {
+            if (childPredicate.test(treeNode)) {
+                children.add(treeNode);
             }
-        }
+        });
         return children;
     }
 
@@ -196,7 +220,7 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns the ancestor of a TreeTableNode, given the number of levels down to go.
+     * Returns the ancestor of a TreeNode, given the number of levels down to go.
      *
      * @param node The node to get an ancestor for.
      * @param levelsDown The number of levels down to go (1 = the parent).
@@ -208,6 +232,26 @@ public final class TreeUtils {
             result = result.getParent();
         }
         return result;
+    }
+
+    /**
+     * Returns the furthest ancestor that meets the condition from the node passed in,
+     * or null if no ancestor meets the condition.
+     *
+     * @param node The node to find the furthest ancestor of that meets a condition.
+     * @param condition The condition to test the ancestors of the node.
+     * @return the furthest ancestor that meets the condition from the node passed in,
+     *         or null if no ancestor meets the condition.
+     */
+    public static TreeNode getFurthestAncestor(final TreeNode node, final Predicate<TreeNode> condition) {
+        TreeNode furthestAncestor = null, currentParent = node;
+        while ((currentParent = currentParent.getParent()) != null) {
+            if (!condition.test(currentParent)) {
+                break;
+            }
+            furthestAncestor = currentParent;
+        }
+        return furthestAncestor;
     }
 
     /**
@@ -223,6 +267,23 @@ public final class TreeUtils {
             width += columnModel.getColumn(col).getWidth();
         }
         return width;
+    }
+
+    /**
+     * Returns the TableColumn in the TableColumnModel with the given model index, or null if no such column exists.
+     * The column index of a column may not match the model index if they have been re-ordered.
+     * @param columnModel The TableColumnModel to search.
+     * @param modelIndex The model index of the TableColumn requested.
+     * @return the TableColumn in the TableColumnModel with the given model index, or null if no such column exists.
+     */
+    public static TableColumn getColumnWithModelIndex(final TableColumnModel columnModel, final int modelIndex) {
+        for (int columnIndex = 0; columnIndex < columnModel.getColumnCount(); columnIndex++) {
+            final TableColumn column = columnModel.getColumn(columnIndex);
+            if (column.getModelIndex() == modelIndex) {
+                return column;
+            }
+        }
+        return null;
     }
 
     /**
@@ -258,9 +319,7 @@ public final class TreeUtils {
      */
     public static void walk(final TreeNode node, final Consumer<TreeNode> method) {
         method.accept(node);
-        for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
-            walk(node.getChildAt(childIndex), method);
-        }
+        forEachChild(node, child -> walk(child, method));
     }
 
     /**
@@ -269,104 +328,18 @@ public final class TreeUtils {
      *
      * @param node The node to walk all children of.
      * @param method The method to apply to each node.
-     * @param predicate The predicate that decides whether to apply the method.
+     * @param condition The predicate that decides whether to apply the method.
      */
-    public static void walk(final TreeNode node, final Consumer<TreeNode> method, final Predicate<TreeNode> predicate) {
-        if (predicate.test(node)) {
+    public static void walk(final TreeNode node, final Consumer<TreeNode> method, final Predicate<TreeNode> condition) {
+        if (condition.test(node)) {
             method.accept(node);
         }
-        for (int childIndex = 0; childIndex < node.getChildCount(); childIndex++) {
-            walk(node.getChildAt(childIndex), method, predicate);
-        }
+        forEachChild(node, child -> walk(child, method, condition));
     }
 
     //TODO: do we want a walk that ceases processing childnodes when it fails the predicate.
 
     //TODO: do we want a walk with a depth limit?
-
-    /**
-     * A node comparator that groups nodes by whether they allow children or not.
-     * Can be used to group folders and non-folders in a tree, with column sorting within them.
-     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
-     * <p>
-     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
-     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
-     *
-     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
-     */
-    public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN = (o1, o2) -> {
-        final boolean allowsChildren = o1.getAllowsChildren();
-        return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? -1 : 1;
-    };
-
-    /**
-     * A node comparator that groups nodes by whether they allow children or not, in a descending order.
-     * Can be used to group folders and non-folders in a tree, with column sorting within them.
-     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
-     * <p>
-     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
-     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
-     *
-     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
-     */
-    public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN_DESCENDING = (o1, o2) -> {
-        final boolean allowsChildren = o1.getAllowsChildren();
-        return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? 1 : -1;
-    };
-
-    /**
-     * A node comparator that groups nodes by whether they have children or not.
-     * Can be used to group folders and non-folders in a tree, with column sorting within them.
-     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
-     * <p>
-     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
-     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
-     *
-     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
-     */
-    public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN = (o1, o2) -> {
-        final boolean hasChildren = o1.getChildCount() > 0;
-        return hasChildren == o2.getChildCount() > 0 ? 0 : hasChildren ? -1 : 1;
-    };
-
-    /**
-     * A node comparator that groups nodes by whether they have children or not in a descending order.
-     * Can be used to group folders and non-folders in a tree, with column sorting within them.
-     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
-     * <p>
-     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
-     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
-     *
-     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
-     */
-    public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN_DESCENDING = (o1, o2) -> {
-        final boolean hasChildren = o1.getChildCount() > 0;
-        return hasChildren == o2.getChildCount() > 0 ? 0 : hasChildren ? 1 : -1;
-    };
-
-    /**
-     * A static node comparator that groups nodes by the number of children they have, in ascending order.
-     * Can be used to group folders sorted by number of children, and non-folders in a tree, with column sorting within them.
-     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
-     * <p>
-     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
-     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
-     *
-     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
-     */
-    public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN = Comparator.comparingInt(TreeNode::getChildCount);
-
-    /**
-     * A static node comparator that groups nodes by the number of children they have, in descending order.
-     * Can be used to group folders sorted by number of children and non-folders in a tree, with column sorting within them.
-     * This is provided because it's an obvious and easy example of grouping that works with vanilla TreeNodes.
-     * <p>
-     * Other means of grouping can be performed, using data from user objects in MutableTreeNodes,
-     * or other types of TreeNode in your tree, by casting to the type of TreeNode inside your Comparator.
-     *
-     * Can set in {@link net.byteseek.swing.treetable.TreeTableModel#setGroupingComparator(Comparator)}.
-     */
-    public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN_DESCENDING = (o1, o2) -> o2.getChildCount() - o1.getChildCount();
 
 
     /**

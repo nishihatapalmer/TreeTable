@@ -663,7 +663,6 @@ class TreeCellRendererTest extends BaseTestClass  {
 
     @Test
     public void testRenderPropertiesSetOnPaint() {
-        //TODO; test paint method by examining properties of JLabel.
         renderer = new TreeCellRenderer(model);
         model.bindTable(table);
         model.expandTree();
