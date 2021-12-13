@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
@@ -68,12 +69,6 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import javax.swing.tree.TreeNode;
 import net.byteseek.utils.collections.BlockModifyArrayList;
-
-//TODO: main bugs:
-//                        TreeStructureChanged  rebuildnodes is weird on root (also try it on other nodes)
-//TODO: bug - show root and filtering
-//TODO: check logic
-//  check logic around when child counts are updated, and whether there are any missing updates for tree building...
 
 //TODO: set which columns can be sorted.
 //TODO: expand-all by default option?  All nodes always visible?
@@ -118,7 +113,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Default visible width of a TableColumn created using the utility createColumn() methods, if you don't specify a width.
      */
-    protected static final int DEFAULT_COLUMN_WIDTH = 75; //TODO: test to see if this is a good default.
+    protected static final int DEFAULT_COLUMN_WIDTH = 75;
 
     /**
      * Value returned by find methods if not found.
@@ -1116,40 +1111,35 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     protected int insertChildNodeToModel(final TreeNode parentNode, final int childIndex) {
-        final int insertPosition = getModelIndexAtInsertPosition(parentNode, childIndex, 1);
-        if (insertPosition >= 0) { //TODO: why don't we throw an exception if the insertion indexes are out of bounds?
-            final TreeNode insertedNode = parentNode.getChildAt(childIndex); // The node that was inserted.
-            if (!isFiltered(insertedNode)) {
-                final List<TreeNode> newNodes = new ArrayList<>( 64);
-                newNodes.add(insertedNode);
-                buildVisibleChildren(insertedNode, newNodes);
-                displayedNodes.addAll(insertPosition, newNodes);
-                fireTableRowsInserted(insertPosition, insertPosition + newNodes.size() - 1);
-                return newNodes.size();
-            }
+        final TreeNode insertedNode = parentNode.getChildAt(childIndex); // The node that was inserted.
+        if (!isFiltered(insertedNode)) {
+            final List<TreeNode> newNodes = new ArrayList<>();
+            newNodes.add(insertedNode);
+            buildVisibleChildren(insertedNode, newNodes);
+            final int insertPosition = getModelIndexAtInsertPosition(parentNode, childIndex, 1);
+            displayedNodes.addAll(insertPosition, newNodes);
+            fireTableRowsInserted(insertPosition, insertPosition + newNodes.size() - 1);
+            return newNodes.size();
         }
         return 0;
     }
 
     protected int insertChildNodesToModel(final TreeNode parentNode, final int[] childIndices, final int from, final int to) {
-        final int insertPosition = getModelIndexAtInsertPosition(parentNode, childIndices[from], to - from + 1);
-        if (insertPosition > 0) { //TODO: why don't we throw an exception if the insertion indexes are out of bounds?
-            final List<TreeNode> newNodes = new ArrayList<>(128);
-            for (int index = from; index <= to; index++) {
-                final int childIndex = childIndices[index];
-                final TreeNode insertedNode = parentNode.getChildAt(childIndex); // The node that was inserted.
-                if (!isFiltered(insertedNode)) {
-                    newNodes.add(insertedNode);
-                    buildVisibleChildren(insertedNode, newNodes);
-                }
-            }
-            if (newNodes.size() > 0) {
-                displayedNodes.addAll(insertPosition, newNodes);
-                fireTableRowsInserted(insertPosition, insertPosition + newNodes.size() - 1);
-                return newNodes.size();
+        final List<TreeNode> newNodes = new ArrayList<>();
+        for (int index = from; index <= to; index++) {
+            final int childIndex = childIndices[index];
+            final TreeNode insertedNode = parentNode.getChildAt(childIndex); // The node that was inserted.
+            if (!isFiltered(insertedNode)) {
+                newNodes.add(insertedNode);
+                buildVisibleChildren(insertedNode, newNodes);
             }
         }
-        return 0;
+        if (newNodes.size() > 0) {
+            final int insertPosition = getModelIndexAtInsertPosition(parentNode, childIndices[from], to - from + 1);
+            displayedNodes.addAll(insertPosition, newNodes);
+            fireTableRowsInserted(insertPosition, insertPosition + newNodes.size() - 1);
+        }
+        return newNodes.size();
     }
 
     protected int removeVisibleNodes(final int[] childIndices, final Object[] removedChildren) {
@@ -1255,7 +1245,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Gets the node at the model row, or null if the model index is out of bounds.
      *
      * @param modelIndex The row in the display model to get the node for.
-     * @return The node for the row in the (unsorted) model index, or null if out of bounds. //TODO: return null or throw indexoutofbounds?
+     * @return The node for the row in the (unsorted) model index, or null if out of bounds.
      */
     public TreeNode getNodeAtModelIndex(final int modelIndex) {
         return modelIndex >= 0 && modelIndex < displayedNodes.size() ? displayedNodes.get(modelIndex) : null;
@@ -1357,8 +1347,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Uses a tree scanning algorithm, walking back up the path of the node we're looking for and
      * locating each ancestor, adding up how many visible nodes precede it, until we reach the
      * node we want to find, or not.
+     * The sum of all visible preceding nodes gives us the model index of our node.
      * <p>
-     * This is quite fast since we already track how many visible child nodes (including all sub nodes) each expanded
+     * This is fast since we already track how many visible child nodes (including all sub nodes) each expanded
      * folder contains.  So we can just walk the children of each ancestor adding up how many nodes will actually appear,
      * and don't have to actually scan most of them. This will be a considerably smaller set of nodes than looking in all of them.
      *
@@ -1376,14 +1367,12 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             return showRoot? 0 : NOT_LOCATED;
         }
 
-        // Walk up the path from the root up to the node we want to calculate the index for,
-        // calculating the model index as the sum of all visible children that precede it in the path.
+        // Walk up the path from root to the node we want the model index for, adding up all the visible children
+        // that precede it in the model.
         final List<TreeNode> parentPath = buildPath(node); // last item is the root, first is the node to find.
         final TreeNode ancestorRoot = parentPath.get(parentPath.size() - 1);
         CALCULATE_INDEX:
         if (ancestorRoot == rootNode) { // If we're in the same tree (starts at the same root):
-
-            //TODO: think more about filtering the root node when it's both showing and not showing...
 
             /*
              * Set the starting model index for the count of nodes.
@@ -1400,27 +1389,16 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             // as well (we work in parent/child pairs), which will be the last item in the path (root).  Root has no parent, so we can't start there.
             final int childOfRootIndex = parentPath.size() - 2;
             for (int pathIndex = childOfRootIndex; pathIndex >= 0; pathIndex--) {
-                final TreeNode parentNode = parentPath.get(pathIndex + 1); // Get the parent of the one we will find.  This is root initially.
-
                 // As long as the parent node is expanded and unfiltered (so children will be visible)
+                // add up all the visible children of that parent which precede the child we want to find.
+                final TreeNode parentNode = parentPath.get(pathIndex + 1); // Get the parent of the one we will find.  This is root initially.
                 if (isExpanded(parentNode) && !isFiltered(parentNode)) {
-                    final TreeNode childToFind = parentPath.get(pathIndex);
-
-                    // Add up all the visible children of that parent which precede the child we want to find.
-                    final int visibleChildren = addUpVisibleChildren(parentNode, childToFind);
-                    if (visibleChildren == NOT_LOCATED) {
-                        /*
-                         *If we do not end up finding the child node in the parent in the tree, this means that there is
-                        * is either a bug in the tree nodes (it has parents down to root, but one of the parents
-                        * doesn't recognise one of them as a child), or a bug in this algorithm.
-                        * //TODO: should we throw an error?  return not found?
-                         */
+                    final int visibleChildren = countVisibleChildrenUpToChild(parentNode, parentPath.get(pathIndex));
+                    if (visibleChildren == NOT_LOCATED) { // e.g. if the child to find was filtered out.
                         break CALCULATE_INDEX; // stop looking and fall through to return NOT_LOCATED.
                     }
-
-                    // Increase the calculated model index by the number of nodes above us in the path to that point.
                     modelIndex += visibleChildren;
-                } else {
+                } else { // filtered or not expanded - path is not visible.
                     break CALCULATE_INDEX; // stop looking and fall through to return NOT_LOCATED.
                 }
             }
@@ -1430,35 +1408,37 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Returns the number of visible nodes in the child of a parent that precede a child we are trying to find,
+     * Returns the number of visible nodes in a parent node up to and including the node to find,
      * or -1 if the child does not exist in that parent.
      *
      * @param parentNode The parent node to scan.
-     * @param nodeToFind The child node to find in the parent.
+     * @param childToFind The child node to find in the parent.
      * @return the number of visible child nodes up to the child to find, or -1 if the child does not exist.
      */
-    protected int addUpVisibleChildren(TreeNode parentNode, TreeNode nodeToFind) {
-        boolean located = false;
+    protected int countVisibleChildrenUpToChild(TreeNode parentNode, TreeNode childToFind) {
         int visibleNodeCount = 0;
         for (int child = 0; child < parentNode.getChildCount(); child++) {
             final TreeNode childNode = parentNode.getChildAt(child);
             if (!isFiltered(childNode)) {
-                visibleNodeCount++; // add one for the child.
-
-                // Have we found an ancestor parent node?
-                if (childNode == nodeToFind) {
-                    located = true;
-                    break; // stop looking for more at this level, move up the ancestor path to the next level.
+                visibleNodeCount++;
+                if (childNode == childToFind) {
+                    return visibleNodeCount;
                 }
-
-                // Add how many nodes this child has as visible children and sub-children.
-                // This is just a lookup in a hash map at worst, so it is fast.
                 visibleNodeCount += getLastKnownSubTreeCount(childNode);
+            } else if (childNode == childToFind) {
+                break; // we found the child, but it was filtered.  So there are no visible children up to a visible child.
             }
         }
-        return located ? visibleNodeCount : NOT_LOCATED;
+        return NOT_LOCATED;
     }
 
+    /**
+     * Builds the path of a node up to the root.  The first node in the list is the node we start with,
+     * and the last node will be the root node.
+     *
+     * @param node The node to get a path for.
+     * @return A list of nodes up to the root from the node you start with.
+     */
     protected List<TreeNode> buildPath(final TreeNode node) {
         final List<TreeNode> path = new ArrayList<>();
         TreeNode currentNode = node;
