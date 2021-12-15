@@ -43,7 +43,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
@@ -69,10 +68,6 @@ import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableModel;
 import javax.swing.tree.TreeNode;
 import net.byteseek.utils.collections.BlockModifyArrayList;
-
-//TODO: set which columns can be sorted.
-//TODO: expand-all by default option?  All nodes always visible?
-//TODO: insert-expanded option?
 
 /**
  * A tree table model which binds to a JTable as a TableModel given a root tree node.
@@ -266,7 +261,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * The old header renderer assigned to the JTable before we bound to it.
-     * We hold on to it so we can replace it if we unbind the TreeTableModelm from the JTable.
+     * We hold on to it, so we can replace it if we unbind the TreeTableModel from the JTable.
      */
     protected TableCellRenderer oldHeaderRenderer;
 
@@ -409,7 +404,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Unbinds the model from the JTable.  Does nothing if the Jtable isn't using this as its TableModel.     *
+     * Unbinds the model from the JTable.  Does nothing if the JTable isn't using this as its TableModel.     *
      */
     public void unbindTable() {
         if (table != null && table.getModel() == this) {
@@ -505,6 +500,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return null; // Defaults to no special column comparators.
     }
 
+    /**
+     * Returns true if a column is sortable.
+     * The base implementation always returns true.
+     * Override this method if you want to control which columns are sortable.
+     *
+     * @param column The model index of the column to check whether it is sortable.
+     * @return Whether the column with the model index provided is sortable.
+     */
+    public boolean isColumnSortable(final int column) {
+        return true;
+    }
+
 
     /* *****************************************************************************************************************
      *                                         Node grouping and sorting
@@ -515,7 +522,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Returns true if a grouping comparator is set on the model.
      * A grouping comparator can be set regardless of whether the model is bound to an actual table or not.
-     * @return true true if a grouping comparator is set on the model.
+     * @return true if a grouping comparator is set on the model.
      */
     public boolean isGrouping() {
         return groupingComparator != null;
@@ -711,7 +718,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * When unbinding from a table, we will no longer get sort keys from its rowsorter.
+     * When unbinding from a table, we will no longer get sort keys from its rowSorter.
      * Take a copy of the last known state of sort keys in the table, if any are set.
      * This ensures that a call to getSortKeys() while bound remains consistent after unbinding.
      * Get and Set methods for sort keys remain consistent, whether bound to a table or not.
@@ -1712,7 +1719,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /**
      * Returns the number of visible subtree children exist for a node in the tree, or 0 if none are visible.
      *
-     * @param parentNode The node to get the sub-tree count for.
+     * @param parentNode The node to get the subtree count for.
      * @return the number of visible subtree children exist for a node in the tree, or 0 if none are visible.
      */
     public int getVisibleSubTreeCount(final TreeNode parentNode) {
@@ -1828,9 +1835,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Expands the parent node and all children and subchildren nodes which allow children.
+     * Expands the parent node and all children and sub-children nodes which allow children.
      *
-     * @param parentNode The node to expand and all children and subchildren.
+     * @param parentNode The node to expand and all children and sub-children.
      */
     public void expandChildren(final TreeNode parentNode) {
         if (parentNode.getAllowsChildren()) {
@@ -1846,7 +1853,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Expands the parent node and all children and subchildren if they meet the node predicate test.
+     * Expands the parent node and all children and sub-children if they meet the node predicate test.
      * No further children will be expanded for a node that fails the predicate test,
      * but other siblings of it that pass the test may be expanded if they pass the predicate.
      *
@@ -1890,7 +1897,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Expands the parent node and all children and subchildren if they meet the node predicate test, up to the
+     * Expands the parent node and all children and sub-children if they meet the node predicate test, up to the
      * maximum depth of children specified.  No further children will be expanded for a node that fails the predicate test,
      * but other siblings of it that pass the test may be expanded.
      *
@@ -2008,7 +2015,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
 
         // If we haven't removed or added any children, notify the table this one node may have changed.
-        // This forces a visual refresh which may alter the rendering of the expand or collapse handles.
+        // This forces a visual refresh which may alter the rendering of expand or collapse handles.
         if (childrenChanged == 0) {
             fireTableRowsUpdated(parentModelIndex, parentModelIndex);
         }
@@ -2125,7 +2132,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     public void toggleShowRoot() {
         final int ROOT_MODEL_INDEX = 0;
         this.showRoot = !showRoot; // toggle root status.
-        if (isFiltered(rootNode)) { // if root node is filtered (whether showing or not), refresh the tree if we change it's status.
+        if (isFiltered(rootNode)) { // if root node is filtered (whether showing or not), refresh the tree if we change its status.
             refreshTree(false);
             fireTableDataChanged();
         } else { // add or remove the root node if the root isn't filtered.
@@ -2266,7 +2273,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 }
             }
 
-            // Reset the child count for each expanded node as it is built (some nodes may be filtered or it may have changed entirely since last rebuild).
+            // Reset the child count for each expanded node as it is built (some nodes may be filtered, or it may have changed entirely since last rebuild).
             expandedNodeCounts.put(parentNode, totalVisibleChildren); // ensure child counts for any expanded nodes are updated when the tree is rebuilt.
             return totalVisibleChildren;
         }
@@ -2342,8 +2349,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
 
     /**
-     * Sets the key strokes used to expand a selected node in the tree.
-     * If null or empty, no key strokes will be assigned.
+     * Sets the keystrokes used to expand a selected node in the tree.
+     * If null or empty, no keystrokes will be assigned.
      *
      * @param newExpandKeys The new set of keystrokes which will trigger an expand event on a selected node.
      */
@@ -2355,8 +2362,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Sets the key strokes used to collapse a selected node in the tree.
-     * If null or empty, no key strokes will be assigned.
+     * Sets the keystrokes used to collapse a selected node in the tree.
+     * If null or empty, no keystrokes will be assigned.
      *
      * @param newCollapseKeys The new set of keystrokes which will trigger a collapse event on a selected node.
      */
@@ -2369,7 +2376,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Sets the keystrokes used to toggle expansion of a selected node in the tree.
-     * If null or empty, no key strokes will be assigned.
+     * If null or empty, no keystrokes will be assigned.
      *
      * @param newToggleKeys The new set of keystrokes which will trigger a toggle expansion event on a selected node.
      */

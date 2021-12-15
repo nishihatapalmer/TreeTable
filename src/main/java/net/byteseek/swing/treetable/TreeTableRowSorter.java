@@ -135,8 +135,8 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     protected int lastRowCount;
 
     /**
-     * alwaysRebuildIndices mode forces the RowSorter to rebuild the sort indexes entirely on notification of row update, insert and removals.
-     * The faster algorithms adjust the indexes in place.  This is mostly for debugging purposes.
+     * rebuildIndices mode forces the RowSorter to rebuild the sort indexes entirely on notification of row update,
+     * insert and removals.  The faster algorithms adjust the indexes in place.  This is mostly for debugging purposes.
      */
     protected boolean rebuildIndices;
 
@@ -164,6 +164,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         this(model, List.of(defaultSortKeys));
     }
 
+    //TODO: default sort keys not the same as the sort keys to start with.
     /**
      * Constructs a TreeTableRowSorter given a TreeTableModel.
      * @param model The TreeTableModel to sort.
@@ -195,8 +196,10 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void toggleSortOrder(final int column) {
-        checkValidColumn(column);
-        setSortKeys(getSortStrategy().buildNewSortKeys(column, sortKeys));
+        if (model.isColumnSortable(column)) {
+            checkValidColumn(column);
+            setSortKeys(getSortStrategy().buildNewSortKeys(column, sortKeys));
+        }
     }
 
     @Override
