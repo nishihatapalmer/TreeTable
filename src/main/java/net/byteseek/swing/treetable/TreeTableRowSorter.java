@@ -196,7 +196,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void toggleSortOrder(final int column) {
-        if (model.isColumnSortable(column)) {
+        if (model.isSortable(column)) {
             checkValidColumn(column);
             setSortKeys(getSortStrategy().buildNewSortKeys(column, sortKeys));
         }
