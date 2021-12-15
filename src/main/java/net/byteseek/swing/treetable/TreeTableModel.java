@@ -605,6 +605,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     * Sets all columns to be sortable.
+     */
+    public void setAllColumnsSortable() {
+        unsortableColumns.clear();
+    }
+
+    /**
      * Sets the default column sort strategy to use, and sets it on a bound table
      * if a TreeTableRowSorter is current being used.
      *
