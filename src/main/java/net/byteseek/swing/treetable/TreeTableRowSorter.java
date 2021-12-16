@@ -35,8 +35,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowSorter;
@@ -87,6 +89,12 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * The list of default sort keys which are used if no other sort specified.
      */
     protected List<? extends SortKey> defaultSortKeys = Collections.emptyList();
+
+    /**
+     * A set of column model indexes which are not sortable.
+     */
+    //TODO: we we need to enforce unsortable columns in existing sort keys / default sort keys.
+    protected Set<Integer> unsortableColumns = new HashSet<>();
 
     /**
      * The node comparator to use to compare nodes.
@@ -196,7 +204,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void toggleSortOrder(final int column) {
-        if (model.isSortable(column)) {
+        if (isSortable(column)) {
             checkValidColumn(column);
             setSortKeys(getSortStrategy().buildNewSortKeys(column, sortKeys));
         }
@@ -318,6 +326,38 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      */
     public boolean isSorting() {
         return viewToModelIndex != null; // invariant assumption: sorting if viewToModel index is not null.
+    }
+
+    /**
+     * Returns true if a column is sortable.
+     * The base implementation always returns true.
+     * Override this method if you want to control which columns are sortable.
+     *
+     * @param column The model index of the column to check whether it is sortable.
+     * @return Whether the column with the model index provided is sortable.
+     */
+    public boolean isSortable(final int column) {
+        return !unsortableColumns.contains(Integer.valueOf(column));
+    }
+
+    /**
+     * Sets whether a column is sortable or not sortable.
+     * @param column The model index of the column
+     * @param isSortable Whether the column is sortable or not.
+     */
+    public void setSortable(final int column, final boolean isSortable) {
+        if (isSortable) {
+            unsortableColumns.remove(Integer.valueOf(column));
+        } else {
+            unsortableColumns.add(Integer.valueOf(column));
+        }
+    }
+
+    /**
+     * Sets all columns to be sortable.
+     */
+    public void setAllColumnsSortable() {
+        unsortableColumns.clear();
     }
 
     /**
