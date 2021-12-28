@@ -47,58 +47,53 @@ import javax.swing.SortOrder;
 public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSortStrategy {
 
     /**
-     * The action to take when a sorted column is toggled for sorting.
-     * These actions don't affect how the sort is toggled to another sort, only what happens to the column sort position.
+     * The position that a new sort key should have in the sort list.
      */
-    public enum ToggleExistingColumnAction {
+    public enum NewSortKeyPosition {
         /**
-         * When sort is toggled, the existing sorted column is made first in the sorted columns.
+         * Make the sort key the first sorted key.
          */
         MAKE_FIRST,
 
         /**
-         * When sort is toggled, don't move the sorted column in the sort.
-         * This is the default action.
-         */
-        KEEP_POSITION
-    }
-
-    /**
-     * The action to take when an unsorted column is toggled for sorting.
-     * These actions don't affect how the sort for the column is set, only what happens to the column sort position.
-     */
-    public enum ToggleNewColumnAction {
-        /**
-         * When sort is toggled, the new sorted column is made first in the sorted columns.
-         */
-        MAKE_FIRST,
-
-        /**
-         * When sort is toggled, the new sorted column is added to the end of the currently sorted columns,
-         * or replaces the last sorted column if we're at the maximum number of sorted columns allowed.
-         * This is the default action.
+         * Make the sort key the last sorted key.
          */
         ADD_TO_END
     }
 
     /**
-     * The action to take when a sorted column becomes unsorted.
+     * How to update the position of an existing sort key when it is toggled.
      */
-    public enum WhenColumnUnsortedAction {
+    public enum UpdateSortKeyPosition {
         /**
-         * Removes the column from the list of sorted columns. This is the default.
+         * Make the sort key the first sorted key.
+         */
+        MAKE_FIRST,
+
+        /**
+         * Don't move the sort key from it's current position.
+         */
+        KEEP_POSITION
+    }
+
+    /**
+     * The action to take when removing a sort key.
+     */
+    public enum RemoveSortKeyAction {
+        /**
+         * Removes the sort key from the list of sort keys. This is the default.
          */
         REMOVE,
 
         /**
-         * Removes the column from the list of sorted columns, and also any subsequent columns defined.
-         * If we have 3 sorted columns, and we make the second one unsorted, the second and third column would
-         * be removed from the sort.
+         * Removes the sort key from the list of sort keys, and also any subsequent keys defined.
+         * If we have 3 sort keys, and we make the second one unsorted, the second and third sort key would
+         * be removed from the list.
          */
         REMOVE_SUBSEQUENT,
 
         /**
-         * Removes all sorted columns from the list of sorted columns.
+         * Clears all sort keys.
          */
         REMOVE_ALL
     }
@@ -118,19 +113,19 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     protected int maximumSortKeys;
 
     /**
-     * The action to take when an unsorted column is sorted.
+     * The position for a new sort key.
      */
-    protected ToggleNewColumnAction newColumnAction;
+    protected NewSortKeyPosition newSortKeyPosition;
 
     /**
-     * The action to take when a sorted column is sorted.
+     * The position for an updated sort key.
      */
-    protected ToggleExistingColumnAction existingColumnAction;
+    protected UpdateSortKeyPosition updateSortKeyPosition;
 
     /**
      * The action to take when a column becomes unsorted.
      */
-    protected WhenColumnUnsortedAction whenUnsortedAction;
+    protected RemoveSortKeyAction removeSortKeyAction;
 
     /**
      * Constructs a TreeTableColumnSortStrategy with the default settings.
@@ -139,30 +134,30 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
      * Once unsorted, the column is removed from the sort keys.
      */
     public TreeTableColumnSortStrategy() {
-        this(DEFAULT_MAX_SORT_KEYS, ToggleNewColumnAction.ADD_TO_END, ToggleExistingColumnAction.KEEP_POSITION,
-                WhenColumnUnsortedAction.REMOVE);
+        this(DEFAULT_MAX_SORT_KEYS, NewSortKeyPosition.ADD_TO_END, UpdateSortKeyPosition.KEEP_POSITION,
+                RemoveSortKeyAction.REMOVE);
     }
 
     /**
      * Constructs a TreeTableColumnSortStrategy with the particular configuration passed in.
      *
      * @param maximumSortKeys The maximum number of sorted columns at any one time.
-     * @param newColumnAction What to do if a new column is sorted.
-     * @param existingColumnAction What to do if an existing sorted column is toggled again.
-     * @param whenUnsortedAction What to do when a column becomes unsorted.
+     * @param newSortKeyPosition The position of a new sort key in the sort list.
+     * @param updateSortKeyPosition The position of an updated sort key in the sort list.
+     * @param removeSortKeyAction What to do when a sort key is removed.
      * @throws IllegalArgumentException if any of the actions are null.
      */
     public TreeTableColumnSortStrategy(final int maximumSortKeys,
-                                       final ToggleNewColumnAction newColumnAction,
-                                       final ToggleExistingColumnAction existingColumnAction,
-                                       final WhenColumnUnsortedAction whenUnsortedAction) {
-        if (newColumnAction == null || existingColumnAction == null || whenUnsortedAction == null) {
+                                       final NewSortKeyPosition newSortKeyPosition,
+                                       final UpdateSortKeyPosition updateSortKeyPosition,
+                                       final RemoveSortKeyAction removeSortKeyAction) {
+        if (newSortKeyPosition == null || updateSortKeyPosition == null || removeSortKeyAction == null) {
             throw new IllegalArgumentException("Actions to take cannot be null.");
         }
         this.maximumSortKeys = maximumSortKeys;
-        this.newColumnAction = newColumnAction;
-        this.existingColumnAction = existingColumnAction;
-        this.whenUnsortedAction = whenUnsortedAction;
+        this.newSortKeyPosition = newSortKeyPosition;
+        this.updateSortKeyPosition = updateSortKeyPosition;
+        this.removeSortKeyAction = removeSortKeyAction;
     }
 
     @Override
@@ -170,9 +165,9 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
         final List<RowSorter.SortKey> newKeys = new ArrayList<>(sortKeys);
         final int sortKeyIndex = findKeyColumn(newKeys, columnToSort);
         if (sortKeyIndex < 0) {
-            processNewColumn(newKeys, columnToSort);
+            addNewSortKey(newKeys, columnToSort);
         } else {
-            processExistingColumn(newKeys, sortKeyIndex);
+            toggleExistingSortKey(newKeys, sortKeyIndex);
         }
         return newKeys;
     }
@@ -180,46 +175,46 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     /**
      * @return the action to take on a new column becoming sorted.
      */
-    public ToggleNewColumnAction getNewColumnAction() {
-        return newColumnAction;
+    public NewSortKeyPosition getNewSortKeyPosition() {
+        return newSortKeyPosition;
     }
 
     /**
      * Sets the action to take when a new column is sorted.
-     * @param newColumnAction the action to take when a new column is sorted.
+     * @param newSortKeyPosition the action to take when a new column is sorted.
      */
-    public void setNewColumnAction(ToggleNewColumnAction newColumnAction) {
-        this.newColumnAction = newColumnAction;
+    public void setNewSortKeyPosition(NewSortKeyPosition newSortKeyPosition) {
+        this.newSortKeyPosition = newSortKeyPosition;
     }
 
     /**
      * @return the action to take on a sorted column becoming unsorted.
      */
-    public WhenColumnUnsortedAction getWhenUnsortedAction() {
-        return whenUnsortedAction;
+    public RemoveSortKeyAction getRemoveSortKeyAction() {
+        return removeSortKeyAction;
     }
 
     /**
      * Sets the action to take when a sorted column becomes unsorted.
-     * @param whenUnsortedAction The action to take when a sorted column becomes unsorted.
+     * @param removeSortKeyAction The action to take when a sorted column becomes unsorted.
      */
-    public void setWhenUnsortedAction(WhenColumnUnsortedAction whenUnsortedAction) {
-        this.whenUnsortedAction = whenUnsortedAction;
+    public void setRemoveSortKeyAction(RemoveSortKeyAction removeSortKeyAction) {
+        this.removeSortKeyAction = removeSortKeyAction;
     }
 
     /**
      * @return the action to take on an existing sorted column being toggled again.
      */
-    public ToggleExistingColumnAction getExistingColumnAction() {
-        return existingColumnAction;
+    public UpdateSortKeyPosition getUpdateSortKeyPosition() {
+        return updateSortKeyPosition;
     }
 
     /**
      * Sets the action to take when an existing sorted column is toggled.
-     * @param existingColumnAction the action to take when an existing sorted column is toggled.
+     * @param updateSortKeyPosition the action to take when an existing sorted column is toggled.
      */
-    public void setExistingColumnAction(ToggleExistingColumnAction existingColumnAction) {
-        this.existingColumnAction = existingColumnAction;
+    public void setUpdateSortKeyPosition(UpdateSortKeyPosition updateSortKeyPosition) {
+        this.updateSortKeyPosition = updateSortKeyPosition;
     }
 
     /**
@@ -241,19 +236,20 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     public String toString() {
         return getClass().getSimpleName() +
                 "(max columns: " + maximumSortKeys +
-                ", new sort columns: " + newColumnAction +
-                ", existing sort columns: " + existingColumnAction +
-                ", when unsorted: " + whenUnsortedAction + ')';
+                ", new: " + newSortKeyPosition +
+                ", existing: " + updateSortKeyPosition +
+                ", unsorted: " + removeSortKeyAction + ')';
     }
 
     /**
-     * Takes the appropriate action when a new column is sorted.
+     * Adds a new ASCENDING sort key for the column, and puts it in the appropriate position in the sort list.
+     *
      * @param newKeys A list of SortKeys to manipulate.
      * @param columnToSort The index of the newly sorted column.
      */
-    protected void processNewColumn(final List<RowSorter.SortKey> newKeys, final int columnToSort) {
+    protected void addNewSortKey(final List<RowSorter.SortKey> newKeys, final int columnToSort) {
         final RowSorter.SortKey newKey = new RowSorter.SortKey(columnToSort, SortOrder.ASCENDING);
-        switch(newColumnAction) {
+        switch(newSortKeyPosition) {
             case ADD_TO_END: { // always add to the end - if there isn't enough room, the last sort key is replaced.
                 if (newKeys.size() < maximumSortKeys) {
                     newKeys.add(newKey);
@@ -275,24 +271,13 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
      * @param newKeys The list of sort keys to manipulate.
      * @param sortKeyIndex The index of the existing sort key in the list of sort keys.
      */
-    protected void processExistingColumn(final List<RowSorter.SortKey> newKeys, final int sortKeyIndex) {
+    protected void toggleExistingSortKey(final List<RowSorter.SortKey> newKeys, final int sortKeyIndex) {
         final RowSorter.SortKey currentKey = newKeys.get(sortKeyIndex);
-        final SortOrder nextState = nextOrder(currentKey.getSortOrder());
-        if (nextState == SortOrder.UNSORTED) { // process a column becoming unsorted:
-            processRemoveSortedColumn(newKeys, sortKeyIndex);
-        } else { // Update the sort key:
-            final RowSorter.SortKey newKey = new RowSorter.SortKey(currentKey.getColumn(), nextState);
-            switch (existingColumnAction) {
-                case MAKE_FIRST: {
-                    newKeys.remove(sortKeyIndex);
-                    newKeys.add(0, newKey);
-                    break;
-                }
-                case KEEP_POSITION: {
-                    newKeys.set(sortKeyIndex, newKey);
-                    break;
-                }
-            }
+        final SortOrder nextState = nextSortOrder(currentKey.getSortOrder());
+        if (nextState == SortOrder.UNSORTED) {
+            removeSortKey(newKeys, sortKeyIndex);
+        } else {
+            updateSortKey(newKeys, sortKeyIndex, nextState);
         }
     }
 
@@ -301,8 +286,8 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
      * @param newKeys A list of new keys to manipulate.
      * @param sortKeyIndex The index of the SortKey for the column which is becoming unsorted.
      */
-    protected void processRemoveSortedColumn(final List<RowSorter.SortKey> newKeys, final int sortKeyIndex) {
-        switch (whenUnsortedAction) {
+    protected void removeSortKey(final List<RowSorter.SortKey> newKeys, final int sortKeyIndex) {
+        switch (removeSortKeyAction) {
             case REMOVE: {
                 newKeys.remove(sortKeyIndex);
                 break;
@@ -319,11 +304,32 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     }
 
     /**
+     * Updates a sort key to another sort order, and alters its position if required.
+     * @param sortKeys The list of sort keys
+     * @param sortKeyIndex The index of the sort key to update.
+     * @param newSortOrder The new sort order.
+     */
+    protected void updateSortKey(final List<RowSorter.SortKey> sortKeys, final int sortKeyIndex, final SortOrder newSortOrder) {
+        final RowSorter.SortKey newKey = new RowSorter.SortKey(sortKeys.get(sortKeyIndex).getColumn(), newSortOrder);
+        switch (updateSortKeyPosition) {
+            case MAKE_FIRST: {
+                sortKeys.remove(sortKeyIndex);
+                sortKeys.add(0, newKey);
+                break;
+            }
+            case KEEP_POSITION: {
+                sortKeys.set(sortKeyIndex, newKey);
+                break;
+            }
+        }
+    }
+
+    /**
      * Cycles through and wraps around the SortOrder enum, from ASCENDING -> DESCENDING -> UNSORTED -> ASCENDING -> ...
      * @param sortOrder A SortOrder enumeration.
      * @return The next sort order (wrapping around).
      */
-    protected SortOrder nextOrder(final SortOrder sortOrder) {
+    protected SortOrder nextSortOrder(final SortOrder sortOrder) {
         return SortOrder.values()[(sortOrder.ordinal() + 1) % SortOrder.values().length];
     }
 
