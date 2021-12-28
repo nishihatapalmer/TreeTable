@@ -50,7 +50,7 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
     public MyObjectTreeTableModel(final TreeNode rootNode, final boolean showRoot) {
         super(rootNode, showRoot);
         setIcons();
-        setGroupingComparator(Comparators.GROUP_BY_ALLOWS_CHILDREN);
+        setGroupingComparator(Comparators.ALLOWS_CHILDREN);
         leafIcon = null;
     }
 

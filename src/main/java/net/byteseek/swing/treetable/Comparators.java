@@ -51,7 +51,7 @@ public final class Comparators {
      *
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN = (o1, o2) -> {
+    public static final Comparator<TreeNode> ALLOWS_CHILDREN = (o1, o2) -> {
         final boolean o1AllowsChildren = o1.getAllowsChildren();
         return o1AllowsChildren == o2.getAllowsChildren() ? 0 : o1AllowsChildren ? -1 : 1;
     };
@@ -66,7 +66,7 @@ public final class Comparators {
      *
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN_DESCENDING = (o1, o2) -> {
+    public static final Comparator<TreeNode> ALLOWS_CHILDREN_DESCENDING = (o1, o2) -> {
         final boolean o1AllowsChildren = o1.getAllowsChildren();
         return o1AllowsChildren == o2.getAllowsChildren() ? 0 : o1AllowsChildren ? 1 : -1;
     };
@@ -81,7 +81,7 @@ public final class Comparators {
      *
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN = (o1, o2) -> {
+    public static final Comparator<TreeNode> HAS_CHILDREN = (o1, o2) -> {
         final boolean o1HasChildren = o1.getChildCount() > 0;
         return o1HasChildren == o2.getChildCount() > 0 ? 0 : o1HasChildren ? -1 : 1;
     };
@@ -96,7 +96,7 @@ public final class Comparators {
      *
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN_DESCENDING = (o1, o2) -> {
+    public static final Comparator<TreeNode> HAS_CHILDREN_DESCENDING = (o1, o2) -> {
         final boolean o1HasChildren = o1.getChildCount() > 0;
         return o1HasChildren == o2.getChildCount() > 0 ? 0 : o1HasChildren ? 1 : -1;
     };
@@ -111,7 +111,7 @@ public final class Comparators {
      *
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN = Comparator.comparingInt(TreeNode::getChildCount);
+    public static final Comparator<TreeNode> NUM_CHILDREN = Comparator.comparingInt(TreeNode::getChildCount);
 
     /**
      * A static node comparator that groups nodes by the number of children they have, in descending order.
@@ -123,5 +123,5 @@ public final class Comparators {
      *
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
-    public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN_DESCENDING = (o1, o2) -> o2.getChildCount() - o1.getChildCount();
+    public static final Comparator<TreeNode> NUM_CHILDREN_DESCENDING = (o1, o2) -> o2.getChildCount() - o1.getChildCount();
 }

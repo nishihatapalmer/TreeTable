@@ -333,8 +333,8 @@ class TreeTableModelTest extends BaseTestClass {
     @Test
     public void testGetSetNodeComparator() {
         assertNull(model.getGroupingComparator());
-        model.setGroupingComparator(Comparators.GROUP_BY_ALLOWS_CHILDREN);
-        assertEquals(Comparators.GROUP_BY_ALLOWS_CHILDREN, model.getGroupingComparator());
+        model.setGroupingComparator(Comparators.ALLOWS_CHILDREN);
+        assertEquals(Comparators.ALLOWS_CHILDREN, model.getGroupingComparator());
         model.setGroupingComparator(null);
         assertNull(model.getGroupingComparator());
     }
@@ -380,7 +380,7 @@ class TreeTableModelTest extends BaseTestClass {
         assertEquals(subchild3, model.getNodeAtTableRow(6));
         assertEquals(child2, model.getNodeAtTableRow(7));
 
-        model.setGroupingComparator(Comparators.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(Comparators.ALLOWS_CHILDREN);
 
         assertEquals(rootNode, model.getNodeAtTableRow(0));
         assertEquals(child1, model.getNodeAtTableRow(1));
@@ -437,14 +437,14 @@ class TreeTableModelTest extends BaseTestClass {
 
     @Test
     public void testGetRowCountWithGroupedTable() {
-        model.setGroupingComparator(Comparators.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(Comparators.ALLOWS_CHILDREN);
         model.bindTable(table);
         testGetRowCount();
     }
 
     @Test
     public void testGetRowCountWithSortedGroupedTable() {
-        model.setGroupingComparator(Comparators.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(Comparators.ALLOWS_CHILDREN);
         model.bindTable(table);
         model.setSortKeys(sortKey1);
         testGetRowCount();
@@ -507,7 +507,7 @@ class TreeTableModelTest extends BaseTestClass {
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Use grouping to sort the nodes - nothing should change as getValueAt is in terms of model index, not sorted table index.
-        model.setGroupingComparator(Comparators.GROUP_BY_HAS_CHILDREN);
+        model.setGroupingComparator(Comparators.HAS_CHILDREN);
         assertEquals(7 + root, model.getRowCount());
         testGetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
@@ -591,7 +591,7 @@ class TreeTableModelTest extends BaseTestClass {
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
         // Use grouping to sort the nodes:
-        model.setGroupingComparator(Comparators.GROUP_BY_ALLOWS_CHILDREN);
+        model.setGroupingComparator(Comparators.ALLOWS_CHILDREN);
         assertEquals(7 + root, model.getRowCount());
         testSetValuesAt(expectedDescriptions, expectedSizes, showRoot);
 
@@ -653,14 +653,14 @@ class TreeTableModelTest extends BaseTestClass {
         assertNull(model.getGroupingComparator());
         assertTrue(tableOrderMatches(allNodesInVisualOrder));
 
-        model.setGroupingComparator(Comparators.GROUP_BY_NUM_CHILDREN_DESCENDING);
+        model.setGroupingComparator(Comparators.NUM_CHILDREN_DESCENDING);
         assertTrue(model.isGrouping());
-        assertEquals(Comparators.GROUP_BY_NUM_CHILDREN_DESCENDING, model.getGroupingComparator());
+        assertEquals(Comparators.NUM_CHILDREN_DESCENDING, model.getGroupingComparator());
         assertFalse(tableOrderMatches(allNodesInVisualOrder));
 
-        model.setGroupingComparator(Comparators.GROUP_BY_HAS_CHILDREN);
+        model.setGroupingComparator(Comparators.HAS_CHILDREN);
         assertTrue(model.isGrouping());
-        assertEquals(Comparators.GROUP_BY_HAS_CHILDREN, model.getGroupingComparator());
+        assertEquals(Comparators.HAS_CHILDREN, model.getGroupingComparator());
         assertFalse(tableOrderMatches(allNodesInVisualOrder));
 
         model.setGroupingComparator(null);
@@ -675,11 +675,11 @@ class TreeTableModelTest extends BaseTestClass {
             createRandomTree(trial, true);
             model.expandTree();
             model.bindTable(table);
-            model.setGroupingComparator(Comparators.GROUP_BY_NUM_CHILDREN_DESCENDING);
-            testSorting(rootNode, Comparators.GROUP_BY_NUM_CHILDREN_DESCENDING);
+            model.setGroupingComparator(Comparators.NUM_CHILDREN_DESCENDING);
+            testSorting(rootNode, Comparators.NUM_CHILDREN_DESCENDING);
 
-            model.setGroupingComparator(Comparators.GROUP_BY_NUM_CHILDREN);
-            testSorting(rootNode, Comparators.GROUP_BY_NUM_CHILDREN);
+            model.setGroupingComparator(Comparators.NUM_CHILDREN);
+            testSorting(rootNode, Comparators.NUM_CHILDREN);
         }
     }
 
