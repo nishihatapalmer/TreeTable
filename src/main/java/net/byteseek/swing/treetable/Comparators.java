@@ -52,9 +52,10 @@ public final class Comparators {
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN = (o1, o2) -> {
-        final boolean allowsChildren = o1.getAllowsChildren();
-        return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? -1 : 1;
+        final boolean o1AllowsChildren = o1.getAllowsChildren();
+        return o1AllowsChildren == o2.getAllowsChildren() ? 0 : o1AllowsChildren ? -1 : 1;
     };
+
     /**
      * A node comparator that groups nodes by whether they allow children or not, in a descending order.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
@@ -66,9 +67,10 @@ public final class Comparators {
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_ALLOWS_CHILDREN_DESCENDING = (o1, o2) -> {
-        final boolean allowsChildren = o1.getAllowsChildren();
-        return allowsChildren == o2.getAllowsChildren() ? 0 : allowsChildren ? 1 : -1;
+        final boolean o1AllowsChildren = o1.getAllowsChildren();
+        return o1AllowsChildren == o2.getAllowsChildren() ? 0 : o1AllowsChildren ? 1 : -1;
     };
+
     /**
      * A node comparator that groups nodes by whether they have children or not.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
@@ -80,9 +82,10 @@ public final class Comparators {
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN = (o1, o2) -> {
-        final boolean hasChildren = o1.getChildCount() > 0;
-        return hasChildren == o2.getChildCount() > 0 ? 0 : hasChildren ? -1 : 1;
+        final boolean o1HasChildren = o1.getChildCount() > 0;
+        return o1HasChildren == o2.getChildCount() > 0 ? 0 : o1HasChildren ? -1 : 1;
     };
+
     /**
      * A node comparator that groups nodes by whether they have children or not in a descending order.
      * Can be used to group folders and non-folders in a tree, with column sorting within them.
@@ -94,9 +97,10 @@ public final class Comparators {
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_HAS_CHILDREN_DESCENDING = (o1, o2) -> {
-        final boolean hasChildren = o1.getChildCount() > 0;
-        return hasChildren == o2.getChildCount() > 0 ? 0 : hasChildren ? 1 : -1;
+        final boolean o1HasChildren = o1.getChildCount() > 0;
+        return o1HasChildren == o2.getChildCount() > 0 ? 0 : o1HasChildren ? 1 : -1;
     };
+
     /**
      * A static node comparator that groups nodes by the number of children they have, in ascending order.
      * Can be used to group folders sorted by number of children, and non-folders in a tree, with column sorting within them.
@@ -108,6 +112,7 @@ public final class Comparators {
      * Can set in {@link TreeTableModel#setGroupingComparator(Comparator)}.
      */
     public static final Comparator<TreeNode> GROUP_BY_NUM_CHILDREN = Comparator.comparingInt(TreeNode::getChildCount);
+
     /**
      * A static node comparator that groups nodes by the number of children they have, in descending order.
      * Can be used to group folders sorted by number of children and non-folders in a tree, with column sorting within them.
