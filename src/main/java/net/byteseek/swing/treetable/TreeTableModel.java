@@ -41,9 +41,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
@@ -56,6 +56,7 @@ import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.table.AbstractTableModel;
@@ -105,6 +106,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * first column, but it is always logically the first column.
      */
     protected static final int TREE_COLUMN_INDEX = 0;
+
+    /**
+     * The index of the root node in the model (if showing) is always zero (it has to be the first item if it's showing).
+     */
+    protected static final int ROOT_MODEL_INDEX = 0;
 
     /**
      * Default visible width of a TableColumn created using the utility createColumn() methods, if you don't specify a width.
@@ -157,12 +163,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0, false)};  // - on keypad
     protected KeyStroke[] toggleKeys = new KeyStroke[] { // key presses that toggle node expansion
                 KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, false)};
-
-    /**
-     * Whether sorting is enabled on a bound table.
-     */
-    protected boolean sortEnabled = true;
-
     /**
      * The list of sort keys defined for this model. It is never null - only empty if no keys defined.
      */
@@ -294,7 +294,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         checkNull(rootNode, "rootNode");
         this.rootNode = rootNode;
         this.showRoot = showRoot;
-        refreshTree(true);
+        // If we aren't showing the root, expand it so it's children will be visible as top level nodes.
+        if (!showRoot) {
+            expandNode(rootNode);
+        }
+        refreshTree();
     }
 
 
@@ -346,7 +350,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param table The JTable to bind to this TreeTableModel.
      */
     public void bindTable(final JTable table) {
-        bindTable(table, createRowSorterIfSorting(), new TreeTableHeaderRenderer());
+        bindTable(table, createDefaultRowSorter(), new TreeTableHeaderRenderer());
     }
 
     /**
@@ -368,7 +372,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param headerRenderer The renderer to use to draw the table header.
      */
     public void bindTable(final JTable table,  final TableCellRenderer headerRenderer) {
-        bindTable(table, createRowSorterIfSorting(), headerRenderer);
+        bindTable(table, createDefaultRowSorter(), headerRenderer);
     }
 
     /**
@@ -382,9 +386,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     public void bindTable(final JTable tableToBind,
                           final RowSorter<TreeTableModel> rowSorter,
                           final TableCellRenderer headerRenderer) {
-        if (this.table != null) {
-            unbindTable();
-        }
+        unbindTable(); // unbind any previous table.
         this.table = tableToBind; // fine to set to null if no table is being bound - we'll just remain unbound.
         if (tableToBind != null) {
             tableToBind.setAutoCreateColumnsFromModel(false);
@@ -536,8 +538,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public void setGroupingComparator(final Comparator<TreeNode> nodeComparator) {
         if (this.groupingComparator != nodeComparator) {
+            boolean wasSorting = isSorting();
             this.groupingComparator = nodeComparator;
-            fireTableDataChanged();
+            if (wasSorting || isSorting()) {
+                fireTableDataChanged();
+            }
         }
     }
 
@@ -548,24 +553,30 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         setGroupingComparator(null);
     }
 
-
+    /**
+     * Sets whether sorting is enabled.
+     * <p>
+     * If sorting is set to enabled, and there is a table but no rowsorter, a default row sorter will be created.
+     * If sorting is set to disabled, and there is a table and a rowsorter, the rowsorter will be removed from the table,
+     * but it's sort keys will be cached when removed.
+     *
+     * @param sortingEnabled whether sorting is enabled.
+     */
     public void setSortEnabled(final boolean sortingEnabled) {
-        sortEnabled = sortingEnabled;
-        if (sortingEnabled) {
-            createAndSetRowSorterIfNotExists();
-        } else {
-            removeRowSorterAndCacheSortKeys();
+        if (table != null) {
+            if (sortingEnabled) {
+                createAndSetRowSorterIfNotExists();
+            } else {
+                removeRowSorterAndCacheSortKeys();
+            }
         }
-    }
-
-    public boolean getSortEnabled() {
-        return sortEnabled;
     }
 
     /**
      * Returns true if any sorting is being performed by a bound JTable.
      * A table may be sorting because columns are set to sort, or because a grouping comparator has been
      * set on the tree nodes, or both.
+     * A row sorter must also be set on a bound table in order for sorting to occur.
      *
      * @return true if any sorting is being performed by a bound JTable.
      */
@@ -575,12 +586,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Sets the default column sort strategy to use, and sets it on a bound table
-     * if a TreeTableRowSorter is current being used.
+     * Sets the default column sort strategy to use, and sets it on the bound table
+     * if a TreeTableRowSorter is currently being used.
+     * If there is no bound JTable or TreeTableRowSorter, calling this method does nothing.
      *
      * @param defaultColumnSortStrategy the default column sort strategy to use.
      */
-    public void setColumnSortStrategy(TreeTableRowSorter.ColumnSortStrategy defaultColumnSortStrategy) {
+    public void setColumnSortStrategy(final TreeTableRowSorter.ColumnSortStrategy defaultColumnSortStrategy) {
         this.defaultColumnSortStrategy = defaultColumnSortStrategy;
         if (table != null && table.getRowSorter() instanceof TreeTableRowSorter) {
             ((TreeTableRowSorter) table.getRowSorter()).setSortStrategy(defaultColumnSortStrategy);
@@ -589,7 +601,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Returns an unmodifiable list of sort keys currently set, or an empty list if none are set.
-     * If no table is bound, it will just be the ones cached in this model for binding later.
+     * If no table is bound, or there is no row sorter, it will just be the ones cached in this model for binding later.
      * If a table is bound, then the sort keys currently set on its row sorter will be returned.
      * The presence of sort keys here does not imply that sorting is happening, which depends on whether a table is bound
      * and sorting is enabled.
@@ -601,7 +613,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             return sortKeys;
         }
         final RowSorter<? extends TableModel> rowSorter = table.getRowSorter();
-        return rowSorter == null ? Collections.emptyList() : rowSorter.getSortKeys();
+        return rowSorter == null ? sortKeys : rowSorter.getSortKeys();
     }
 
     /**
@@ -613,7 +625,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public void setSortKeys(final List<? extends RowSorter.SortKey> keys) {
         // Cache the keys set as an unmodifiable list of keys.
-        sortKeys = keys == null || keys.isEmpty()? Collections.emptyList() : Collections.unmodifiableList(keys);
+        sortKeys = keys == null || keys.isEmpty()? Collections.emptyList() : Collections.unmodifiableList(removeNullEntries(keys));
 
         // If we're bound to a table and have a row sorter, set those sort keys on it.
         if (table != null) {
@@ -625,12 +637,21 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     * Sets a single sort key given the column and the sort order.
+     * @param column The column to sort.
+     * @param sortOrder The sort order of the column.
+     */
+    public void setSortKey(final int column, final SortOrder sortOrder) {
+        setSortKeys(new RowSorter.SortKey(column, sortOrder));
+    }
+
+    /**
      * Sets the default sort keys to use if no other columns were selected for sort.
      * @param defaultKeys The default sort keys to use if no other columns are sorted.
      */
     public void setDefaultSortKeys(final List<? extends RowSorter.SortKey> defaultKeys) {
         // Cache the keys set.
-        this.defaultSortKeys = defaultKeys == null ? Collections.emptyList() : defaultKeys;
+        this.defaultSortKeys = defaultKeys == null ? Collections.emptyList() : removeNullEntries(defaultKeys);
 
         // If a table is set, and we're using a TreeTableRowSorter, set the default sort keys.
         if (table != null && table.getRowSorter() instanceof TreeTableRowSorter) {
@@ -681,17 +702,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * @return A new default RowSorter if sort is enabled, or null otherwise.
-     */
-    protected RowSorter<TreeTableModel> createRowSorterIfSorting() {
-        return sortEnabled ? createDefaultRowSorter() : null;
-    }
-
-    /**
      * Creates and sets a new default row sorter on a table, if a table is bound, and it doesn't have a row sorter.
      */
     protected void createAndSetRowSorterIfNotExists() {
-        if (table != null && table.getRowSorter() != null) {
+        if (table != null && table.getRowSorter() == null) {
             table.setRowSorter(createDefaultRowSorter());
         }
     }
@@ -760,8 +774,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     public void setNodeFilter(final Predicate<TreeNode> filterPredicate) {
         if (this.filterPredicate != filterPredicate) {
             this.filterPredicate = filterPredicate;
-            refreshTree(false);
-            fireTableDataChanged();
+            refreshTree();
         }
     }
 
@@ -876,17 +889,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Refreshes the entire visible tree, rebuilding from the root upwards.
-     * If you require a rebuild from scratch, then reset expanded nodes as well, as none of the existing expanded
-     * nodes will be in the new tree. If you simply want to rebuild due to some node changes,
-     * but would like to preserve expanded state of existing nodes if possible, then pass false to resetExpanded.
-     *
-     * @param resetExpanded Whether to reset expanded nodes - if true removes all node expansion (except root if not visible).
      */
-    public void refreshTree(final boolean resetExpanded) {
-        if (resetExpanded) {
-            clearExpansions();
-        }
-        buildVisibleNodes();
+    public void refreshTree() {
+         buildVisibleNodes();
+         fireTableDataChanged();
     }
 
     @Override
@@ -1021,8 +1027,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param node The node to check.
      * @return true if the node is an unfiltered, hidden root which is expanded.
      */
-    protected boolean hiddenRootChildrenAreVisible(TreeNode node) {
-        return isHiddenRoot(node) && !isFiltered(node) && isExpanded(node);
+    protected boolean hiddenRootChildrenAreVisible(final TreeNode node) {
+        return isHiddenRoot(node) && !isFiltered(node) && isExpanded(node); //TODO: why do we care if a hidden root is filtered?
     }
 
     /**
@@ -1040,8 +1046,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected void rebuildVisibleChildren(final TreeNode changedNode) {
         if (changedNode == rootNode) { // handle a complete tree refresh differently using refreshTree (takes account of hidden status of root node).
-            refreshTree(false);
-            fireTableDataChanged();
+            refreshTree();
         } else {
             int firstChildModelIndex = NOT_LOCATED;
 
@@ -1068,7 +1073,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Sets the root of the tree to a new root node.
+     * Sets the root of the tree to a new root node, and collapses any nodes previously expanded in the old tree.
+     * If the root is hidden, it will be expanded so that the children are visible.
      *
      * @param newRoot The new root node for the tree.
      * @throws IllegalArgumentException if newRoot is null.
@@ -1078,7 +1084,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         if (newRoot != rootNode) {
             rootNode = newRoot;
             clearExpansions();
-            buildVisibleNodes();
+            if (!showRoot) {
+                expandNode(rootNode);
+            }
+            refreshTree();
         }
     }
 
@@ -1732,38 +1741,30 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
-     * Returns how many direct children of a node are visible in the tree.
-     * If the parent node is not visible or expanded itself, then it will return 0.
+     * Returns how many unfiltered children a node has.
      * <p>
      * <p><b>Performance Note:</b>
      * This may scan all the children of the parent and test against a filter to add up how many children are visible.
-     * It also performs a visibility check which walks up the tree.  If you need this value inside a loop, cache it first.
      *
-     * @param parent The parent node to get the visible child count for.
-     * @return how many direct children of a node are visible in the tree.
+     * @param parent The parent node to get the filtered child count for.
+     * @return how many unfiltered children a node has.
      */
-    public int getVisibleChildCount(final TreeNode parent) {
-        if (isExpanded(parent) && isVisible(parent)) {
-            return isFiltering() ? getFilteredChildCount(parent) : parent.getChildCount();
-        }
-        return 0;
+    public int getFilteredChildCount(final TreeNode parent) {
+        return isFiltering() ? countFilteredChildren(parent) : parent.getChildCount();
     }
 
     /**
-     * Returns the number of children for a parent when filtering is applied, or the child count if no filtering exists.
-     * It does not care if the nodes are actually visible in the tree - it just returns how many unfiltered children a
-     * tree node would have.
-     * <p><b>Performance Note:</b>
-     * This will scan all the children of the parent and test against the filter to add up how many children remain.
-     * If you need this value inside a loop, cache it first.
-     *
      * @param parent The parent to get the filtered child count for.
      * @return the number of children for a parent if filtering is applied, or the child count of the parent if not.
      */
-    public int getFilteredChildCount(final TreeNode parent) {
-        final int[] filteredChildCount = new int[1];
-        TreeUtils.forEachChild(parent, child -> !isFiltered(child), child -> filteredChildCount[0]++);
-        return filteredChildCount[0];
+    protected int countFilteredChildren(final TreeNode parent) {
+        int filteredChildCount = 0;
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            if (!isFiltered(parent.getChildAt(i))) {
+                filteredChildCount++;
+            }
+        }
+        return filteredChildCount;
     }
 
     /**
@@ -1927,7 +1928,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         clearExpansions();
         fireTableDataChanged();
     }
-    
+
     /**
      * Collapses expansion of the parent node and all children (and sub children) of a parent node.
      *
@@ -2106,6 +2107,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Sets whether the root node should be displayed or not, and updates the display model if the state changes.
+     * <p>
+     * If you set the root to be hidden, ensure that you have also expanded the root node,
+     * or the tree will be empty once the root node is hidden.
      *
      * @param showRoot whether the root node should be displayed or not.
      */
@@ -2119,19 +2123,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Toggles whether the root node is showing in the tree.
      */
     public void toggleShowRoot() {
-        final int ROOT_MODEL_INDEX = 0;
-        this.showRoot = !showRoot; // toggle root status.
-        if (isFiltered(rootNode)) { // if root node is filtered (whether showing or not), refresh the tree if we change its status.
-            refreshTree(false);
-            fireTableDataChanged();
-        } else { // add or remove the root node if the root isn't filtered.
-            if (showRoot) {
-                displayedNodes.add(ROOT_MODEL_INDEX, rootNode);
-                fireTableRowsInserted(ROOT_MODEL_INDEX, ROOT_MODEL_INDEX);
-            } else {
-                displayedNodes.remove(ROOT_MODEL_INDEX);
-                fireTableRowsDeleted(ROOT_MODEL_INDEX, ROOT_MODEL_INDEX);
-            }
+        this.showRoot = !showRoot;
+        // if root node is filtered (whether showing or not), refresh the tree if we change its visible status.
+        if (isFiltered(rootNode)) {
+            refreshTree();
+        } else if (showRoot) {
+            //TODO: does this affect child counts of the expanded nodes?
+            displayedNodes.add(ROOT_MODEL_INDEX, rootNode);
+            fireTableRowsInserted(ROOT_MODEL_INDEX, ROOT_MODEL_INDEX);
+        } else {
+            //TODO: does this affect child counts of the expanded nodes?
+            displayedNodes.remove(ROOT_MODEL_INDEX);
+            fireTableRowsDeleted(ROOT_MODEL_INDEX, ROOT_MODEL_INDEX);
         }
     }
 
@@ -2166,15 +2169,16 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Rebuilds the entire visible tree from the root.
-     * Does not alter any prior node expansions, so they will remain expanded when the
-     * tree is rebuilt.
+     * Does not alter any prior node expansions, so they will remain expanded when the tree is rebuilt.
      */
     protected void buildVisibleNodes() {
         displayedNodes.clear();
-        if (!isFiltered(rootNode)) {
-            if (showRoot) {
+        if (showRoot) {
+            if (!isFiltered(rootNode)) {
                 displayedNodes.add(rootNode);
+                buildVisibleChildren(rootNode, displayedNodes);
             }
+        } else {
             buildVisibleChildren(rootNode, displayedNodes);
         }
     }
@@ -2466,6 +2470,21 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
+    /**
+     * If the list passed in contains null entries, a new list is created without them.
+     * @param list The list to remove null entries from, if they exist.
+     * @return A list without null entries.
+     */
+    protected List<? extends RowSorter.SortKey> removeNullEntries(final List<? extends RowSorter.SortKey> list) {
+        final List<? extends RowSorter.SortKey> result;
+        if (list.contains(null)) {
+            result = new ArrayList<>(list);
+            result.removeIf(Objects::isNull);
+        } else {
+            result = list;
+        }
+        return result;
+    }
 
     /* *****************************************************************************************************************
      *                                              Interfaces

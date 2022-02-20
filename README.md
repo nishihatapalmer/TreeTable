@@ -240,7 +240,7 @@ By default, a `TreeTableHeaderRenderer` is used to render the table header.  Thi
 You can use a different header renderer if you like - just use one of the `bind()`  methods that lets you specify an alternative header renderer, or set it yourself on the `JTable` directly.  The header renderer has no knowledge that there is a tree being rendered.
 
 ## Sorting
-By default, sorting is enabled with a multi-column sort up to three columns. You can enable or disable sorting by calling `enableSorting()` or `disableSorting()`.
+By default, sorting is enabled with a multi-column sort up to three columns. You can disable sorting by setting a null `RowSorter` on the `JTable`, or by calling `model.setSortEnabled(false)` 
 
 ### Column sorting
 For each column that sorting is defined on, the following comparators will be used on the column values in this precedence order:

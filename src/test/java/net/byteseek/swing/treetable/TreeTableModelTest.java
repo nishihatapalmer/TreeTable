@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JTable;
@@ -44,6 +45,8 @@ import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import javax.swing.table.TableRowSorter;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
@@ -116,6 +119,7 @@ class TreeTableModelTest extends BaseTestClass {
     public void testBindTableWithNullDefaultSortKey() {
         model.bindTable(table);
         model.setDefaultSortKeys((RowSorter.SortKey) null);
+        assertEquals(0, model.getDefaultSortKeys().size());
         testDefaultTableBinding();
         testNoSortKeys();
     }
@@ -124,6 +128,8 @@ class TreeTableModelTest extends BaseTestClass {
     public void testBindTableWithDefaultSortKey() {
         model.bindTable(table);
         model.setDefaultSortKeys(sortKey1);
+        assertEquals(1, model.getDefaultSortKeys().size());
+        assertEquals(sortKey1, model.getDefaultSortKeys().get(0));
         testDefaultTableBinding();
         testOneSortKey();
     }
@@ -132,6 +138,9 @@ class TreeTableModelTest extends BaseTestClass {
     public void testBindTableWithTwoDefaultSortKeys() {
         model.bindTable(table);
         model.setDefaultSortKeys(sortKey1, sortKey2);
+        assertEquals(2, model.getDefaultSortKeys().size());
+        assertEquals(sortKey1, model.getDefaultSortKeys().get(0));
+        assertEquals(sortKey2, model.getDefaultSortKeys().get(1));
         testDefaultTableBinding();
         testTwoSortKeys();
     }
@@ -140,6 +149,7 @@ class TreeTableModelTest extends BaseTestClass {
     public void testBindTableWitDefaultSortKeyList() {
         model.bindTable(table);
         model.setDefaultSortKeys(sortKeyList);
+        assertEquals(sortKeyList, model.getDefaultSortKeys());
         testDefaultTableBinding();
         testListOfKeys();
     }
@@ -148,6 +158,7 @@ class TreeTableModelTest extends BaseTestClass {
     public void testBindTableWitDefaultEmptySortKeyList() {
         model.bindTable(table);
         model.setDefaultSortKeys(Collections.emptyList());
+        assertEquals(Collections.emptyList(), model.getDefaultSortKeys());
         testDefaultTableBinding();
         testNoSortKeys();
     }
@@ -156,6 +167,7 @@ class TreeTableModelTest extends BaseTestClass {
     public void testBindTableWitDefaultNullSortKeyList() {
         model.bindTable(table);
         model.setDefaultSortKeys((List<RowSorter.SortKey>) null);
+        assertEquals(Collections.emptyList(), model.getDefaultSortKeys());
         testDefaultTableBinding();
         testNoSortKeys();
     }
@@ -340,6 +352,15 @@ class TreeTableModelTest extends BaseTestClass {
     }
 
     @Test
+    public void testClearGroupingComparator() {
+        assertNull(model.getGroupingComparator());
+        model.setGroupingComparator(Comparators.ALLOWS_CHILDREN);
+        assertEquals(Comparators.ALLOWS_CHILDREN, model.getGroupingComparator());
+        model.clearGroupingComparator();
+        assertNull(model.getGroupingComparator());
+    }
+
+    @Test
     public void testGroupsByAllowsChildrenNodeComparatorUnsorted() {
         assertNull(model.getGroupingComparator());
         model.bindTable(table);
@@ -454,9 +475,23 @@ class TreeTableModelTest extends BaseTestClass {
     public void testGetColumnCount() {
         TestTreeTableModel model = new TestTreeTableModel(rootNode, true);
         assertEquals(5, model.getColumnCount());
+        model.bindTable(table);
+        assertEquals(5, model.getColumnCount());
 
+        model.unbindTable();
         model = new TestTreeTableModel(rootNode, true, 10);
         assertEquals(10, model.getColumnCount());
+
+        model.bindTable(table);
+        assertEquals(10, model.getColumnCount());
+
+        TableColumnModel tcol = table.getColumnModel();
+        TableColumn col = tcol.getColumn(1);
+        tcol.removeColumn(col);
+
+        assertEquals(9, model.getColumnCount());
+        model.unbindTable();
+        assertEquals(9, model.getColumnCount());
     }
 
     @Test
@@ -732,7 +767,30 @@ class TreeTableModelTest extends BaseTestClass {
         createRandomTree(0, true);
         model.bindTable(table, (RowSorter<TreeTableModel>) null);
         model.expandTree();
-        testGetSetSortKeys(true);
+        testGetSetSortKeys(false);
+    }
+
+    @Test
+    public void testSetSortEnabled() {
+        model.bindTable(table);
+        assertNotNull(table.getRowSorter());
+        model.setSortEnabled(false);
+        assertNull(table.getRowSorter());
+        model.setSortEnabled(true);
+        assertNotNull(table.getRowSorter());
+        assertEquals(TreeTableRowSorter.class, table.getRowSorter().getClass());
+    }
+
+    @Test
+    public void testSetColumnSortStrategy() {
+        model.bindTable(table);
+        TreeTableRowSorter.ColumnSortStrategy sortStrategy =
+                new TreeTableColumnSortStrategy(5, TreeTableColumnSortStrategy.NewSortKeyPosition.ADD_TO_END,
+                                                    TreeTableColumnSortStrategy.UpdateSortKeyPosition.MAKE_FIRST,
+                                                    TreeTableColumnSortStrategy.RemoveSortKeyAction.REMOVE_ALL);
+        model.setColumnSortStrategy(sortStrategy);
+        TreeTableRowSorter.ColumnSortStrategy existing = ((TreeTableRowSorter) table.getRowSorter()).getSortStrategy();
+        assertEquals(sortStrategy, existing);
     }
 
     /**
@@ -765,7 +823,7 @@ class TreeTableModelTest extends BaseTestClass {
         assertEquals(sortKey2, sortKeys.get(1));
     }
 
-    private void testGetSetSortKeys(boolean tableBound) {
+    private void testGetSetSortKeys(boolean isSorting) {
         List<TreeNode> allNodesInVisualOrder = TreeUtils.getNodeList(rootNode); // gets all tree nodes depth first (visual order)
 
         assertFalse(model.isSorting());
@@ -774,23 +832,28 @@ class TreeTableModelTest extends BaseTestClass {
         assertTrue(sortKeys.isEmpty());
 
         model.setSortKeys(sortKey1);
-        assertEquals(tableBound, model.isSorting());
-        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
+        assertEquals(isSorting, model.isSorting());
+        assertNotEquals(isSorting, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(1, sortKeys.size());
         assertEquals(sortKey1, sortKeys.get(0));
 
+        model.clearSortKeys();
+        assertFalse(model.isSorting());
+        sortKeys = model.getSortKeys();
+        assertTrue(sortKeys.isEmpty());
+
         model.setSortKeys(sortKey2, sortKey1);
-        assertEquals(tableBound, model.isSorting());
-        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
+        assertEquals(isSorting, model.isSorting());
+        assertNotEquals(isSorting, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(2, sortKeys.size());
         assertEquals(sortKey2, sortKeys.get(0));
         assertEquals(sortKey1, sortKeys.get(1));
 
         model.setSortKeys(sortKeyList);
-        assertEquals(tableBound, model.isSorting());
-        assertNotEquals(tableBound, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
+        assertEquals(isSorting, model.isSorting());
+        assertNotEquals(isSorting, tableOrderMatches(allNodesInVisualOrder)); // the table order will only change if there is a table bound.
         sortKeys = model.getSortKeys();
         assertEquals(sortKeyList.size(), sortKeys.size());
         for (int i = 0; i < sortKeyList.size(); i++) {
@@ -824,86 +887,479 @@ class TreeTableModelTest extends BaseTestClass {
         }
     }
 
-    private class SortComparator implements Comparator<TreeNode> {
 
-        private static final int LESS_THAN = -1;
-        private static final int EQUAL_VALUE = 0;
-        private static final int GREATER_THAN = 0;
-
-        private List<RowSorter.SortKey> sortKeys;
-
-        public SortComparator(RowSorter.SortKey... keys) {
-            this(Arrays.asList(keys));
-        }
-
-        public SortComparator(List<RowSorter.SortKey> keys) {
-            this.sortKeys = keys;
-        }
-
-        @Override
-        public int compare(TreeNode o1, TreeNode o2) {
-            // null object comparisons giving a total order.
-            if (o1 == null) {
-                return o2 == null ? EQUAL_VALUE : LESS_THAN;
-            } else if (o2 == null) {
-                return GREATER_THAN;
-            }
-
-            // compare values on sort keys:
-            for (RowSorter.SortKey sortKey : sortKeys) {
-                final SortOrder order = sortKey.getSortOrder();
-                // If someone leaves in an unsorted sort key (they shouldn't really), we return unsorted order.
-                if (order == SortOrder.UNSORTED) {
-                    return getModelIndexOrder(o1, o2);
-                }
-                // Compare on the values if we have a sort direction:
-                final int comparison = compareValues(o1, o2, sortKey);
-                if (comparison != EQUAL_VALUE) {
-                    return sortKey.getSortOrder() == SortOrder.ASCENDING ? comparison : -comparison;
-                }
-            }
-
-            // fall back to model order if sort keys cannot decide.
-            return getModelIndexOrder(o1, o2);
-        }
-
-        private int compareValues(TreeNode o1, TreeNode o2, RowSorter.SortKey sortKey) {
-            final int sortedColumn = sortKey.getColumn();
-            final Object value1 = model.getColumnValue(o1, sortedColumn);
-            final Object value2 = model.getColumnValue(o2, sortedColumn);
-
-            // Use a custom column comparator if the model provides one.
-            Comparator columnComparator = model.getColumnComparator(sortedColumn);
-            if (columnComparator != null) {
-                return columnComparator.compare(value1, value2);
-            }
-
-            // See if the values are directly comparable (implement Comparable and are the same class).
-            if (value1 instanceof Comparable && value1.getClass() == value2.getClass()) {
-                final Comparable compare1 = (Comparable) value1;
-                final Comparable compare2 = (Comparable) value2;
-                return compare1.compareTo(compare2);
-            }
-
-            // Fall back on string value comparisons if they don't implement Comparable.
-            return value1.toString().compareTo(value2.toString());
-        }
-
-        private int getModelIndexOrder(TreeNode o1, TreeNode o2) {
-            return model.getModelIndexForTreeNode(o1) - model.getModelIndexForTreeNode(o2);
-        }
+    @Test
+    public void testGetSetClearFilteringNoTable() {
+        assertFalse(model.isFiltering());
+        assertNull(model.getNodeFilter());
+        Predicate<TreeNode> predicate = treeNode -> treeNode.getAllowsChildren();
+        model.setNodeFilter(predicate);
+        assertTrue(model.isFiltering());
+        assertEquals(predicate, model.getNodeFilter());
+        model.clearNodeFilter();
+        assertFalse(model.isFiltering());
+        assertNull(model.getNodeFilter());
     }
 
     @Test
-    public void testGetSetFilteringNoTable() {
-        //TODO:
+    public void testGetSetClearFilteringWithTable() {
+        model.bindTable(table);
+        assertFalse(model.isFiltering());
+        assertNull(model.getNodeFilter());
+        Predicate<TreeNode> predicate = treeNode -> treeNode.getAllowsChildren();
+        model.setNodeFilter(predicate);
+        assertTrue(model.isFiltering());
+        assertEquals(predicate, model.getNodeFilter());
+        model.clearNodeFilter();
+        assertFalse(model.isFiltering());
+        assertNull(model.getNodeFilter());
     }
 
     @Test
-    public void testGetSetFilteringWithTable() {
-        //TODO:
+    public void testFilterVisibleRootNodeNoTable() {
+        model.setShowRoot(true);
+
+        // By default, root is unexpanded so is the only node visible in the tree:
+        assertEquals(1, model.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+
+        // Filtering the root node out leaves us nothing visible in the model:
+        Predicate<TreeNode> rootFilter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description == "root";
+        };
+        assertFalse(model.isFiltered(rootNode));
+        model.setNodeFilter(rootFilter);
+        assertTrue(model.isFiltered(rootNode));
+        assertEquals(0, model.getRowCount());
+
+        // Clearing the filter returns us to the original tree:
+        model.clearNodeFilter();
+        assertEquals(1, model.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
     }
 
+    @Test
+    public void testFilterVisibleRootNodeWithTable() {
+        model.bindTable(table);
+        model.setShowRoot(true);
+
+        // By default, root is unexpanded so is the only node visible in the tree:
+        assertEquals(1, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+
+        // Filtering the root node out leaves us nothing visible in the model:
+        Predicate<TreeNode> rootFilter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description == "root";
+        };
+        assertFalse(model.isFiltered(rootNode));
+        model.setNodeFilter(rootFilter);
+        assertTrue(model.isFiltered(rootNode));
+        assertEquals(0, table.getRowCount());
+
+        // Clearing the filter returns us to the original tree:
+        model.clearNodeFilter();
+        assertEquals(1, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+    }
+
+    @Test
+    public void testFilterHiddenRootNodeNoTable() {
+        // An unexpanded hidden root will have nothing visible in the tree.
+        model.setShowRoot(false);
+        assertEquals(0, model.getRowCount());
+
+        // If we expand it, it's three children will be visible:
+        model.expandNode(rootNode);
+        assertEquals(3, model.getRowCount());
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+
+        // Filtering the root node out has no effect (as it is not visible):
+        Predicate<TreeNode> rootFilter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description.equals("root");
+        };
+        assertFalse(model.isFiltered(rootNode));
+        model.setNodeFilter(rootFilter);
+        assertTrue(model.isFiltered(rootNode));
+
+        // Filtering a hidden root doesn't change the model.
+        assertEquals(3, model.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+
+        // Clearing the filter again has no effect:
+        model.clearNodeFilter();
+        assertEquals(3, model.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+    }
+
+    @Test
+    public void testFilterHiddenRootNodeWithTable() {
+        model.bindTable(table);
+
+        // An unexpanded hidden root will have nothing visible in the tree.
+        model.setShowRoot(false);
+        assertEquals(0, table.getRowCount());
+
+        // If we expand it, it's three children will be visible:
+        model.expandNode(rootNode);
+        assertEquals(3, table.getRowCount());
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtTableRow(2));
+
+        // Filtering the root node out has no effect (as it is not visible):
+        Predicate<TreeNode> rootFilter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description.equals("root");
+        };
+        assertFalse(model.isFiltered(rootNode));
+        model.setNodeFilter(rootFilter);
+        assertTrue(model.isFiltered(rootNode));
+
+        // Filtering a hidden root doesn't change the model.
+        assertEquals(3, table.getRowCount());
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtTableRow(2));
+
+        // Clearing the filter again has no effect:
+        model.clearNodeFilter();
+        assertEquals(3, table.getRowCount());
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtTableRow(2));
+    }
+
+    @Test
+    public void testFilterAltersBoundTableCorrectlyShowRoot() {
+       model.bindTable(table);
+       model.expandTree();
+       assertEquals(8, model.getRowCount());
+       assertEquals(8, table.getRowCount());
+
+        // Filtering out all the subchildren of child2:
+        Predicate<TreeNode> filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 999;
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(4, model.getRowCount());
+        assertEquals(4, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertEquals(child0, model.getNodeAtTableRow(1));
+        assertEquals(child1, model.getNodeAtModelIndex(2));
+        assertEquals(child1, model.getNodeAtTableRow(2));
+        assertEquals(child2, model.getNodeAtModelIndex(3));
+        assertEquals(child2, model.getNodeAtTableRow(3));
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 99 && obj.size < 999;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out the children of the root, its subchildren will also be filtered out, leaving only the root.
+        assertEquals(1, model.getRowCount());
+        assertEquals(1, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return !obj.enabled;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out all the unenabled children, we have root and two child objects.
+        // the subchildren are also filtered out as this node is not enabled.
+        assertEquals(3, model.getRowCount());
+        assertEquals(3, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertEquals(child0, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+        assertEquals(child2, model.getNodeAtTableRow(2));
+
+        // Filtering out all the nodes whose description ends with 2:
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description.endsWith("2");
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(6, model.getRowCount());
+        assertEquals(6, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertEquals(child0, model.getNodeAtTableRow(1));
+        assertEquals(child1, model.getNodeAtModelIndex(2));
+        assertEquals(child1, model.getNodeAtTableRow(2));
+        assertEquals(subchild0, model.getNodeAtModelIndex(3));
+        assertEquals(subchild0, model.getNodeAtTableRow(3));
+        assertEquals(subchild1, model.getNodeAtModelIndex(4));
+        assertEquals(subchild1, model.getNodeAtTableRow(4));
+        assertEquals(subchild3, model.getNodeAtModelIndex(5));
+        assertEquals(subchild3, model.getNodeAtTableRow(5));
+
+    }
+
+    @Test
+    public void testFilterAltersBoundTableCorrectlyHiddenRoot() {
+        model.setShowRoot(false);
+        model.bindTable(table);
+        model.expandTree();
+        assertEquals(7, model.getRowCount());
+        assertEquals(7, table.getRowCount());
+
+        // Filtering out all the subchildren of child2:
+        Predicate<TreeNode> filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 999;
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(3, model.getRowCount());
+        assertEquals(3, table.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+        assertEquals(child2, model.getNodeAtTableRow(2));
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 99 && obj.size < 999;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out the children of the hidden root, the tree will be empty.
+        assertEquals(0, model.getRowCount());
+        assertEquals(0, table.getRowCount());
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return !obj.enabled;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out all the unenabled children, we have root and two child objects.
+        // the subchildren are also filtered out as this node is not enabled.
+        assertEquals(2, model.getRowCount());
+        assertEquals(2, table.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child2, model.getNodeAtModelIndex(1));
+        assertEquals(child2, model.getNodeAtTableRow(1));
+
+        // Filtering out all the nodes whose description ends with 2:
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description.endsWith("2");
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(5, model.getRowCount());
+        assertEquals(5, table.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child0, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(subchild0, model.getNodeAtModelIndex(2));
+        assertEquals(subchild0, model.getNodeAtTableRow(2));
+        assertEquals(subchild1, model.getNodeAtModelIndex(3));
+        assertEquals(subchild1, model.getNodeAtTableRow(3));
+        assertEquals(subchild3, model.getNodeAtModelIndex(4));
+        assertEquals(subchild3, model.getNodeAtTableRow(4));
+    }
+
+    @Test
+    public void testFilterAltersBoundTableCorrectlyShowRootSorted() {
+        model.bindTable(table);
+        model.expandTree();
+        model.setSortKeys(new RowSorter.SortKey(1, SortOrder.DESCENDING));
+
+
+        assertEquals(8, model.getRowCount());
+        assertEquals(8, table.getRowCount());
+
+        // Filtering out all the subchildren of child2:
+        Predicate<TreeNode> filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 999;
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(4, model.getRowCount());
+        assertEquals(4, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertEquals(child2, model.getNodeAtTableRow(1));
+        assertEquals(child1, model.getNodeAtModelIndex(2));
+        assertEquals(child1, model.getNodeAtTableRow(2));
+        assertEquals(child2, model.getNodeAtModelIndex(3));
+        assertEquals(child0, model.getNodeAtTableRow(3));
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 99 && obj.size < 999;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out the children of the root, its subchildren will also be filtered out, leaving only the root.
+        assertEquals(1, model.getRowCount());
+        assertEquals(1, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return !obj.enabled;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out all the unenabled children, we have root and two child objects.
+        // the subchildren are also filtered out as this node is not enabled.
+        assertEquals(3, model.getRowCount());
+        assertEquals(3, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertEquals(child2, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+        assertEquals(child0, model.getNodeAtTableRow(2));
+
+        // Filtering out all the nodes whose description ends with 2:
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description.endsWith("2");
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(6, model.getRowCount());
+        assertEquals(6, table.getRowCount());
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertEquals(rootNode, model.getNodeAtTableRow(0));
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(child1, model.getNodeAtModelIndex(2));
+        assertEquals(subchild3, model.getNodeAtTableRow(2));
+        assertEquals(subchild0, model.getNodeAtModelIndex(3));
+        assertEquals(subchild1, model.getNodeAtTableRow(3));
+        assertEquals(subchild1, model.getNodeAtModelIndex(4));
+        assertEquals(subchild0, model.getNodeAtTableRow(4));
+        assertEquals(subchild3, model.getNodeAtModelIndex(5));
+        assertEquals(child0, model.getNodeAtTableRow(5));
+    }
+
+    @Test
+    public void testFilterAltersBoundTableCorrectlyHiddenRootSorting() {
+        //TODO: add sorting.
+        model.setShowRoot(false);
+        model.bindTable(table);
+        model.expandTree();
+        model.setSortKey(1, SortOrder.DESCENDING);
+        assertEquals(7, model.getRowCount());
+        assertEquals(7, table.getRowCount());
+
+        // Filtering out all the subchildren of child2:
+        Predicate<TreeNode> filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 999;
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(3, model.getRowCount());
+        assertEquals(3, table.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child2, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(child1, model.getNodeAtTableRow(1));
+        assertEquals(child2, model.getNodeAtModelIndex(2));
+        assertEquals(child0, model.getNodeAtTableRow(2));
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.size > 99 && obj.size < 999;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out the children of the hidden root, the tree will be empty.
+        assertEquals(0, model.getRowCount());
+        assertEquals(0, table.getRowCount());
+
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return !obj.enabled;
+        };
+        model.setNodeFilter(filter);
+
+        // If we filter out all the unenabled children, we have root and two child objects.
+        // the subchildren are also filtered out as this node is not enabled.
+        assertEquals(2, model.getRowCount());
+        assertEquals(2, table.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child2, model.getNodeAtTableRow(0));
+        assertEquals(child2, model.getNodeAtModelIndex(1));
+        assertEquals(child0, model.getNodeAtTableRow(1));
+
+        // Filtering out all the nodes whose description ends with 2:
+        filter = treeNode -> {
+            TestTreeTableModel.TestObject obj = TreeUtils.getUserObject(treeNode);
+            return obj.description.endsWith("2");
+        };
+        model.setNodeFilter(filter);
+
+        assertEquals(5, model.getRowCount());
+        assertEquals(5, table.getRowCount());
+        assertEquals(child0, model.getNodeAtModelIndex(0));
+        assertEquals(child1, model.getNodeAtTableRow(0));
+        assertEquals(child1, model.getNodeAtModelIndex(1));
+        assertEquals(subchild3, model.getNodeAtTableRow(1));
+        assertEquals(subchild0, model.getNodeAtModelIndex(2));
+        assertEquals(subchild1, model.getNodeAtTableRow(2));
+        assertEquals(subchild1, model.getNodeAtModelIndex(3));
+        assertEquals(subchild0, model.getNodeAtTableRow(3));
+        assertEquals(subchild3, model.getNodeAtModelIndex(4));
+        assertEquals(child0, model.getNodeAtTableRow(4));
+    }
+
+
+    @Test
+    public void testGetSetTableHeaderRenderer() {
+        TableCellRenderer previous = table.getTableHeader().getDefaultRenderer();
+        assertNull(model.getTableHeaderRenderer()); // table not bound yet.
+        model.bindTable(table);
+        TableCellRenderer treeHeader = model.getTableHeaderRenderer();
+        assertNotEquals(previous, treeHeader);
+        assertEquals(TreeTableHeaderRenderer.class, treeHeader.getClass());
+        model.unbindTable(); // replaces old renderer.
+        assertEquals(previous, table.getTableHeader().getDefaultRenderer());
+
+        model.setTableHeaderRenderer(treeHeader); // does nothing if table not bound.
+        assertEquals(previous, table.getTableHeader().getDefaultRenderer());
+
+        // now test setting a renderer with a bound table.
+        model.bindTable(table);
+        assertNotEquals(previous, treeHeader);
+        assertEquals(TreeTableHeaderRenderer.class, treeHeader.getClass());
+        model.setTableHeaderRenderer(previous);
+        assertEquals(previous, table.getTableHeader().getDefaultRenderer());
+    }
 
     /**
      * Tests that both algorithms for finding the model index of a node in the tree are equivalent.
@@ -1132,11 +1588,155 @@ class TreeTableModelTest extends BaseTestClass {
         assertFalse(model.isExpanded(rootNode));
     }
 
+    @Test
+    public void testGetRoot() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetSelectedNode() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetSelectedNodes() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetNodeAtModelIndex() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetNodeAtTableRow() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetSelectionModel() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetSelectedRowModelIndexes() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetModelIndexForTableRow() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testGetModelIndexForTreeNode() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testAddExpandCollapseListener() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testRemoveExpandCollapseListener() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testAddMouseListener() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testRemoveMouseListener() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testAddKeyboardActions() {
+        //fail("TODO");
+    }
+
+    @Test
+    public void testRemoveKeyboardActions() {
+        //fail("TODO");
+    }
+
+
 
     /* *****************************************************************************************************************
      *                                 Test utility methods and classes
      */
 
+    private class SortComparator implements Comparator<TreeNode> {
 
+        private static final int LESS_THAN = -1;
+        private static final int EQUAL_VALUE = 0;
+        private static final int GREATER_THAN = 0;
+
+        private List<RowSorter.SortKey> sortKeys;
+
+        public SortComparator(RowSorter.SortKey... keys) {
+            this(Arrays.asList(keys));
+        }
+
+        public SortComparator(List<RowSorter.SortKey> keys) {
+            this.sortKeys = keys;
+        }
+
+        @Override
+        public int compare(TreeNode o1, TreeNode o2) {
+            // null object comparisons giving a total order.
+            if (o1 == null) {
+                return o2 == null ? EQUAL_VALUE : LESS_THAN;
+            } else if (o2 == null) {
+                return GREATER_THAN;
+            }
+
+            // compare values on sort keys:
+            for (RowSorter.SortKey sortKey : sortKeys) {
+                final SortOrder order = sortKey.getSortOrder();
+                // If someone leaves in an unsorted sort key (they shouldn't really), we return unsorted order.
+                if (order == SortOrder.UNSORTED) {
+                    return getModelIndexOrder(o1, o2);
+                }
+                // Compare on the values if we have a sort direction:
+                final int comparison = compareValues(o1, o2, sortKey);
+                if (comparison != EQUAL_VALUE) {
+                    return sortKey.getSortOrder() == SortOrder.ASCENDING ? comparison : -comparison;
+                }
+            }
+
+            // fall back to model order if sort keys cannot decide.
+            return getModelIndexOrder(o1, o2);
+        }
+
+        private int compareValues(TreeNode o1, TreeNode o2, RowSorter.SortKey sortKey) {
+            final int sortedColumn = sortKey.getColumn();
+            final Object value1 = model.getColumnValue(o1, sortedColumn);
+            final Object value2 = model.getColumnValue(o2, sortedColumn);
+
+            // Use a custom column comparator if the model provides one.
+            Comparator columnComparator = model.getColumnComparator(sortedColumn);
+            if (columnComparator != null) {
+                return columnComparator.compare(value1, value2);
+            }
+
+            // See if the values are directly comparable (implement Comparable and are the same class).
+            if (value1 instanceof Comparable && value1.getClass() == value2.getClass()) {
+                final Comparable compare1 = (Comparable) value1;
+                final Comparable compare2 = (Comparable) value2;
+                return compare1.compareTo(compare2);
+            }
+
+            // Fall back on string value comparisons if they don't implement Comparable.
+            return value1.toString().compareTo(value2.toString());
+        }
+
+        private int getModelIndexOrder(TreeNode o1, TreeNode o2) {
+            return model.getModelIndexForTreeNode(o1) - model.getModelIndexForTreeNode(o2);
+        }
+    }
 
 }
