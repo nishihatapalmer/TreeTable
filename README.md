@@ -118,7 +118,7 @@ You can control the expansion or collapse of nodes programmatically, by calling 
 There are also methods which will expand or collapse all the children and sub-children of nodes to some depth, or the entire tree, and control whether they expand or collapse using a `Predicate`.
 
 ## Tree navigation key bindings
-You can navigate the tree using key presses, in the same way by default as JTree.  The left arrow key will either collapse the current node, or move back to its parent node if already collapsed.
+You can navigate the tree using key presses, in the same way by default as a `JTree`.  The left arrow key will either collapse the current node, or move back to its parent node if already collapsed.
 The right arrow key will either expand the current node, or move to its first child if already expanded.  
 
 You can change which KeyStrokes are defined for these events using `setNavigateParentKeys()` and `setNavigateChildrenKeys()`.  You can also change whether the current node is expanded or collapsed when navigating by calling `setCollapseOnNavigateToParent()` and `setExpandOnNavigateToChildren()`.
