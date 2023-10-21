@@ -9,10 +9,12 @@ All JTable features work as normal, including cell rendering and cell editing.  
 ![TreeTable](treetable.png)
 
 ### Software status
-This software is in **beta**.  
-It is feature complete and seems to work.  A lot of tests need to be written.
-The overall code shouldn't change too much, but methods may be refactored a lot.
+This software is in **beta**.  It is feature complete.  Some tests still need to be written.  The overall code shouldn't change too much, but methods may be refactored.
 The demo code will probably be extended a bit and the help expanded.
+
+### Integrating the code
+The `TreeTable` component has not yet been published to maven, as it is still in beta.  Therefore, you should clone the repository and add the source code directly to your own project.  Once the code is at a release status, it will be published to maven, and then you can reference it in your build dependencies (e.g. pom file).
+
 
 ## Getting started
 This section covers how to get started with using TreeTableModel in your own code.  
