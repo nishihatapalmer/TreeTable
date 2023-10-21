@@ -123,7 +123,7 @@ The right arrow key will either expand the current node, or move to its first ch
 
 You can change which KeyStrokes are defined for these events using `setNavigateParentKeys()` and `setNavigateChildrenKeys()`.  You can also change whether the current node is expanded or collapsed when navigating by calling `setCollapseOnNavigateToParent()` and `setExpandOnNavigateToChildren()`.
 
-Other key navigation methods as the same as for `JTable`: up arrow and down arrow move up and down rows, home moves to the start of the tree, end moves to the end, and page up and page down move up or down a page.
+Other key navigation methods as the same as for `JTable`: up arrow and down arrow move up and down rows, home moves to the start of the tree, end moves to the end, and page up and page down move up or down a page.  These are not defined in the `TreeTableModel` as they are already part of the `JTable` key navigation.  To change these, you must alter them on the `JTable`.
 
 
 
