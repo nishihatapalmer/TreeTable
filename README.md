@@ -19,12 +19,10 @@ The demo code will probably be extended a bit and the help expanded.
 The `TreeTable` component has not yet been published to maven, as it is still in beta.  Therefore, you should clone the repository and add the source code directly to your own project.  Once the code is at a release status, it will be published to maven, and then you can reference it in your build dependencies (e.g. pom file).
 
 ### Extending the code
-Most of the TreeTable code is easily extended.  Most fields are protected rather than private, and methods have not been declared final.  This is because I generally hate it when I want to make a trivial extension to some component but find I can't access the one bit I need.
+Parts of the `TreeTableModel` are designed to be overridden in order to provide required mappings to your objects and to set icons.  These methods are documented.
 
-However - with great power comes great responsibility.  If you override methods in the `TreeTable`, you should generally call the base implementation using `super`, unless you know exactly what you are doing.  If you alter values used internally by the TreeTable, the same thing applies; you could create some very subtle bugs unless you are very confident about the change.   
-
-Mostly, you should not need to extend the component at all - but be very careful if you do.
-
+Most of the rest of the TreeTable code can also be overridden if you need to, but be very careful if you do.
+If you override methods in the `TreeTableModel`, you should generally call the base implementation using `super`.  
 ## Getting started
 This section covers how to get started with using TreeTableModel in your own code.  
 
