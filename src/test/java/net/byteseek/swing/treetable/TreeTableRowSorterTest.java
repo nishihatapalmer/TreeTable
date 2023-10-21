@@ -31,6 +31,8 @@
  */
 package net.byteseek.swing.treetable;
 
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 
@@ -67,4 +69,38 @@ class TreeTableRowSorterTest  extends BaseTestClass  {
     @Test
     void getModelRowCount() {
     }
+
+    @Test
+    void testNoExceptionWhenInvisibleRowsUpdatedWhenNotSorting() {
+        model.bindTable(table);
+        model.expandTree();
+        RowSorter<?> sorter = table.getRowSorter();
+        sorter.rowsUpdated(2, 2);
+    }
+
+    @Test
+    void testExceptionWhenInvisibleRowsUpdatedWhenSorting() {
+        model.bindTable(table);
+        model.setSortKeys(new RowSorter.SortKey(0, SortOrder.ASCENDING));
+        RowSorter<?> sorter = table.getRowSorter();
+        assertThrows(IndexOutOfBoundsException.class, () -> sorter.rowsUpdated(2, 2));
+    }
+
+    @Test
+    void testNoExceptionWhenVisibleRowsUpdatedWhenNotSorting() {
+        model.bindTable(table);
+        model.expandTree();
+        RowSorter<?> sorter = table.getRowSorter();
+        sorter.rowsUpdated(2, 2);
+    }
+
+    @Test
+    void testNoExceptionWhenVisibleRowsUpdatedWhenSorting() {
+        model.bindTable(table);
+        model.expandTree();
+        RowSorter<?> sorter = table.getRowSorter();
+        sorter.rowsUpdated(2, 2);
+    }
+
+
 }
