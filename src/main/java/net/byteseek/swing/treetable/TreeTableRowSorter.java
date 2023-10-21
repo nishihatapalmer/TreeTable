@@ -328,19 +328,22 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void rowsUpdated(final int firstModelIndex, final int endModelIndex) {
-        checkValidLastKnownIndices(firstModelIndex, endModelIndex);
-        if (rebuildIndices || endModelIndex > firstModelIndex) {
-            /*
-             * Rebuild if required, or if we update more than one row.
-             * If updating more than one row, it gets a little complex to determine the most efficient set of nodes to re-sort.
-             * There's more than one workable method, but it's a lot of additional complexity for not much gain.
-             * So we will just resort if updating values in more than one row at a time.
-             * All code in standard Java Swing and in net.byteseek only ever updates a single row at a time,
-             * which happens when a column value is set on a node.
-             */
-            buildSortIndices();
-        } else {
-            updateSortIndices(firstModelIndex);
+        //TODO: check assumption about not updating if all of the updates are not within the rows?  Should we update the ones that *are* within?
+        if (isSorting()) {
+            checkValidLastKnownIndices(firstModelIndex, endModelIndex);
+            if (rebuildIndices || endModelIndex > firstModelIndex) {
+                /*
+                 * Rebuild if required, or if we update more than one row.
+                 * If updating more than one row, it gets a little complex to determine the most efficient set of nodes to re-sort.
+                 * There's more than one workable method, but it's a lot of additional complexity for not much gain.
+                 * So we will just resort if updating values in more than one row at a time.
+                 * All code in standard Java Swing and in net.byteseek only ever updates a single row at a time,
+                 * which happens when a column value is set on a node.
+                 */
+                buildSortIndices();
+            } else {
+                updateSortIndices(firstModelIndex);
+            }
         }
     }
 
@@ -673,8 +676,10 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param endModelIndex The end model index changing.
      */
     protected void insertSortIndices(final int firstModelIndex, final int endModelIndex) {
-        checkValidLastKnownIndices(firstModelIndex, endModelIndex);
+        //TODO: check assumption that we throw exception if all of the inserts are not within the last row count?
         if (isSorting()) {
+            checkValidLastKnownIndices(firstModelIndex, endModelIndex);
+
             //TODO: turns out, you don't have to supply this.  If you do, selection and editing are preserved.  If you don't, they aren't.
             //      could make it configurable behaviour - if you want more efficient (not creating a new copy of the entire index on every update),
             //      then just provide a null old view to model and it will still work.
@@ -715,8 +720,9 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
 
     protected void removeSortIndices(final int firstModelIndex, final int endModelIndex) {
-        checkValidLastKnownIndices(firstModelIndex, endModelIndex);
+        //TODO: check assumption that we throw exception if all of the inserts are not within the last row count?
         if (isSorting()) {
+            checkValidLastKnownIndices(firstModelIndex, endModelIndex);
             final int[] oldViewToModel = buildViewToModelAsInts();
             removeSortedRowsFromIndices(firstModelIndex, endModelIndex);
             fireRowSorterChanged(oldViewToModel);
