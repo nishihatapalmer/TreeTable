@@ -103,8 +103,8 @@ public class MyObjectForm {
      * re-ordered somehow due to incorrect optimisation or something.  Anyway, safer to initialize after construction.
      */
     public void initForm() {
-        MyObject myObjectTree = buildRandomTree(MAX_LEVELS, CHANCE_OUT_OF_TEN_FOR_CHILDREN);
-        TreeNode rootNode = TreeUtils.buildTree(myObjectTree, parent -> parent.getChildren(), parent -> parent.getChildren().size() > 0);
+        MyObject rootObject = buildRandomTree(MAX_LEVELS, CHANCE_OUT_OF_TEN_FOR_CHILDREN);
+        TreeNode rootNode = TreeUtils.buildTree(rootObject, MyObject::getChildren, parent -> parent.getChildren().size() > 0);
         table1.setRowHeight(24);
         treeTableModel = createTreeTableModel(rootNode);
         treeModel = createTreeModel(rootNode);
@@ -144,7 +144,6 @@ public class MyObjectForm {
         model.addTreeModelListener(treeTableModel);
         return model;
     }
-
 
     private TreeTableModel createTreeTableModel(TreeNode rootNode) {
         TreeTableModel localTreeTableModel = new MyObjectTreeTableModel(rootNode, showRoot);
