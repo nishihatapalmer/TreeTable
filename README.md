@@ -1,12 +1,15 @@
 # TreeTable
 
-TreeTable displays a tree with additional columns for each item in the tree, in a standard Java Swing `JTable`.  The tree can be composed of any type of `TreeNode`, and you can use any `TreeModel` with it.  
+TreeTable displays a tree with additional columns for each item in the tree, in a standard Java Swing `JTable`.  
+
+![TreeTable](treetable.png)
+
+## Reasons to use TreeTable
+Unlike many other TreeTable components, the tree can be composed of any type of `TreeNode`, and you can use any `TreeModel` with it.  The table is a standard `JTable` and supports everything you can do with that component.  It does not require the use of special nodes or custom components; it tracks the properties of the tree internally using efficient algorithms.
 
 It provides sorting on multiple columns, filtering, and grouping sibling nodes together (e.g. folders and files).  Nodes can be expanded, collapsed or toggled programmatically, by mouse click or by customisable key bindings.  
 
 All JTable features work as normal, including cell rendering and cell editing.  A custom table header is provided which shows the number of the sorted column in a multi-column sort, but you can use a standard or custom table header if you prefer.
-
-![TreeTable](treetable.png)
 
 ### Software status
 This software is in **beta**.  It is feature complete.  Some tests still need to be written.  The overall code shouldn't change too much, but methods may be refactored.
