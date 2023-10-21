@@ -97,6 +97,9 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected static final String EXPAND_NODE_KEYSTROKE_KEY = "treeTableExpandNode";
     protected static final String COLLAPSE_NODE_KEYSTROKE_KEY = "treeTableCollapseNode";
     protected static final String TOGGLE_EXPAND_NODE_KEYSTROKE_KEY = "treeTableToggleExpandNode";
+    protected static final String NAVIGATE_PARENT_KEY = "treeTableNavigateParent";
+    protected static final String NAVIGATE_CHILDREN_KEY = "treeTableNavigateChildren";
+
 
     /**
      * The TableColumnModel model index of the column which renders the tree structure and responds to clicks on expand
@@ -163,6 +166,26 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                 KeyStroke.getKeyStroke(KeyEvent.VK_SUBTRACT, 0, false)};  // - on keypad
     protected KeyStroke[] toggleKeys = new KeyStroke[] { // key presses that toggle node expansion
                 KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, 0, false)};
+
+    /*
+     * Keystroke bindings for navigating up and down the tree structure.
+     */
+    protected KeyStroke[] navigateParent = new KeyStroke[] { // key presses that navigate up the tree.
+            KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, 0, false)};
+
+    protected KeyStroke[] navigateChildren = new KeyStroke[] {
+            KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, false)};
+
+    /*
+     * If true, will collapse an expanded node when navigateParent is pressed.
+     */
+    protected boolean collapseOnParentNavigation = true;
+
+    /*
+     * If true, will expand a collapsed node when navigateChildren is pressed.
+     */
+    protected boolean expandOnChildNavigation = true;
+
     /**
      * The list of sort keys defined for this model. It is never null - only empty if no keys defined.
      */
@@ -763,7 +786,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return true if a real node passed in matches an active filter, false in all other circumstances.
      */
     public boolean isFiltered(final TreeNode node) {
-        return node != null && filterPredicate != null && filterPredicate.test(node);
+        return filterPredicate != null && node != null && filterPredicate.test(node);
     }
 
     /**
@@ -838,7 +861,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* ****************************************************************************************************************
      *                                Table methods
      *
-     * Methods relating to the table we are bound to, if any.
+     * Methods relating to a table we are bound to.
      */
 
     /**
@@ -898,12 +921,13 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     @Override
     public void treeNodesChanged(final TreeModelEvent e) {
         final int[] childIndices = e.getChildIndices();
-        if (childIndices == null) { // null child indices are used to indicate the root node has changed.
+        // TreeModelListener interface specifies that null child indices are used to indicate the root node has changed.
+        if (childIndices == null) {
             if (showRoot) {
                 fireTableRowsUpdated(0, 0);
             }
         } else {
-            treeNodesChanged(getLastPathNode(e), childIndices);
+            treeNodesChanged( getLastPathNode(e), childIndices);
         }
     }
 
@@ -965,7 +989,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     @Override
     public void treeNodesRemoved(final TreeModelEvent e) {
-        treeNodesRemoved(getLastPathNode(e), e.getChildIndices(), e.getChildren());
+        treeNodesRemoved( getLastPathNode(e), e.getChildIndices(), e.getChildren());
     }
 
     /**
@@ -1521,10 +1545,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             for (KeyStroke keyStroke : toggleKeys) {
                 inputMap.put(keyStroke, TOGGLE_EXPAND_NODE_KEYSTROKE_KEY);
             }
+            for (KeyStroke keyStroke : navigateParent) {
+                inputMap.put(keyStroke, NAVIGATE_PARENT_KEY);
+            }
+            for (KeyStroke keyStroke : navigateChildren) {
+                inputMap.put(keyStroke, NAVIGATE_CHILDREN_KEY);
+            }
             final ActionMap actionMap = table.getActionMap();
             actionMap.put(EXPAND_NODE_KEYSTROKE_KEY, new TreeTableExpandAction());
             actionMap.put(COLLAPSE_NODE_KEYSTROKE_KEY, new TreeTableCollapseAction());
             actionMap.put(TOGGLE_EXPAND_NODE_KEYSTROKE_KEY, new TreeTableToggleExpandAction());
+            actionMap.put(NAVIGATE_PARENT_KEY, new TreeTableNavigateParentAction());
+            actionMap.put(NAVIGATE_CHILDREN_KEY, new TreeTableNavigateChildrenAction());
         }
     }
 
@@ -1543,10 +1575,18 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             for (KeyStroke keyStroke : toggleKeys) {
                 inputMap.remove(keyStroke);
             }
+            for (KeyStroke keyStroke : navigateParent) {
+                inputMap.remove(keyStroke);
+            }
+            for (KeyStroke keyStroke : navigateChildren) {
+                inputMap.remove(keyStroke);
+            }
             final ActionMap actionMap = table.getActionMap();
             actionMap.remove(EXPAND_NODE_KEYSTROKE_KEY);
             actionMap.remove(COLLAPSE_NODE_KEYSTROKE_KEY);
             actionMap.remove(TOGGLE_EXPAND_NODE_KEYSTROKE_KEY);
+            actionMap.remove(NAVIGATE_PARENT_KEY);
+            actionMap.remove(NAVIGATE_CHILDREN_KEY);
         }
     }
 
@@ -2338,7 +2378,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
 
     /* *****************************************************************************************************************
-     *                             Key bindings for expand and collapse and toggle.
+     *                             Key bindings
      */
 
     /**
@@ -2381,6 +2421,32 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     /**
+     * Sets the keystrokes used to navigate to the parent node.
+     * If null or empty, no keystrokes will be assigned.
+     *
+     * @param newParentKeys The new set of keystrokes which will navigate to the parent node.
+     */
+    public void setNavigateParentKeys(final KeyStroke... newParentKeys) {
+        final KeyStroke[] newStrokes = newParentKeys == null? new KeyStroke[0] : newParentKeys.clone();
+        removeKeyboardActions();
+        this.navigateParent = newStrokes;
+        addKeyboardActions();
+    }
+
+    /**
+     * Sets the keystrokes used to navigate to the child nodes.
+     * If null or empty, no keystrokes will be assigned.
+     *
+     * @param newChildrenKeys The new set of keystrokes which will navigate to the child node.
+     */
+    public void setNavigateChildrenKeys(final KeyStroke... newChildrenKeys) {
+        final KeyStroke[] newStrokes = newChildrenKeys == null? new KeyStroke[0] : newChildrenKeys.clone();
+        removeKeyboardActions();
+        this.navigateChildren = newStrokes;
+        addKeyboardActions();
+    }
+
+    /**
      * @return An array of KeyStrokes which will trigger an expansion event on the selected node.
      */
     public KeyStroke[] getExpandKeys() {
@@ -2401,6 +2467,41 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return toggleKeys;
     }
 
+    /**
+     * @return An array of KeyStrokes which navigates to the parent node.
+     */
+    public KeyStroke[] getNavigateParentKeys() { return navigateParent; }
+
+    /**
+     * @return An array of KeyStrokes which navigates to the child node.
+     */
+    public KeyStroke[] getNavigateChildrenKeys() { return navigateChildren; }
+
+    /**
+     * @return true if the current node will be collapsed on navigating to parent.
+     */
+    public boolean getCollapseOnNavigateToParent() { return collapseOnParentNavigation; }
+
+    /**
+     * @return true if the current node will be expanded on navigating to children.
+     */
+    public boolean getExpandOnNavigateToChildren() { return expandOnChildNavigation; }
+
+    /**
+     * Sets whether the current node will be collapsed if expanded, on navigating to parent.
+     * @param collapseParent true to collapse the current node.
+     */
+    public void setCollapseOnNavigateToParent(final boolean collapseParent) {
+        collapseOnParentNavigation = collapseParent;
+    }
+
+    /**
+     * Sets whether the current node will be expanded if collapsed on navigating to its children.
+     * @param expandChildren true to expand the current node.
+     */
+    public void setExpandOnNavigateToChildren(final boolean expandChildren) {
+        expandOnChildNavigation = expandChildren;
+    }
 
     /* *****************************************************************************************************************
      *                                     General methods
@@ -2467,6 +2568,51 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected class TreeTableToggleExpandAction extends TreeTableAbstractAction {
         protected boolean shouldToggle(final TreeNode node) {
             return true;
+        }
+    }
+
+    protected class TreeTableNavigateParentAction extends AbstractAction {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Object source = e.getSource();
+            if (source instanceof JTable) {
+                final JTable table = (JTable) source;
+                final int modelIndexRow = getModelIndexForTableRow(table.getSelectedRow());
+                final TreeNode node = getNodeAtModelIndex(modelIndexRow);
+                if (node != null) {
+                    if (collapseOnParentNavigation && isExpanded(node)) {
+                        toggleExpansion(node, modelIndexRow);
+                    } else {
+                        final TreeNode parentNode = node.getParent();
+                        if (isVisible(parentNode)) {
+                            final int parentModelIndexRow = getModelIndexForTreeNode(parentNode);
+                            table.setRowSelectionInterval(parentModelIndexRow, parentModelIndexRow);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    protected class TreeTableNavigateChildrenAction extends AbstractAction {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Object source = e.getSource();
+            if (source instanceof JTable) {
+                final JTable table = (JTable) source;
+                final int modelIndexRow = getModelIndexForTableRow(table.getSelectedRow());
+                final TreeNode node = getNodeAtModelIndex(modelIndexRow);
+                if (node != null) {
+                    if (expandOnChildNavigation && !isExpanded(node)) {
+                        toggleExpansion(node, modelIndexRow);
+                    } else {
+                        if (node.getChildCount() > 0) {
+                            final int childRow = modelIndexRow + 1;
+                            table.setRowSelectionInterval(childRow, childRow);
+                        }
+                    }
+                }
+            }
         }
     }
 
