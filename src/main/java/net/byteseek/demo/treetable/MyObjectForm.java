@@ -31,12 +31,15 @@
  */
 package net.byteseek.demo.treetable;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
+import java.awt.FlowLayout;
+import java.awt.BorderLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -67,6 +70,7 @@ public class MyObjectForm {
         setSystemLookAndFeel();
         JFrame frame = new JFrame("TreeTable");
         MyObjectForm form = new MyObjectForm();
+        form.buildGui();
         form.initForm();
         frame.setContentPane(form.rootPanel);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -93,7 +97,34 @@ public class MyObjectForm {
     private boolean showRoot;
 
     public MyObjectForm() {
+    }
 
+    public void buildGui() {
+        rootPanel = new JPanel(new BorderLayout()); // Use BorderLayout for the root panel
+        panel1 = new JPanel(new BorderLayout()); // Use BorderLayout for the main panel
+        scrollPane = new JScrollPane();
+        table1 = new JTable();
+        showRootButton = new JButton("Show Root");
+        insertButton = new JButton("Insert");
+        deleteButton = new JButton("Delete");
+        toggleFilterButton = new JButton("Toggle Filter");
+    
+        // Create a panel for the buttons and use FlowLayout to arrange them horizontally
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.add(showRootButton);
+        buttonPanel.add(insertButton);
+        buttonPanel.add(deleteButton);
+        buttonPanel.add(toggleFilterButton);
+    
+        // Add the table and buttons to the main panel
+        panel1.add(scrollPane, BorderLayout.CENTER); // Table takes the center
+        panel1.add(buttonPanel, BorderLayout.SOUTH); // Buttons go below the table
+    
+        // Add the main panel to the root panel
+        rootPanel.add(panel1, BorderLayout.CENTER); // Main panel takes the whole window
+    
+        // Set the table as the view for the scroll pane
+        scrollPane.setViewportView(table1);
     }
 
     /**
@@ -203,7 +234,7 @@ public class MyObjectForm {
     }
 
     private String getFilePath(final String resourceName) {
-        return this.getClass().getResource(resourceName).getPath();
+        return new File(this.getClass().getResource(resourceName).getFile()).toPath().toString();
     }
 
     private static void setSystemLookAndFeel() {
