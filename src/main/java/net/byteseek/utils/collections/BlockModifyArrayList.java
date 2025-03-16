@@ -31,10 +31,7 @@
  */
 package net.byteseek.utils.collections;
 
-import java.util.AbstractList;
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 
 /**
  * A List which provides efficient block operations for insert and remove of objects backed by an array.
@@ -68,11 +65,6 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         return true;
     }
 
-    //TODO: run jmh benchmarks on BlockModifyArrayList vs ArrayList vs system.arraycopy.
-
-    //TODO: investigate whether systemcopy is safe copying around same array and performance of it.
-    //      almost certainly better than my attempts, but profile it maybe.
-
     @Override
     public void add(final int index, final E element) {
         if (index == size) {
@@ -84,11 +76,6 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             if (size - index >= 0) {
                 System.arraycopy(elements, index, elements, index + 1, size - index);
             }
-            /*
-               for (int position = size - 1; position >= index; position--) {
-                elements[position + 1] = elements[position];
-            }
-             */
             // insert the new element:
             elements[index] = element;
             size++;
@@ -103,8 +90,9 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
     public void addAll(final List<? extends E> elements) {
         final int numToAdd = elements.size();
         checkResize(numToAdd);
+        final E[] localElements = this.elements;
         for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
-            this.elements[size++] = elements.get(elementIndex);
+            localElements[size++] = elements.get(elementIndex);
         }
     }
 
@@ -123,19 +111,15 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             checkResize(numToAdd);
             final int numToShift = size - index;
             final int newPosition = index + numToAdd;
+            final E[] localElements = this.elements;
+
             // move the existing elements up to create a gap
             if (numToShift >= 0) {
-                System.arraycopy(this.elements, index, this.elements, newPosition, numToShift);
+                System.arraycopy(localElements, index, localElements, newPosition, numToShift);
             }
-            /*
-                    for (int position = numToShift - 1; position >= 0; position--) {
-                this.elements[newPosition + position] = this.elements[index + position];
-            }
-             */
-
             // insert the new elements in the gap.
             for (int elementIndex = 0; elementIndex < numToAdd; elementIndex++) {
-                this.elements[index + elementIndex] = elements.get(elementIndex);
+                localElements[index + elementIndex] = elements.get(elementIndex);
             }
             size += numToAdd;
         }
@@ -147,19 +131,16 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         checkResize(numToAdd);
         final int numToShift = size - index;
         final int newPosition = index + numToAdd;
+        final E[] localElements = elements;
+
         // move the existing elements up to create a gap
-        if (numToShift - 1 + 1 >= 0) {
-            System.arraycopy(this.elements, index, this.elements, newPosition, numToShift - 1 + 1);
+        if (numToShift - 1 + 1 >= 0) { //TODO: this calculation is clearly not optimised!   Looks like arrived at by trial and error.  Fix.
+            System.arraycopy(localElements, index, localElements, newPosition, numToShift - 1 + 1);
         }
-        /*
-                for (int position = numToShift - 1; position >= 0; position--) {
-            this.elements[newPosition + position] = this.elements[index + position];
-        }
-         */
         // Insert the new elements
         int insertPos = index;
         for (E element : c) {
-            this.elements[insertPos++] = element;
+            localElements[insertPos++] = element;
         }
         size += numToAdd;
         return true;
@@ -167,6 +148,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
 
     @Override
     public E set(final int index, final E element) {
+        checkIndex(index);
         final E previousValue = elements[index];
         elements[index] = element;
         return previousValue;
@@ -179,11 +161,8 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
         if (size - 1 - index >= 0) {
             System.arraycopy(elements, index + 1, elements, index, size - 1 - index);
         }
-        /*        for (int position = index; position < size - 1; position++) {
-            elements[position] = elements[position + 1];
-        }
-         */
         size--;
+        elements[size] = null; // null out old object left dangling on the end.
         return elementToRemove;
     }
 
@@ -196,8 +175,9 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      */
     public void remove(final int from, final int to) {
         checkIndex(from);
-        checkFromTo(from, to); //TODO: to >= size?  doesn't this mean if to = size -1 (last position), then we miss that case?
-        if (to >= size) { // If we're removing everything up to or past the end, just set the size down.
+        checkToNotSmallerThanFrom(from, to);
+        if (to >= size -1) { // If we're removing everything up to or past the end, just set the size down.
+            Arrays.fill(elements, from, size, null);
             size = from;
         } else { // got some stuff at the end we have to move over to cover the gap:
             final int rowAfterRemoved = to + 1;
@@ -206,67 +186,88 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
             if (numToMove >= 0) {
                 System.arraycopy(elements, rowAfterRemoved, elements, from, numToMove);
             }
-            /*
-      for (int position = 0; position < numToMove; position++) {
-                elements[from + position] = elements[rowAfterRemoved + position];
-            }
-             */
+            Arrays.fill(elements, from + numToMove, size, null); // null out dangling objects.
             size -= numToRemove;
         }
     }
 
+    /**
+     * Replaces a range of elements with a different list of values.
+     * The range and list do not have to be the same size.
+     * If the range is bigger than the replacing list, then the rest of the array will be moved down to close the gap.
+     * If the range is smaller than the replacing list, then the rest of the array will be moved up to make room.
+     *
+     * @param from The starting index to replace elements
+     * @param to The ending index to replace elements (must be at least from).
+     * @param newValues A list of new values to overwrite the range with.
+     */
     public void replace(final int from, final int to, final List<? extends E> newValues) {
+        checkIndex(from);
+        checkToNotSmallerThanFrom(from, to);
         final int numNewValues = newValues.size();
         moveElementsForReplace(from, to, numNewValues);
         int listIndex = 0;
+        final E[] localElements = elements;
         for (int position = from; position < from + numNewValues; position++) {
-            elements[position] = newValues.get(listIndex++);
+            localElements[position] = newValues.get(listIndex++);
         }
     }
 
+    /**
+     * Replaces a range of elements in the list with values from an Enumeration.
+     * The range to replace and the number of new elements provided do not need to be the same size.
+     * If the range is larger than the number of new values, the remaining elements will be shifted down to close the gap.
+     * If the range is smaller, elements will be shifted up to make space for the new values.
+     *
+     * @param from The starting index of the range to replace (inclusive).
+     * @param to The ending index of the range to replace (inclusive).
+     * @param newValues An Enumeration providing the new values to overwrite the range.
+     * @param numNewValues The number of new values to insert into the range.
+     *                     The Enumeration must have at least this number of elements.
+     */
     public void replace(final int from, final int to, final Enumeration<? extends E> newValues, final int numNewValues) {
+        checkIndex(from);
+        checkToNotSmallerThanFrom(from, to);
         moveElementsForReplace(from, to, numNewValues);
+        final E[] localElements = elements;
         for (int position = from; position < from + numNewValues; position++) {
-            elements[position] = newValues.nextElement();
+            localElements[position] = newValues.nextElement();
         }
     }
 
-    //TODO: what about zero width insertion (from = to)?
-    //TODO: test!!!
     private void moveElementsForReplace(final int from, final int to, final int numNewValues) {
-        checkFromTo(from, to);
+        final E[] localElements = elements;
         final int safeTo = to < size ? to : size - 1;
         final int numExistingValues = safeTo - from + 1;
         final int delta = numNewValues - numExistingValues;
-        if (delta > 0) { // more new values than already exist - shift the elements after to over to make room.
+        if (delta > 0) { // more new values than already exist - ensure we have space to add them and move elements over if needed.
             checkResize(delta);
-            final int startPos = size - 1 + delta;
-            final int endPos = safeTo + delta;
-            for (int position = startPos; position >= endPos; position--) {
-                elements[position] = elements[position - delta];
+            if (safeTo < size - 1) { // If there are any elements after the range which are not being replaced, move them over.
+                System.arraycopy(localElements, safeTo + 1, localElements, safeTo + delta + 1, size - safeTo - 1);
             }
-        } else if (delta < 0) { // fewer new values than existing values - shift the elements after to over to fill the gap.
-            final int startPos = safeTo + delta; // delta is negative.
-            final int endPos = size - 1 + delta;
-            for (int position = startPos; position <= endPos; position++) {
-                elements[position] = elements[position - delta]; // delta is negative.
+        } else if (delta < 0) { // fewer new values than existing values - shift the elements after to over to fill the gap and null dangling ones.
+            // Note: delta is negative here, so we add it in order to perform subtraction.
+            if (safeTo < size - 1) { // If there are any elements after the range which are not being replaced, move them over.
+                System.arraycopy(localElements, safeTo + 1 + delta, localElements, safeTo + 1, size - safeTo - 1);
             }
+            Arrays.fill(localElements, size + delta, size, null); // null old dangling objects on end
         }
         size += delta;
     }
 
-
     @Override
     public int indexOf(Object o) {
+        final E[] localElements = elements;
+        final int localSize = size;
         if (o == null) {
-            for (int i = 0; i < size; i++) {
-                if (elements[i] == null) {
+            for (int i = 0; i < localSize; i++) {
+                if (localElements[i] == null) {
                     return i;
                 }
             }
         } else {
-            for (int i = 0; i < size; i++) {
-                if (elements[i].equals(o)) {
+            for (int i = 0; i < localSize; i++) {
+                if (localElements[i].equals(o)) {
                     return i;
                 }
             }
@@ -276,15 +277,17 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
 
     @Override
     public int lastIndexOf(Object o) {
+        final E[] localElements = elements;
+        final int localSize = size;
         if (o == null) {
-            for (int i = size - 1; i >=0; i--) {
-                if (elements[i] == null) {
+            for (int i = localSize - 1; i >=0; i--) {
+                if (localElements[i] == null) {
                     return i;
                 }
             }
         } else {
-            for (int i = size - 1; i >=0; i--) {
-                if (elements[i].equals(o)) {
+            for (int i = localSize - 1; i >=0; i--) {
+                if (localElements[i].equals(o)) {
                     return i;
                 }
             }
@@ -294,10 +297,11 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
 
     @Override
     public void clear() {
+        Arrays.fill(elements, 0, size, null);
         size = 0;
     }
 
-    private void checkFromTo(int from, int to) {
+    private void checkToNotSmallerThanFrom(int from, int to) {
         if (to < from) {
             throw new IllegalArgumentException("to:" + to + " cannot be less than from:" + from);
         }
@@ -318,7 +322,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      * @param numToAdd then number of elements to add.
      */
     private void checkResize(final int numToAdd) {
-        if (size + numToAdd >= elements.length) {
+        if (size >= elements.length - numToAdd) {  // calculate subtracting from elements.length to avoid any integer overflow when size is large.
             growArray(numToAdd);
         }
     }
@@ -328,7 +332,7 @@ public class BlockModifyArrayList<E> extends AbstractList<E> {
      */
     private void growArray(final int numToAdd) {
         if (elements.length == Integer.MAX_VALUE - 1) {
-            throw new OutOfMemoryError("Cannot increase the list size beyond Integer.MAX_VALUE: " + this);
+            throw new IllegalArgumentException("Cannot increase the list size beyond Integer.MAX_VALUE: " + this);
         }
         final E[] newArray = (E[]) new Object[getGrowSize(numToAdd)];
         System.arraycopy(elements, 0, newArray, 0, elements.length);
