@@ -204,7 +204,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         this.nodeComparator = new TreeNodeComparator(model);
         setDefaultSortKeys(defaultSortKeys);
         setSortKeys(this.defaultSortKeys);
-        rebuildIndices = true; //TODO: set true if we want things to work until the update/insert code is done.
+        rebuildIndices = true;
         buildSortIndices();
     }
 
@@ -229,19 +229,21 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public int convertRowIndexToModel(final int index) {
-        return isSorting() ? viewToModelIndex[index].modelIndex : checkValidIndex(index, model.getRowCount());
+        checkValidIndex(index, model.getRowCount());
+        return isSorting() ? viewToModelIndex[index].modelIndex : index;
     }
 
     @Override
     public int convertRowIndexToView(final int index) {
-        return isSorting() ? modelToViewIndex[index] : checkValidIndex(index, model.getRowCount());
+        checkValidIndex(index, model.getRowCount());
+        return isSorting() ? modelToViewIndex[index] : index;
     }
 
     @Override
     public void setSortKeys(final List<? extends SortKey> keys) {
         final List<? extends SortKey> newKeys = keys == null || keys.isEmpty() ? defaultSortKeys : keys;
         if (!sortKeys.equals(newKeys)) {
-            this.sortKeys = Collections.unmodifiableList(getSortableKeys(newKeys));
+            this.sortKeys = getSortableKeys(newKeys);
             /* Note on event ordering:
              * Sort order changed is fired before the sort indices are rebuilt, as is done for DefaultRowSorter.
              * The documentation for RowSorterEvent states that this message is fired first and is typically
@@ -257,7 +259,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
      * @param keys The list of keys, which may contain columns that are not sortable.
      * @return A new list of keys that only has sortable columns in it.
      */
-    protected List<? extends SortKey> getSortableKeys(final List<? extends SortKey> keys) {
+    protected List<SortKey> getSortableKeys(final List<? extends SortKey> keys) {
         final List<SortKey> list = new ArrayList<>();
         for (SortKey sortkey : keys) {
             if (!unsortableColumns.contains(sortkey.getColumn())) {
@@ -306,10 +308,9 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         buildSortIndices();
     }
 
-    //TODO: what about if model rows updated are not visible?  or not sorting?
-
     @Override
     public void rowsInserted(final int firstModelIndex, final int endModelIndex) {
+        checkRangeIndices(firstModelIndex, endModelIndex);
         if (rebuildIndices) {
             buildSortIndices();
         } else {
@@ -319,6 +320,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void rowsDeleted(final int firstModelIndex, final int endModelIndex) {
+        //checkRangeIndices(firstModelIndex, endModelIndex); // can only check indices *before* the change, not after.
         if (rebuildIndices) {
             buildSortIndices();
         } else {
@@ -654,16 +656,36 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
     * existing indexes, and we can support extremely large trees if required.
     */
 
-    //TODO: profile to see what the difference between removing rows and full sort index rebuild.
-    //      jmh for removing nodes indicates it is about the same performance as rebuilding the sort index
-    //      up to about 100,000 nodes.  After that it is faster.  At around 500,000 nodes, the sort
-    //      performance falls off a cliff, while the patching methods slow down as it gets bigger, but not very much.
-    //
-
-    //TODO: do we need this once we are satisfied through testing and profiling that dynamic updates are better than full rebuilds?
+    /**
+     * True if the sorter is set to rebuild the sort indices completely on any update.
+     * Rebuilding entirely is the simplest method, but it can be a lot slower for very large trees.
+     * If rebuild indices is set to false, then the sorter will patch the existing sort indices on insertion, deletion
+     * or update of tree nodes, only changing the parts which need updating.  This is a lot faster on very large trees.
+     *
+     * It defaults to true as performance is fine even for quite large trees of over 100,000 nodes.
+     * Set to false if you want to improve sort performance for very large trees - but the code is more complex and
+     *      * could have subtle bugs, although it appears to work fine in all tests.
+     *
+     * @return true if the sorter is set to rebuild the sort indices completely on any update.
+     */
     public boolean getRebuildIndices() {
         return rebuildIndices;
     }
+
+    /**
+     * Sets the flag to indicate whether indices should be rebuilt.
+     *
+     * Rebuilding entirely is the simplest method, but it can be a lot slower for very large trees.
+     * If rebuild indices is set to false, then the sorter will patch the existing sort indices on insertion, deletion
+     * or update of tree nodes, only changing the parts which need updating.  This is a lot faster on very large trees.
+     *
+     * It defaults to true as performance is about the same as patching, even for quite large trees of over 100,000 nodes.
+     * Set to false if you want to improve sort performance for very large trees - but the code is more complex and
+     * could have subtle bugs, although it appears to work fine in all tests.
+     *
+     * @param rebuildIndices a boolean value where {@code true} indicates that indices
+     *                       should be rebuilt, and {@code false} indicates they should be patched.
+     */
     public void setRebuildIndices(final boolean rebuildIndices) {
         this.rebuildIndices = rebuildIndices;
     }
@@ -1260,6 +1282,15 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
         }
     }
 
+    protected void checkRangeIndices(int firstModelIndex, int endModelIndex) {
+        final int rowCount = model.getRowCount();
+        checkValidIndex(firstModelIndex, rowCount);
+        checkValidIndex(endModelIndex, rowCount);
+        if (firstModelIndex > endModelIndex) {
+            throw new IndexOutOfBoundsException("Invalid range");
+        }
+    }
+
     /**
      * Checks that an index is valid - it's not negative or past the number of rows .
      * If valid, it just returns the index passed in, if not it throws an IndexOutOfBoundsException.
@@ -1345,7 +1376,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
          * @param columnToSort The column which should be sorted.
          * @param sortKeys The current state of sorting.
          */
-        List<RowSorter.SortKey> buildNewSortKeys(int columnToSort, List<RowSorter.SortKey> sortKeys);
+        List<RowSorter.SortKey> buildNewSortKeys(int columnToSort, List<? extends SortKey> sortKeys);
     }
 
 }
