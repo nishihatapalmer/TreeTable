@@ -648,7 +648,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public void setSortKeys(final List<? extends RowSorter.SortKey> keys) {
         // Cache the keys set as an unmodifiable list of keys.
-        sortKeys = keys == null || keys.isEmpty()? Collections.emptyList() : Collections.unmodifiableList(removeNullEntries(keys));
+        sortKeys = keys == null || keys.isEmpty()? Collections.emptyList() : new ArrayList<>(keys);
 
         // If we're bound to a table and have a row sorter, set those sort keys on it.
         if (table != null) {
@@ -710,7 +710,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @param keys The list of sort keys to sort with.
      */
     public void setSortKeys(final RowSorter.SortKey... keys) {
-        setSortKeys(keys == null ? Collections.emptyList() : Arrays.asList(keys));
+        if (keys == null || keys.length == 0 || keys[0] == null) {
+            setSortKeys((List<RowSorter.SortKey>) null);
+        } else {
+            setSortKeys(Arrays.asList(keys));
+        }
     }
 
     /**
@@ -1277,7 +1281,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return The node for the row in the (unsorted) model index, or null if out of bounds.
      */
     public TreeNode getNodeAtModelIndex(final int modelIndex) {
-        return modelIndex >= 0 && modelIndex < displayedNodes.size() ? displayedNodes.get(modelIndex) : null;
+        return validRow(modelIndex) ? displayedNodes.get(modelIndex) : null;
     }
 
     /**
@@ -1285,10 +1289,14 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * The view row index can differ from the rows in this underlying model if the table is sorted or filtered.
      *
      * @param tableRow The row in the table to get the node from.
-     * @return The node at the tableRow position in the JTable.
+     * @return The node at the tableRow position in the JTable, or null if the row is not a valid row.
      */
     public TreeNode getNodeAtTableRow(final int tableRow) {
         return getNodeAtModelIndex( getModelIndexForTableRow(tableRow));
+    }
+
+    protected boolean validRow(final int tableRow) {
+        return tableRow >= 0 && tableRow < getRowCount();
     }
 
     /**
@@ -1305,13 +1313,14 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return a list of all the selected nodes in the JTable, or an empty list if no rows are selected.
      */
     public List<TreeNode> getSelectedNodes() {
-        List<TreeNode> nodes = new ArrayList<>(table.getSelectedRowCount());
         if (table != null) {
+            final List<TreeNode> nodes = new ArrayList<>(table.getSelectedRowCount());
             for (int rowIndex : table.getSelectedRows()) {
                 nodes.add(getNodeAtTableRow(rowIndex));
             }
+            return nodes;
         }
-        return nodes;
+        return new ArrayList<>();
     }
 
     /**
@@ -1347,7 +1356,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     public int getModelIndexForTableRow(final int tableRow) {
         final RowSorter<? extends TableModel> rowSorter = table == null? null : table.getRowSorter();
-        return rowSorter == null? tableRow : rowSorter.convertRowIndexToModel(tableRow);
+        return rowSorter == null? tableRow : validRow(tableRow) ? rowSorter.convertRowIndexToModel(tableRow) : -1;
     }
 
     /**
@@ -1608,7 +1617,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
     /**
      * Returns the table column model telling JTable what columns to display and their order.
-     *
+     * <p>
      * It calls createTableModel() if one has not yet been set, which is an abstract method which subclasses must implement.
      * It will also automatically set a TreeCellRenderer on the TableColumn with model index zero, if a renderer is not
      * already set on it.
@@ -1761,6 +1770,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * @return the number of visible subtree children exist for a node in the tree, or 0 if none are visible.
      */
     public int getVisibleSubTreeCount(final TreeNode parentNode) {
+        //TODO: refactor in terms of getLastKnownSubTreeCount?
         final Integer childCount = expandedNodeCounts.get(parentNode);
         return childCount == null ? 0 : isVisible(parentNode)? childCount : 0;
     }
