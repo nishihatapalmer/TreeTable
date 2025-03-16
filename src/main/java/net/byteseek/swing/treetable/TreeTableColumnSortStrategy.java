@@ -161,7 +161,7 @@ public class TreeTableColumnSortStrategy implements TreeTableRowSorter.ColumnSor
     }
 
     @Override
-    public List<RowSorter.SortKey> buildNewSortKeys(final int columnToSort, final List<RowSorter.SortKey> sortKeys) {
+    public List<RowSorter.SortKey> buildNewSortKeys(final int columnToSort, final List<? extends RowSorter.SortKey> sortKeys) {
         final List<RowSorter.SortKey> newKeys = new ArrayList<>(sortKeys);
         final int sortKeyIndex = findKeyColumn(newKeys, columnToSort);
         if (sortKeyIndex < 0) {
