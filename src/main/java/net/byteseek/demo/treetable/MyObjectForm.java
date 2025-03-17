@@ -31,20 +31,20 @@
  */
 package net.byteseek.demo.treetable;
 
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
+import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
@@ -54,14 +54,11 @@ import net.byteseek.swing.treetable.TreeUtils;
 
 //TODO: toggle button for group by.
 
-//TODO: remove dependency on intellij classes (or find maven dependencies).  Needs to build on anyone's machine,
-//      and not just with intellij.  Maybe change to using absolutely standard swing components.
-
 public class MyObjectForm {
 
-    public static final int MAX_LEVELS = 3;
-    public static final int MAX_CHILDREN = 10;
-    public static final int CHANCE_OUT_OF_TEN_FOR_CHILDREN = 5;
+    public static final int MAX_LEVELS = 10;
+    public static final int MAX_CHILDREN = 15;
+    public static final int CHANCE_OUT_OF_TEN_FOR_CHILDREN = 4;
 
     public static void main(String[] args) {
         setSystemLookAndFeel();
@@ -86,13 +83,14 @@ public class MyObjectForm {
     private JButton showRootButton;
     private JButton insertButton;
     private JButton deleteButton;
-    private JButton groupToggleButton;
     private JButton toggleFilterButton;
+    public JTextField sTextField;
     private Random random;
     private List<String> wordList;
     private boolean showRoot;
 
     public MyObjectForm() {
+
 
     }
 
@@ -104,7 +102,7 @@ public class MyObjectForm {
      */
     public void initForm() {
         MyObject rootObject = buildRandomTree(MAX_LEVELS, CHANCE_OUT_OF_TEN_FOR_CHILDREN);
-        TreeNode rootNode = TreeUtils.buildTree(rootObject, MyObject::getChildren, parent -> parent.getChildren().size() > 0);
+        TreeNode rootNode = TreeUtils.buildTree(rootObject, MyObject::getChildren, parent -> !parent.getChildren().isEmpty());
         table1.setRowHeight(24);
         treeTableModel = createTreeTableModel(rootNode);
         treeModel = createTreeModel(rootNode);
@@ -136,7 +134,44 @@ public class MyObjectForm {
             }
         });
 
-        toggleFilterButton.addActionListener(e -> treeTableModel.setNodeFilter(treeTableModel.isFiltering() ? null : NODE_FILTER));
+        sTextField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                updateFilter();
+            }
+
+            private void updateFilter() {
+                if (sTextField.getText().isEmpty()) {
+                    treeTableModel.setNodeFilter(null);
+                } else {
+                    treeTableModel.setNodeFilter(treeNode -> {
+                        MyObject obj = TreeUtils.getUserObject(treeNode);
+                        return !(obj.getDescription().contains(sTextField.getText()));
+                    });
+                }
+            }
+        });
+
+        /*
+        sTextField.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Add desired functionality here. Example:
+                System.out.println("Action performed on sTextField: " + sTextField.getText());
+            }
+        });
+        */
+        //  toggleFilterButton.addActionListener(e -> treeTableModel.setNodeFilter(treeTableModel.isFiltering() ? null : NODE_FILTER));
     }
 
     private DefaultTreeModel createTreeModel(TreeNode rootNode) {
@@ -191,7 +226,7 @@ public class MyObjectForm {
 
     private void readWordList() {
         try {
-            wordList = Files.readAllLines(Paths.get(getFilePath("/wordlist.txt")));
+            wordList = Files.readAllLines(getFilePath("/wordlist.txt"));
         } catch (IOException e) {
             JOptionPane.showMessageDialog(panel1, e.getMessage());
             System.exit(1);
@@ -202,8 +237,12 @@ public class MyObjectForm {
         return wordList.get(random.nextInt(wordList.size())) + ' ' + wordList.get(random.nextInt(wordList.size()));
     }
 
-    private String getFilePath(final String resourceName) {
-        return this.getClass().getResource(resourceName).getPath();
+    private Path getFilePath(final String resourceName) {
+        try {
+            return Paths.get(this.getClass().getResource(resourceName).toURI());
+        } catch (URISyntaxException e) {
+            throw new RuntimeException("Invalid resource URI: " + resourceName, e);
+        }
     }
 
     private static void setSystemLookAndFeel() {
@@ -215,6 +254,74 @@ public class MyObjectForm {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
+    }
+
+
+    {
+// GUI initializer generated by IntelliJ IDEA GUI Designer
+// >>> IMPORTANT!! <<<
+// DO NOT EDIT OR ADD ANY CODE HERE!
+        $$$setupUI$$$();
+    }
+
+    /**
+     * Method generated by IntelliJ IDEA GUI Designer
+     * >>> IMPORTANT!! <<<
+     * DO NOT edit this method OR call it in your code!
+     *
+     * @noinspection ALL
+     */
+    private void $$$setupUI$$$() {
+        panel1 = new JPanel();
+        panel1.setLayout(new BorderLayout(0, 0));
+        rootPanel = new JPanel();
+        rootPanel.setLayout(new GridBagLayout());
+        panel1.add(rootPanel, BorderLayout.CENTER);
+        scrollPane = new JScrollPane();
+        GridBagConstraints gbc;
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.BOTH;
+        rootPanel.add(scrollPane, gbc);
+        table1 = new JTable();
+        scrollPane.setViewportView(table1);
+        final JToolBar toolBar1 = new JToolBar();
+        toolBar1.setFloatable(false);
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        rootPanel.add(toolBar1, gbc);
+        showRootButton = new JButton();
+        showRootButton.setText("toggle root");
+        toolBar1.add(showRootButton);
+        insertButton = new JButton();
+        insertButton.setText("insert");
+        toolBar1.add(insertButton);
+        deleteButton = new JButton();
+        deleteButton.setText("delete");
+        toolBar1.add(deleteButton);
+        final JLabel label1 = new JLabel();
+        label1.setText("Filter text  ");
+        toolBar1.add(label1);
+        sTextField = new JTextField();
+        sTextField.setMinimumSize(new Dimension(128, 43));
+        sTextField.setPreferredSize(new Dimension(128, 43));
+        sTextField.setText("");
+        toolBar1.add(sTextField);
+    }
+
+    /**
+     * @noinspection ALL
+     */
+    public JComponent $$$getRootComponent$$$() {
+        return panel1;
     }
 
 }
