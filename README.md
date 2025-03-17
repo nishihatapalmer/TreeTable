@@ -12,8 +12,12 @@ It provides sorting on multiple columns, filtering, and grouping sibling nodes t
 All JTable features work as normal, including cell rendering and cell editing.  A custom table header is provided which shows the number of the sorted column in a multi-column sort, but you can use a standard or custom table header if you prefer.
 
 ### Software status
-This software is in **beta**.  It is feature complete.  Some tests still need to be written.  The overall code shouldn't change too much, but methods may be refactored.
-The demo code will probably be extended a bit and the help expanded.
+This software is in **advanced beta**.  
+
+ * It is feature complete.  
+ * Some tests still need to be written, but it has a good coverage now.
+
+I'm generally happy to look at any bug reports or feature requests. 
 
 ### Integrating the code
 The `TreeTable` component has not yet been published to maven, as it is still in beta.  Therefore, you should clone the repository and add the source code directly to your own project.  Once the code is at a release status, it will be published to maven, and then you can reference it in your build dependencies (e.g. pom file).
