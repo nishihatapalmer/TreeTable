@@ -360,3 +360,12 @@ If you are not specifying `TableCellEditor` objects in each `TableColumn`, you m
 
 ```
 `JTable` has default cell editors for `String`, `Boolean`, and `Number` only.  If you want to edit any other data types, you must implement your own `TableCellEditor` and set it on the appropriate `TableColumn`.
+
+## Demo app
+There is a small demo application included in the demo/treetable package.  
+The main method is in the MyObjectForm class.  It builds a random tree with three columns - one a String, one a Long and one a Boolean.  
+
+There are buttons to show or hide the root node, insert a node, delete a node,
+and a text box which will dynamically filter the nodes in the tree as you type.
+
+It is not intended to show off all the features of the TreeTable, only to give an example of how to integrate it with your code. 
