@@ -1,0 +1,21 @@
+id,parentid,name,description,size
+1,,Root A,Top-level node A,100
+2,,Root B,Top-level node B,150
+3,1,Child A1,First child of A,50
+4,1,Child A2,Second child of A,30
+5,2,Child B1,First child of B,40
+6,2,Child B2,Second child of B,60
+7,3,Child A1.1,Child of A1,20
+8,3,Child A1.2,Another child of A1,25
+9,4,Child A2.1,Child of A2,15
+10,5,Child B1.1,Child of B1,10
+11,5,Child B1.2,Another child of B1,12
+12,6,Child B2.1,Child of B2,22
+13,6,Child B2.2,Another child of B2,18
+14,7,Child A1.1.1,Grandchild of A1,8
+15,7,Child A1.1.2,Another grandchild of A1,7
+16,8,Child A1.2.1,Grandchild of A1.2,9
+17,9,Child A2.1.1,Grandchild of A2.1,6
+18,10,Child B1.1.1,Grandchild of B1.1,5
+19,12,Child B2.1.1,Grandchild of B2.1,4
+20,13,Child B2.2.1,Grandchild of B2.2,3

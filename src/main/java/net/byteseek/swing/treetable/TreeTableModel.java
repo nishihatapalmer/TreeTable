@@ -116,11 +116,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected static final int ROOT_MODEL_INDEX = 0;
 
     /**
-     * Default visible width of a TableColumn created using the utility createColumn() methods, if you don't specify a width.
-     */
-    protected static final int DEFAULT_COLUMN_WIDTH = 75;
-
-    /**
      * Value returned by find methods if not found.
      */
     protected static final int NOT_LOCATED = -1;
@@ -154,7 +149,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected boolean showRoot; // whether the root of the tree is shown.
 
-    /*
+    /**
      * Keystroke bindings for expanding, collapsing or toggling expansion of a node.
      */
     protected KeyStroke[] expandKeys = new KeyStroke[] { // key presses that expand a node.
@@ -176,15 +171,22 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     protected KeyStroke[] navigateChildren = new KeyStroke[] {
             KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0, false)};
 
-    /*
+    /**
      * If true, will collapse an expanded node when navigateParent is pressed.
      */
     protected boolean collapseOnParentNavigation = true;
 
-    /*
+    /**
      * If true, will expand a collapsed node when navigateChildren is pressed.
      */
     protected boolean expandOnChildNavigation = true;
+
+    /**
+     * Whether to show an expand / collapse handle if there are no children for a node.
+     * If you are dynamically adding nodes on an expand event, then you will want the handle to be shown
+     * even if there are no children currently.  If you have a fixed tree, then this should be false.
+     */
+    protected boolean showExpandHandleIfNoChildren = false;
 
     /**
      * The list of sort keys defined for this model. It is never null - only empty if no keys defined.
@@ -922,6 +924,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
          fireTableDataChanged();
     }
 
+    //TODO: need Tree change tests.
+
     @Override
     public void treeNodesChanged(final TreeModelEvent e) {
         final int[] childIndices = e.getChildIndices();
@@ -1330,6 +1334,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return table == null? null : table.getSelectionModel();
     }
 
+    //TODO: more extensive test of this would be good.
     /**
      * @return An array containing the model indexes of selected rows.
      */
@@ -1491,6 +1496,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     /* *****************************************************************************************************************
      *                                           Event listeners
      */
+//TODO: can test these...
 
     /**
      * Adds a listener to TreeTableEvents, which inform the listener when a node is about to expand or collapse.
@@ -1649,92 +1655,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
-     * The tree column at model index 0 will automatically get a TreeCellRenderer if it isn't specified.
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    protected TableColumn createColumn(final int modelIndex, final Object headerValue) {
-        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, null, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
-     * The tree column at model index 0 will automatically get a TreeCellRenderer if it isn't specified.     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param width The width of the column.
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    protected TableColumn createColumn(final int modelIndex, final Object headerValue, final int width) {
-        return createColumn(modelIndex, headerValue, width, null, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
-     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    protected TableColumn createColumn(final int modelIndex, final Object headerValue,
-                                       final TableCellRenderer cellRenderer) {
-        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
-     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param width The width of the column.
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    protected TableColumn createColumn(final int modelIndex, final Object headerValue, final int width,
-                                       final TableCellRenderer cellRenderer) {
-        return createColumn(modelIndex, headerValue, width, cellRenderer, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @param cellEditor The TableCellEditor to use with the data types in that column.
-     * @return a TableColumn with the values provided, and a default width.
-     */
-    protected TableColumn createColumn(final int modelIndex, final Object headerValue,
-                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
-        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param width The width of the column.
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @param cellEditor The TableCellEditor to use with the data types in that column.
-     * @return a TableColumn with the values provided.
-     */
-    protected TableColumn createColumn(final int modelIndex,  final Object headerValue, final int width,
-                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
-        final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
-        column.setHeaderValue(headerValue);
-        return column;
-    }
-
-
     /* *****************************************************************************************************************
      *                                Node expansion and collapse and tree change.
      */
@@ -1762,6 +1682,25 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         return expandedNodeCounts.keySet();
     }
 
+    /**
+     * Gets whether to show the expand handle if there are no children present in a node.
+     * If you are adding nodes dynamically on expand, this should be true.
+     * If it is a fixed tree, you should probably set this to false.
+     * @return whether to show the expand handle if there are no children present in a node.
+     */
+    public boolean showExpandHandleIfNoChildren() {
+        return showExpandHandleIfNoChildren;
+    }
+
+    /**
+     * Sets whether to show the expand handle if there are no children present in a node.
+     * If you are adding nodes dynamically on expand, this should be true.
+     * If it is a fixed tree, you should probably set this to false.
+     * @return whether to show the expand handle if there are no children present in a node.
+     */
+    public void setShowExpandHandleIfNoChildren(boolean showExpandHandleIfNoChildren) {
+        this.showExpandHandleIfNoChildren = showExpandHandleIfNoChildren;
+    }
 
     /**
      * Returns the number of visible subtree children exist for a node in the tree, or 0 if none are visible.
@@ -2031,7 +1970,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      */
     protected boolean expansionChangeAffectsVisibleNodes(final TreeNode node, final int modelIndex) {
         return (modelIndex >= 0 && modelIndex < displayedNodes.size()) || // it has a valid visible index
-               (!showRoot && node == rootNode);                           // or it's a hidden root node.
+               (!showRoot && node == rootNode);                           // or it's a hidden root node. //TODO: confirm logic here.
     }
 
     /**
@@ -2056,7 +1995,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
 
         // If we haven't removed or added any children, notify the table this one node may have changed.
         // This forces a visual refresh which may alter the rendering of expand or collapse handles.
-        if (childrenChanged == 0) {
+        if (childrenChanged == 0) { //TODO: good to test this path?
             fireTableRowsUpdated(parentModelIndex, parentModelIndex);
         }
     }
@@ -2075,6 +2014,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         }
     }
 
+    //TODO: good to have some tests that end up invoking this.
     /**
      * Updates the visible child count for a node with a delta change (negative or positive),
      * and updates all of its parents with the adjusted delta.
@@ -2184,6 +2124,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
         } else {
             //TODO: does this affect child counts of the expanded nodes?
             displayedNodes.remove(ROOT_MODEL_INDEX);
+            expandNode(rootNode); // if we hide the root and it is not expanded, nothing will be visible in the tree.
             fireTableRowsDeleted(ROOT_MODEL_INDEX, ROOT_MODEL_INDEX);
         }
     }
@@ -2327,6 +2268,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Calculates how many child nodes will be visible given a parent node.
      * If you want a count of the visible nodes of a parent before it is actually expanded,
      * you can say to expand the parent (no matter what it's actual expanded status right now).
+     * This will not actually expand the node in the tree - just count what would be visible if it was.
      *
      * @param node The node to get a count of visible children for.
      * @param expandNode true if you want a count no matter whether it is currently expanded or not.
@@ -2616,6 +2558,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
                     if (expandOnChildNavigation && !isExpanded(node)) {
                         toggleExpansion(node, modelIndexRow);
                     } else {
+                        //TODO: is this true if filtering?
                         if (node.getChildCount() > 0) {
                             final int childRow = modelIndexRow + 1;
                             table.setRowSelectionInterval(childRow, childRow);

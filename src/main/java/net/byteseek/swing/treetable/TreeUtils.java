@@ -31,16 +31,17 @@
  */
 package net.byteseek.swing.treetable;
 
-import java.util.ArrayList;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.swing.RowSorter;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
+import javax.swing.table.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
-import java.util.List;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A collection of miscellaneous static utility methods and objects to build trees, group nodes, process
@@ -53,6 +54,10 @@ public final class TreeUtils {
      */
     private static final char TAB_CHAR = '\t';
     private static final char NEW_LINE = '\n';
+    /**
+     * Default visible width of a TableColumn created using the utility createColumn() methods, if you don't specify a width.
+     */
+    private static final int DEFAULT_COLUMN_WIDTH = 75;
 
     /**
      * Static utility class - cannot construct it.
@@ -85,7 +90,7 @@ public final class TreeUtils {
     /**
      * Mirrors a tree of user objects as a tree of MutableTreeNodes, with each MutableTreeNode associated with the
      * appropriate user object.  If your user objects already have a tree structure, this is a quick way to
-     * obtain a parallel tree of TreeNodes.   It allows you to set whether each node should allow children.
+     * obtain a parallel tree of TreeNodes.   It allows you to set whether each node should allow children using a Predicate.
      *
      * <p>
      * It will build a root DefaultMutableTreeNode and all sub children given the user object which is the parent,
@@ -115,6 +120,323 @@ public final class TreeUtils {
             }
         }
         return parentNode;
+    }
+
+    /**
+     * This class represents a row in a table that models a tree structure,
+     * containing an identifier, a parent identifier, and additional column data.
+     */
+    public static class TreeTableRow {
+
+        private Object id;
+        private Object parentId;
+        private Object[] otherColumns;
+
+        public TreeTableRow() {
+        }
+
+        public TreeTableRow(final Object id, final Object parentId, final Object[] otherColumns) {
+            this.id = id;
+            this.parentId = parentId;
+            this.otherColumns = otherColumns;
+        }
+
+        public Object getId() {
+            return id;
+        }
+
+        public void setId(Object id) {
+            this.id = id;
+        }
+
+        public Object getParentId() {
+            return parentId;
+        }
+
+        public void setParentId(Object parentId) {
+            this.parentId = parentId;
+        }
+
+        public Object[] getRowData() {
+            return otherColumns;
+        }
+
+        public void setRowData(Object[] otherColumns) {
+            this.otherColumns = otherColumns;
+        }
+    }
+
+    /**
+     * Represents information about the header of a CSV table.
+     * This class stores details about the headers and identifies specific columns
+     * by their indices, including unique identifier and parent identifier columns.
+     */
+    public static final class CSVTableHeaderInfo {
+        private final Object[] headers;
+        private final int idColumnIndex;
+        private final int parentIdColumnIndex;
+
+        public CSVTableHeaderInfo(Object[] headers, int idColumnIndex, int parentIdColumnIndex) {
+            this.headers = headers;
+            this.idColumnIndex = idColumnIndex;
+            this.parentIdColumnIndex = parentIdColumnIndex;
+        }
+
+        public Object[] getHeaders() {
+            return headers;
+        }
+
+        public int getIdColumnIndex() {
+            return idColumnIndex;
+        }
+
+        public int getParentIdColumnIndex() {
+            return parentIdColumnIndex;
+        }
+    }
+
+    /**
+     * Processes the CSV headers from the provided BufferedReader, locates the index of the id and parent id columns,
+     * and returns an object containing header information.
+     *
+     * @param reader the BufferedReader to read the CSV data from
+     * @param idColumnName the name of the column representing the id
+     * @param parentIdColumnName the name of the column representing the parent id
+     * @param separatorChar the character used as a delimiter in the CSV file
+     * @return a CSVTableHeaderInfo object containing the processed headers and the indices of the id and parent id columns
+     * @throws IOException if the header line cannot be read or if the specified id or parent id column names are not found
+     */
+    public static CSVTableHeaderInfo processCSVHeaders(BufferedReader reader, String idColumnName, String parentIdColumnName, char separatorChar) throws IOException{
+        String headerLine = reader.readLine();
+        if (headerLine == null) {
+            throw new IOException("No header line found in CSV file");
+        }
+        String[] headerNames = headerLine.split(String.valueOf(separatorChar), -1);
+
+        // Find the id and parent id columns
+        int idColumnIndex = -1;
+        int parentIdColumnIndex = -1;
+        for (int i = 0; i < headerNames.length; i++) {
+            if (headerNames[i].equals(idColumnName)) {
+                idColumnIndex = i;
+            } else if (headerNames[i].equals(parentIdColumnName)) {
+                parentIdColumnIndex = i;
+            }
+        }
+        if (idColumnIndex == -1 || parentIdColumnIndex == -1) {
+            throw new IOException("Could not find the specified id or parent id column name in the file.");
+        }
+
+        Object[] headers = removeEntries(headerNames, idColumnIndex, parentIdColumnIndex);
+
+        return new CSVTableHeaderInfo(headers, idColumnIndex, parentIdColumnIndex);
+    }
+
+
+    /**
+     * An iterator for reading rows from a CSV file and populating {@code TreeUtils.TableTreeRow} objects.
+     * <p>
+     * This iterator processes each row from the given {@link BufferedReader}, parsing column values
+     * into the appropriate fields of a {@code TreeUtils.TableTreeRow} instance. It supports differentiation
+     * of ID and parent ID columns, storing remaining values into a separate array of other columns.
+     * <p>
+     * The iterator assumes the CSV file has a consistent number of columns per row.
+     * It splits the input line based on a definable separator (defaulting to comma) and handles empty fields as empty strings.
+     */
+    public static class CSVTreeTableRowIterator implements Iterator<TreeTableRow> {
+
+        String line;
+        String separatorChar = ",";
+        int idColumnIndex;
+        int parentIdColumnIndex;
+        BufferedReader reader;
+        TreeTableRow row = new TreeTableRow();
+
+        /**
+         * Constructs a CSVTableTreeRowIterator for processing rows from a given BufferedReader.
+         *
+         * @param reader The BufferedReader instance to read CSV rows from.
+         * @param idColumnIndex The index of the column representing the ID in the CSV data.
+         * @param parentIdColumnIndex The index of the column representing the parent ID in the CSV data.
+         * @throws IOException If an I/O error occurs while initializing the reader.
+         */
+        public CSVTreeTableRowIterator(BufferedReader reader, int idColumnIndex, int parentIdColumnIndex) throws IOException {
+            this.reader = reader;
+            this.idColumnIndex = idColumnIndex;
+            this.parentIdColumnIndex = parentIdColumnIndex;
+        }
+
+        /**
+         * Constructs a CSVTableTreeRowIterator for processing rows from a given BufferedReader
+         * with a specified separator character for splitting CSV data.
+         *
+         * @param reader The BufferedReader instance to read CSV rows from.
+         * @param idColumnIndex The index of the column representing the ID in the CSV data.
+         * @param parentIdColumnIndex The index of the column representing the parent ID in the CSV data.
+         * @param separatorChar The character used to separate column values in the CSV data.
+         * @throws IOException If an I/O error occurs while initializing the reader.
+         */
+        public CSVTreeTableRowIterator(BufferedReader reader, int idColumnIndex, int parentIdColumnIndex, char separatorChar) throws IOException {
+            this(reader, idColumnIndex, parentIdColumnIndex);
+            this.separatorChar = String.valueOf(separatorChar);
+        }
+
+        @Override
+        public boolean hasNext() {
+            try {
+                line = reader.readLine();
+            } catch (IOException e) {
+                throw new RuntimeException("Problem reading data", e);
+            }
+            return line != null;
+        }
+
+        @Override
+        public TreeTableRow next() {
+            String[] values = line.split(separatorChar, -1);
+            row.setId(values[idColumnIndex]);
+            row.setParentId(values[parentIdColumnIndex]);
+            row.setRowData(TreeUtils.removeEntries(values, idColumnIndex, parentIdColumnIndex));
+            return row;
+        }
+    }
+
+    /**
+     * Builds a tree structure from an iterator of TableTreeRow objects.
+     * Each TableTreeRow contains information about the data, its unique ID,
+     * and the ID of its parent node. The method constructs a tree where nodes
+     * are arranged based on their parent-child relationships.
+     *
+     * @param tableRows an iterator of TableTreeRow objects, each representing a row of data
+     *                  with unique ID and parent ID mapping.
+     * @return the root node of the constructed tree as a DefaultMutableTreeNode.
+     */
+    public static DefaultMutableTreeNode buildTree(final Iterator<TreeTableRow> tableRows) {
+        final DefaultMutableTreeNode rootNode = new DefaultMutableTreeNode();
+
+        // We build in two stages (1) creating the nodes plus recording their ids, and (2) building the tree structure.
+        // This is because we cannot guarantee that parent nodes always appear in tabular data
+        // before their child nodes.  A two-stage approach means the order they appear in doesn't matter.
+
+        // 1. Build a map of the ids to the new tree nodes with their associated row data, and the id to parent id mapping.
+        final Map<Object, DefaultMutableTreeNode> nodeMap = new HashMap<>();
+        final Map<Object, Object> parentIdMap = new HashMap<>();
+        while (tableRows.hasNext()) {
+            final TreeTableRow treeTableRow = tableRows.next();
+            nodeMap.put(treeTableRow.getId(), new DefaultMutableTreeNode(treeTableRow.getRowData()));
+            parentIdMap.put(treeTableRow.getId(), treeTableRow.getParentId());
+        }
+
+        // 2. Assign all the nodes to their correct parent node, or to the root node if there is no parent node:
+        for (Object id: nodeMap.keySet()) {
+            final DefaultMutableTreeNode treeNode = nodeMap.get(id);
+            final DefaultMutableTreeNode parentNode = nodeMap.get(parentIdMap.get(id));
+            if (parentNode != null) {
+                parentNode.add(treeNode);
+            } else {
+                rootNode.add(treeNode);
+            }
+        }
+
+        return rootNode;
+    }
+
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
+    public static TableColumn createColumn(final int modelIndex, final Object headerValue) {
+        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, null, null);
+    }
+
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param width The width of the column.
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
+    public static TableColumn createColumn(final int modelIndex, final Object headerValue, final int width) {
+        return createColumn(modelIndex, headerValue, width, null, null);
+    }
+
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
+     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
+    public static TableColumn createColumn(final int modelIndex, final Object headerValue,
+                                       final TableCellRenderer cellRenderer) {
+        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, null);
+    }
+
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
+     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param width The width of the column.
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @return a TableColumn with the values provided and defaults for the others.
+     */
+    public static TableColumn createColumn(final int modelIndex, final Object headerValue, final int width,
+                                       final TableCellRenderer cellRenderer) {
+        return createColumn(modelIndex, headerValue, width, cellRenderer, null);
+    }
+
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @param cellEditor The TableCellEditor to use with the data types in that column.
+     * @return a TableColumn with the values provided, and a default width.
+     */
+    public static TableColumn createColumn(final int modelIndex, final Object headerValue,
+                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
+        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor);
+    }
+
+    /**
+     * Utility method to simplify creating columns for subclasses.
+     *
+     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
+     * @param headerValue The header value
+     * @param width The width of the column.
+     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
+     * @param cellEditor The TableCellEditor to use with the data types in that column.
+     * @return a TableColumn with the values provided.
+     */
+    public static  TableColumn createColumn(final int modelIndex,  final Object headerValue, final int width,
+                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
+        final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
+        column.setHeaderValue(headerValue);
+        return column;
+    }
+
+    /**
+     * Builds a TableColumnModel instance based on the provided list of column headers.
+     *
+     * @param headers the list of headers to be used for creating the columns
+     * @return a TableColumnModel containing columns corresponding to the provided headers
+     */
+    public static TableColumnModel buildTableColumnModel(final List<?> headers) {
+        TableColumnModel columnModel = new DefaultTableColumnModel();
+        int index = 0;
+        for (Object header : headers) {
+            columnModel.addColumn(createColumn(index++, header));
+        }
+        return columnModel;
     }
 
     /**
@@ -394,6 +716,19 @@ public final class TreeUtils {
             lastConsecutiveIndex = i; // one apart - update last consecutive index.
         }
         return lastConsecutiveIndex;
+    }
+
+
+    public static Object[] removeEntries(Object[] original, int... indexesToRemove) {
+        Object[] newArray = new Object[original.length - indexesToRemove.length];
+        Set<Integer> set = Arrays.stream(indexesToRemove).boxed().collect(Collectors.toSet());
+        int index = 0;
+        for (int i = 0; i < original.length; i++) {
+            if (!set.contains(i)) {
+                newArray[index++] = original[i];
+            }
+        }
+        return newArray;
     }
 
 }

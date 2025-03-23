@@ -37,6 +37,7 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.event.MouseEvent;
+import java.util.function.Predicate;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JLabel;
@@ -425,7 +426,7 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
         @Override
         public void paintBorder(final Component c, final Graphics g, final int x, final int y,
                                 final int width, final int height) {
-            if (currentNode.getAllowsChildren()) {
+            if (currentNode.getAllowsChildren() && (currentNode.getChildCount() > 0 || treeTableModel.showExpandHandleIfNoChildren)) {
                 final JLabel localRenderer = expandCollapseIconRenderer;
                 localRenderer.setIcon(treeTableModel.isExpanded(currentNode) ? expandedIcon : collapsedIcon);
                 localRenderer.setSize(insets.left, height);

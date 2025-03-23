@@ -37,20 +37,16 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
-import javax.swing.JTable;
-import javax.swing.KeyStroke;
-import javax.swing.RowSorter;
-import javax.swing.SortOrder;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
-import javax.swing.table.TableRowSorter;
+import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
+import javax.swing.table.*;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import static org.junit.jupiter.api.Assertions.*;
+
+import com.sun.source.tree.Tree;
 import org.junit.jupiter.api.Test;
 
 class TreeTableModelTest extends BaseTestClass {
@@ -968,10 +964,6 @@ class TreeTableModelTest extends BaseTestClass {
     public void testFilterHiddenRootNodeNoTable() {
         // An unexpanded hidden root will have nothing visible in the tree.
         model.setShowRoot(false);
-        assertEquals(0, model.getRowCount());
-
-        // If we expand it, it's three children will be visible:
-        model.expandNode(rootNode);
         assertEquals(3, model.getRowCount());
         assertEquals(child0, model.getNodeAtTableRow(0));
         assertEquals(child1, model.getNodeAtModelIndex(1));
@@ -1006,10 +998,6 @@ class TreeTableModelTest extends BaseTestClass {
 
         // An unexpanded hidden root will have nothing visible in the tree.
         model.setShowRoot(false);
-        assertEquals(0, table.getRowCount());
-
-        // If we expand it, it's three children will be visible:
-        model.expandNode(rootNode);
         assertEquals(3, table.getRowCount());
         assertEquals(child0, model.getNodeAtTableRow(0));
         assertEquals(child1, model.getNodeAtTableRow(1));
@@ -1588,24 +1576,249 @@ class TreeTableModelTest extends BaseTestClass {
         assertFalse(model.isExpanded(rootNode));
     }
 
+
+    @Test
+    void testExpandCollapseTreeShowRoot() {
+        model = new TestTreeTableModel(rootNode, true);
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree();
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertTrue(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+
+        model.collapseTree();
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+    }
+
+    @Test
+    void testExpandCollapseTreeDoNotShowRoot() {
+        model = new TestTreeTableModel(rootNode, false);
+        assertTrue(model.isExpanded(rootNode)); // root is expanded if it is not showing.
+
+        model.expandTree();
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertTrue(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+
+        model.collapseTree();
+        assertTrue(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+    }
+
+    @Test
+    public void testExpandTreeWithDepth() {
+        model = new TestTreeTableModel(rootNode, true);
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree(1);
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertFalse(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+
+        model.collapseTree();
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree(2);
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertTrue(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+    }
+
+    @Test
+    public void testExpandTreeWithPredicate() {
+        model = new TestTreeTableModel(rootNode, true);
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree(treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.equals("root");
+        });
+
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertFalse(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+
+        model.collapseTree();
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree(treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.equals("root") || object.description.startsWith("child");
+        });
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertTrue(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+    }
+
+    @Test
+    public void testExpandTreeWithDepthAndPredicate() {
+        model = new TestTreeTableModel(rootNode, true);
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree(0, treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.equals("root") || object.description.startsWith("child");
+        });
+
+        assertFalse(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertFalse(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+
+        model.collapseTree();
+        assertFalse(model.isExpanded(rootNode)); // showing roots are not expanded by default.
+
+        model.expandTree(1, treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.equals("root") || object.description.startsWith("child");
+        });
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertFalse(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+
+        model.expandTree(2, treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.equals("root") || object.description.startsWith("child");
+        });
+        assertTrue(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child0));
+        assertTrue(model.isExpanded(child1));
+        assertFalse(model.isExpanded(child2));
+    }
+
+    @Test
+    public void testCollapseChildren() {
+        model = new TestTreeTableModel(rootNode, true);
+        model.expandTree(); // all nodes should be expanded.
+        assertTrue(model.isExpanded(child1));
+
+        model.collapseNode(rootNode); // root node is collapsed, but child 1 is still expanded.
+        assertTrue(model.isExpanded(child1));
+
+        model.collapseChildren(rootNode); // all child nodes should be collapsed.
+        assertFalse(model.isExpanded(rootNode));
+        assertFalse(model.isExpanded(child1));
+    }
+
+    @Test
+    public void testCollapseChildrenWithPredicate() {
+        model = new TestTreeTableModel(rootNode, true);
+        model.expandTree(); // all nodes should be expanded.
+        assertTrue(model.isExpanded(child1));
+
+        model.collapseNode(rootNode); // root node is collapsed, but child 1 is still expanded.
+        assertTrue(model.isExpanded(child1));
+
+        model.collapseChildren(rootNode, treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.equals("root");
+        }); // only root node should be collapsed.
+        assertFalse(model.isExpanded(rootNode));
+        assertTrue(model.isExpanded(child1));
+    }
+
+    @Test
+    public void testToggleNode() {
+        model = new TestTreeTableModel(rootNode, false);
+        assertTrue(model.isExpanded(rootNode)); // root is expanded if it is not showing.
+
+        model.toggleNode(rootNode);
+        assertFalse(model.isExpanded(rootNode));
+
+        model.toggleNode(rootNode);
+        assertTrue(model.isExpanded(rootNode));
+    }
+
     @Test
     public void testGetRoot() {
-        //fail("TODO");
+        assertEquals(rootNode, model.getRoot());
+    }
+
+    @Test
+    public void testSetNullRootException() {
+        assertThrows(IllegalArgumentException.class, () -> model.setRoot(null));
+    }
+
+    @Test
+    public void testSetVisibleRoot() {
+        DefaultMutableTreeNode newRoot = new DefaultMutableTreeNode("test");
+        newRoot.add(subchild3);
+        model.setShowRoot(true);
+        model.setRoot(newRoot);
+        assertEquals(newRoot, model.getRoot());
+        assertEquals(1, model.getRowCount());
+        model.expandTree();
+        assertEquals(2, model.getRowCount());
+    }
+
+    @Test
+    public void testSetHiddenRoot() {
+        DefaultMutableTreeNode newRoot = new DefaultMutableTreeNode("test");
+        newRoot.add(subchild3);
+        model.setShowRoot(false);
+        model.setRoot(newRoot);
+        assertEquals(newRoot, model.getRoot());
+        assertEquals(1, model.getRowCount());
+        model.expandTree();
+        assertEquals(1, model.getRowCount());
+    }
+
+    /* *****************************************************************************************************************
+     *                                 Test node selection
+     */
+
+    @Test
+    public void testGetSelectedNodeNoTable() {
+        assertNull(model.getSelectedNode());
+    }
+
+    @Test
+    public void testGetSelectedNodeNoSelection() {
+        model.bindTable(table);
+        assertNull(model.getSelectedNode());
     }
 
     @Test
     public void testGetSelectedNode() {
-        //fail("TODO");
+        model.bindTable(table);
+        table.setRowSelectionInterval(0, 0);
+        assertEquals(rootNode, model.getSelectedNode());
+    }
+
+    @Test
+    public void testGetSelectedNodesNoTable() {
+        assertTrue(model.getSelectedNodes().isEmpty());
+    }
+
+    @Test
+    public void testGetSelectedNodesNoSelection() {
+        model.bindTable(table);
+        assertTrue(model.getSelectedNodes().isEmpty());
     }
 
     @Test
     public void testGetSelectedNodes() {
-        //fail("TODO");
+        model.bindTable(table);
+        model.expandTree();
+        table.setRowSelectionInterval(0, 2);
+        assertEquals(3, model.getSelectedNodes().size());
     }
 
     @Test
     public void testGetNodeAtModelIndex() {
-        //fail("TODO");
+        assertNull(model.getNodeAtModelIndex(-1));
+        assertEquals(rootNode, model.getNodeAtModelIndex(0));
+        assertNull(model.getNodeAtModelIndex(1));
+        model.expandTree();
+        assertEquals(child0, model.getNodeAtModelIndex(1));
+        assertNull(model.getNodeAtModelIndex(model.getRowCount()));
     }
 
     @Test
@@ -1614,13 +1827,169 @@ class TreeTableModelTest extends BaseTestClass {
     }
 
     @Test
-    public void testGetSelectionModel() {
-        //fail("TODO");
+    public void testGetSelectionModelNoTable() {
+        assertNull(model.getSelectionModel());
     }
 
     @Test
-    public void testGetSelectedRowModelIndexes() {
-        //fail("TODO");
+    public void testGetSelectionModel() {
+        model.bindTable(table);
+        assertNotNull(model.getSelectionModel());
+    }
+
+    /* *****************************************************************************************************
+     *   Test using a tree model to update the tree.
+     */
+
+    @Test
+    public void testTreeModelSetInvisibleRoot() {
+        model.bindTable(table);
+        model.setShowRoot(false);
+        model.expandTree();
+        assertTrue(model.getRowCount() > 1);
+
+        DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
+        treeModel.addTreeModelListener(model);
+        treeModel.setRoot(subchild2);
+
+        assertEquals(subchild2, model.getRoot());
+        assertEquals(0, model.getRowCount());
+    }
+
+    @Test
+    public void testTreeModelSetVisibleRoot() {
+        model.bindTable(table);
+        model.setShowRoot(true);
+        model.expandTree();
+        assertTrue(model.getRowCount() > 1);
+
+        DefaultTreeModel treeModel = new DefaultTreeModel(rootNode);
+        treeModel.addTreeModelListener(model);
+        treeModel.setRoot(subchild2);
+
+        assertEquals(subchild2, model.getRoot());
+        assertEquals(1, model.getRowCount());
+    }
+
+    @Test
+    public void testCreateTableColumn() {
+        TableColumn column = TreeUtils.createColumn(1, "test1");
+        testColumn(column, 1, "test1", 75, null, null);
+
+        column = TreeUtils.createColumn(0, "test2", 100);
+        testColumn(column, 0, "test2", 100, null, null);
+
+        TreeCellRenderer renderer = new TreeCellRenderer(model);
+        column = TreeUtils.createColumn(9, "test3", renderer);
+        testColumn(column, 9, "test3", 75, renderer, null);
+
+        column = TreeUtils.createColumn(3, "test4", 100, renderer);
+        testColumn(column, 3, "test4", 100, renderer, null);
+
+        TableCellEditor editor = new DefaultCellEditor(new JTextField());
+        column = TreeUtils.createColumn(8, "test5", renderer, editor);
+        testColumn(column, 8, "test5", 75, renderer, editor);
+    }
+
+    private void testColumn(TableColumn column, int index, String header, int width,
+                            TableCellRenderer renderer, TableCellEditor editor) {
+        assertEquals(header, column.getIdentifier());
+        assertEquals(width, column.getWidth());
+        assertEquals(index, column.getModelIndex());
+        assertEquals(renderer, column.getCellRenderer());
+        assertEquals(editor, column.getCellEditor());
+    }
+
+    /**
+     * This only checks that the test implementation of TreeTableModel works.
+     */
+    @Test
+    public void testSetColumnValueTestImplementation() {
+        TestTreeTableModel.TestObject object = TreeUtils.getUserObject(rootNode);
+        assertEquals("root", object.description);
+        model.setColumnValue(rootNode, 0, "root changed");
+        assertEquals("root changed", object.description);
+    }
+
+    @Test
+    public void testGetVisibleSubTreeCount() {
+        assertEquals(0, model.getVisibleSubTreeCount(rootNode));
+        assertEquals(0, model.getVisibleSubTreeCount(child1));
+
+        model.expandNode(child1); // child 1 expanded but root node is not so will not be visible.
+        assertEquals(0, model.getVisibleSubTreeCount(child1));
+
+        model.expandNode(rootNode); // now child 1 children will be visible as root is expanded.
+        assertEquals(7, model.getVisibleSubTreeCount(rootNode));
+        assertEquals(4, model.getVisibleSubTreeCount(child1));
+
+        model.collapseNode(child1);
+        assertEquals(3, model.getVisibleSubTreeCount(rootNode));
+    }
+
+    @Test
+    public void testGetFilteredChildCount() {
+        assertEquals(3, model.getFilteredChildCount(rootNode));
+
+        model.setNodeFilter(treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.contains("child");
+        });
+        assertEquals(0, model.getFilteredChildCount(rootNode));
+
+        model.setNodeFilter(treeNode -> {
+            TestTreeTableModel.TestObject object = TreeUtils.getUserObject(treeNode);
+            return object.description.contains("1") || object.description.contains("2");
+        });
+        assertEquals(1, model.getFilteredChildCount(rootNode));
+    }
+
+    @Test
+    public void testTreeModelInsertNodeInto() {
+
+    }
+
+    @Test
+    public void testTreeModelRemoveNodeFromParent() {
+
+    }
+
+    @Test
+    public void testTreeModelNodeChanged() {
+
+    }
+
+    @Test
+    public void testTreeModelReload() {
+
+    }
+
+    @Test
+    public void testTreeModelNodesWereInserted() {
+
+    }
+
+    @Test
+    public void testTreeModelNodesWereRemoved() {
+
+    }
+
+    @Test
+    public void testTreeModelNodesChanged() {
+
+    }
+
+    @Test
+    public void testTreeModelNodeStructureChanged() {
+
+    }
+
+    /* *****************************************************************************************************
+     *   Test calling update methods when tree changed manually (no treemodel).
+     */
+
+    @Test
+    public void testTreeNodesChangedChild() {
     }
 
     @Test
@@ -1662,7 +2031,6 @@ class TreeTableModelTest extends BaseTestClass {
     public void testRemoveKeyboardActions() {
         //fail("TODO");
     }
-
 
 
     /* *****************************************************************************************************************

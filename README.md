@@ -161,6 +161,7 @@ model.addExpandCollapseListener(new TreeTableModel.ExpandCollapseListener() {
     }
 });
 ```
+Note that by default, the TreeTableModel will not show expand handles for nodes that have no children (or if they do not allow children).  If you want to display expand/collapse handles for nodes that allow children, but may not have any currently as you are dynamically adding them, you should call `setShowExpandHandleIfNoChildren(true)`.  This will then display expand and collapse handles for nodes that allow children, regardless of whether they have any currently or not.
 
 Any changes made to a subtree inside the `ExpandCollapseListener` will automatically be processed by the `TreeTableModel`.  If you want to cancel an expansion or collapse event, return `false` from the event method.
 
