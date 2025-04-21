@@ -1,11 +1,13 @@
 package net.byteseek.demo.treetable;
 
+import net.byteseek.swing.treetable.TableUtils;
 import net.byteseek.swing.treetable.TreeTableModelObjectArray;
 import net.byteseek.swing.treetable.TreeUtils;
 
+import javax.swing.table.JTableHeader;
 import javax.swing.tree.DefaultMutableTreeNode;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
@@ -14,6 +16,10 @@ import java.util.Arrays;
  * The CSVTree class provides functionality for reading hierarchical data from a CSV file,
  * constructing a tree structure, and displaying the tree in a graphical JTable-based viewer.
  * It includes methods for parsing CSV data, creating tree nodes, and rendering the tree as a GUI.
+ * <p>
+ * It also replaces the default mouse click behaviour on the headers, so that it will sort for each header click,
+ * unless the cursor is a resize cursor.  In that case, if it is a double-click, it will resize the column to fit
+ * the contents.
  */
 public class CSVTree {
 
@@ -54,7 +60,7 @@ public class CSVTree {
     public static void displayTree(DefaultMutableTreeNode rootNode, Object[] headers) throws IOException {
         javax.swing.SwingUtilities.invokeLater(() -> {
             // Build the column model
-            javax.swing.table.TableColumnModel columnModel = TreeUtils.buildTableColumnModel(Arrays.asList(headers));
+            javax.swing.table.TableColumnModel columnModel = TableUtils.buildTableColumnModel(Arrays.asList(headers));
 
             // Create a TreeTableModelObjectArray from the root node and column model.
             TreeTableModelObjectArray treeTableModel = new TreeTableModelObjectArray(rootNode, columnModel);
@@ -62,9 +68,13 @@ public class CSVTree {
 
             // Create a JTable and set the TreeTableModelObjectArray as its model
             javax.swing.JTable table = new javax.swing.JTable();
-
-            // Bind the tree table model to the table:
             treeTableModel.bindTable(table);
+
+            // Replace the default look and feel mouse click listener so it sorts on every click,
+            // and resizes the column on a double-click to fit the contents, if the cursor is a resize cursor.
+            TableUtils.AWTMouseListenerReplacer clickReplacer = new TableUtils.AWTMouseListenerReplacer(
+                    new TableUtils.HeaderSortResizeMouseClickListener(), MouseEvent.MOUSE_CLICKED, table.getTableHeader());
+            clickReplacer.activate();
 
             // Place the table in a scroll pane
             javax.swing.JScrollPane scrollPane = new javax.swing.JScrollPane(table);
