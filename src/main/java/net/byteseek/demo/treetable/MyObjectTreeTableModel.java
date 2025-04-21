@@ -38,6 +38,7 @@ import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.TableColumnModel;
 import javax.swing.tree.TreeNode;
 import net.byteseek.swing.treetable.Comparators;
+import net.byteseek.swing.treetable.TableUtils;
 import net.byteseek.swing.treetable.TreeTableModel;
 import net.byteseek.swing.treetable.TreeUtils;
 
@@ -86,10 +87,10 @@ public final class MyObjectTreeTableModel extends TreeTableModel {
     @Override
     public TableColumnModel createTableColumnModel() {
         TableColumnModel result = new DefaultTableColumnModel();
-        result.addColumn(TreeUtils.createColumn(0, "description"));
-        result.addColumn(TreeUtils.createColumn(1, "size"));
-        result.addColumn(TreeUtils.createColumn(2, "enabled"));
-        result.addColumn(TreeUtils.createColumn(3, "children"));
+        result.addColumn(TableUtils.createColumn(0, "description"));
+        result.addColumn(TableUtils.createColumn(1, "size"));
+        result.addColumn(TableUtils.createColumn(2, "enabled"));
+        result.addColumn(TableUtils.createColumn(3, "children"));
         return result;
     }
 
