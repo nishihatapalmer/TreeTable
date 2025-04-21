@@ -217,7 +217,7 @@ public class BaseTestClass {
         public TableColumnModel createTableColumnModel() {
             TableColumnModel columns = new DefaultTableColumnModel();
             for (int columnNumber = 0; columnNumber < columnCount; columnNumber++) {
-                columns.addColumn(TreeUtils.createColumn(columnNumber, "header" + columnNumber));
+                columns.addColumn(TableUtils.createColumn(columnNumber, "header" + columnNumber));
             }
             return columns;
         }

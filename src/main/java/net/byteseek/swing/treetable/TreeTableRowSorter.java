@@ -351,7 +351,7 @@ public class TreeTableRowSorter extends RowSorter<TreeTableModel> {
 
     @Override
     public void rowsUpdated(final int firstModelIndex, final int endModelIndex, final int column) {
-        if (TreeUtils.columnInSortKeys(sortKeys, column)) {
+        if (TableUtils.columnInSortKeys(sortKeys, column)) {
             rowsUpdated(firstModelIndex, endModelIndex);
         }
     }

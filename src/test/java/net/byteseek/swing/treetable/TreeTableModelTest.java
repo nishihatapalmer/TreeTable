@@ -38,15 +38,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.Predicate;
 import javax.swing.*;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.sun.source.tree.Tree;
 import org.junit.jupiter.api.Test;
 
 class TreeTableModelTest extends BaseTestClass {
@@ -1873,21 +1870,21 @@ class TreeTableModelTest extends BaseTestClass {
 
     @Test
     public void testCreateTableColumn() {
-        TableColumn column = TreeUtils.createColumn(1, "test1");
+        TableColumn column = TableUtils.createColumn(1, "test1");
         testColumn(column, 1, "test1", 75, null, null);
 
-        column = TreeUtils.createColumn(0, "test2", 100);
+        column = TableUtils.createColumn(0, "test2", 100);
         testColumn(column, 0, "test2", 100, null, null);
 
         TreeCellRenderer renderer = new TreeCellRenderer(model);
-        column = TreeUtils.createColumn(9, "test3", renderer);
+        column = TableUtils.createColumn(9, "test3", renderer);
         testColumn(column, 9, "test3", 75, renderer, null);
 
-        column = TreeUtils.createColumn(3, "test4", 100, renderer);
+        column = TableUtils.createColumn(3, "test4", 100, renderer);
         testColumn(column, 3, "test4", 100, renderer, null);
 
         TableCellEditor editor = new DefaultCellEditor(new JTextField());
-        column = TreeUtils.createColumn(8, "test5", renderer, editor);
+        column = TableUtils.createColumn(8, "test5", renderer, editor);
         testColumn(column, 8, "test5", 75, renderer, editor);
     }
 

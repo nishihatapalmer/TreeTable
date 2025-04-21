@@ -31,13 +31,8 @@
  */
 package net.byteseek.swing.treetable;
 
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Insets;
+import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.util.function.Predicate;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
 import javax.swing.JLabel;
@@ -163,11 +158,20 @@ public class TreeCellRenderer extends DefaultTableCellRenderer implements TreeTa
     }
 
     @Override
+    public Dimension getPreferredSize() {
+        Dimension value = super.getPreferredSize();
+        if(value != null) {
+            value = new Dimension(value.width + insets.left, value.height);
+        }
+        return value;
+    }
+
+    @Override
     public boolean clickOnExpand(final TreeNode node, final int column, final MouseEvent evt) {
         final TableColumnModel columnModel = treeTableModel.getTableColumnModel();
         final int columnModelIndex = columnModel.getColumn(column).getModelIndex();
         if (columnModelIndex == TREE_COLUMN_MODEL_INDEX && node != null && node.getAllowsChildren()) {
-            final int columnStart = TreeUtils.calculateWidthToLeftOfColumn(columnModel, column);
+            final int columnStart = TableUtils.calculateWidthToLeftOfColumn(columnModel, column);
             final int expandEnd = columnStart + calculateNodeIndent(node);
             final int mouseX = evt.getPoint().x;
             return mouseX > columnStart && mouseX < expandEnd;

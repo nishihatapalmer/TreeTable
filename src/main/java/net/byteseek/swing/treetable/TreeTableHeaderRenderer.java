@@ -47,6 +47,8 @@ import javax.swing.UIManager;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EtchedBorder;
+import javax.swing.plaf.basic.BasicTableHeaderUI;
+import javax.swing.plaf.basic.BasicTableUI;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 
@@ -197,6 +199,10 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
 
     @Override
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+        //TODO: remove below!!!
+        BasicTableHeaderUI ui;
+        BasicTableUI ui2;
+        //TODO: remove above!!!
         if (table != null) {
             JTableHeader header = table.getTableHeader();
             if (header != null) {
@@ -335,7 +341,7 @@ public class TreeTableHeaderRenderer extends JLabel implements TableCellRenderer
     protected void setColumnSortedProperties(final JTable table, final int column) {
         final List<? extends RowSorter.SortKey> sortKeys = table.getRowSorter().getSortKeys();
         final int columnModelIndex = table.convertColumnIndexToModel(column);
-        final int sortKeyIndex = TreeUtils.findSortKeyIndex(sortKeys, columnModelIndex);
+        final int sortKeyIndex = TableUtils.findSortKeyIndex(sortKeys, columnModelIndex);
         sortOrder = sortKeyIndex >= 0 ? sortKeys.get(sortKeyIndex).getSortOrder() : SortOrder.UNSORTED;
         if (sortOrder == SortOrder.UNSORTED) {
             setUnsortedColumnProperties(table);

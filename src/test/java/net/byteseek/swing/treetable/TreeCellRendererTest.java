@@ -37,7 +37,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.event.MouseEvent;
 import javax.swing.BorderFactory;
-import javax.swing.DebugGraphics;
 import javax.swing.Icon;
 import javax.swing.JLabel;
 import javax.swing.JTable;
@@ -637,7 +636,7 @@ class TreeCellRendererTest extends BaseTestClass  {
     private void testClickOnExpand(TableColumnModel columnModel) {
         for (int colIndex = 0; colIndex < columnModel.getColumnCount(); colIndex++) {
             final TableColumn column = columnModel.getColumn(colIndex);
-            final int columnStart = TreeUtils.calculateWidthToLeftOfColumn(columnModel, colIndex);
+            final int columnStart = TableUtils.calculateWidthToLeftOfColumn(columnModel, colIndex);
 
             // click will only happen if we're on a tree column:
             MouseEvent event = mouseEvent( columnStart + 8, 0);

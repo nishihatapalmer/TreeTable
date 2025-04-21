@@ -31,7 +31,7 @@
  */
 package net.byteseek.swing.treetable;
 
-import java.awt.Point;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -47,23 +47,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
-import javax.swing.AbstractAction;
-import javax.swing.ActionMap;
-import javax.swing.Icon;
-import javax.swing.InputMap;
-import javax.swing.JComponent;
-import javax.swing.JTable;
-import javax.swing.KeyStroke;
-import javax.swing.ListSelectionModel;
-import javax.swing.RowSorter;
-import javax.swing.SortOrder;
+import javax.swing.*;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableColumnModel;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
-import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
@@ -86,6 +76,8 @@ import net.byteseek.utils.collections.BlockModifyArrayList;
  * allow cells to be editable and set their values, and so on.
  */
 public abstract class TreeTableModel extends AbstractTableModel implements TreeModelListener {
+
+    //TODO: do we need to respond to look and feel changes and re-register any listeners...?
 
     /* *****************************************************************************************************************
      *                                         Constants
@@ -426,8 +418,8 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             if (headerRenderer != null) {
                 tableToBind.getTableHeader().setDefaultRenderer(headerRenderer);
             }
-            addKeyboardActions();
-            addMouseListener();
+            addKeyboardActions(); //TODO: do we need to unbind keyboard actions?
+            addMouseListener();   //TODO: do we need to unbind mouse listener?
         }
     }
 
@@ -1526,7 +1518,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
             tableMouseListener = new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
-                    toggleExpansion(e);
+                    toggleExpansion(e); //TODO: restrict to just left mouse button?
                 }
             };
             table.addMouseListener(tableMouseListener);
@@ -2318,7 +2310,7 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     protected TreeClickHandler getOrCreateTreeClickHandler() {
-        final TableColumn column = TreeUtils.getColumnWithModelIndex(getTableColumnModel(), TREE_COLUMN_INDEX);
+        final TableColumn column = TableUtils.getColumnWithModelIndex(getTableColumnModel(), TREE_COLUMN_INDEX);
         if (column != null) {
             final TableCellRenderer renderer = column.getCellRenderer();
             if (renderer instanceof TreeClickHandler) {
