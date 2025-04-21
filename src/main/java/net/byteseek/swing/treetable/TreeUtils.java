@@ -36,12 +36,11 @@ import java.io.IOException;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import javax.swing.RowSorter;
-import javax.swing.table.*;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreeNode;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
 
 /**
  * A collection of miscellaneous static utility methods and objects to build trees, group nodes, process
@@ -54,10 +53,6 @@ public final class TreeUtils {
      */
     private static final char TAB_CHAR = '\t';
     private static final char NEW_LINE = '\n';
-    /**
-     * Default visible width of a TableColumn created using the utility createColumn() methods, if you don't specify a width.
-     */
-    private static final int DEFAULT_COLUMN_WIDTH = 75;
 
     /**
      * Static utility class - cannot construct it.
@@ -121,6 +116,8 @@ public final class TreeUtils {
         }
         return parentNode;
     }
+
+
 
     /**
      * This class represents a row in a table that models a tree structure,
@@ -342,104 +339,6 @@ public final class TreeUtils {
     }
 
     /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    public static TableColumn createColumn(final int modelIndex, final Object headerValue) {
-        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, null, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell renderer or cell editor specified - JTable has default renderers and editors for simple data types.
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param width The width of the column.
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    public static TableColumn createColumn(final int modelIndex, final Object headerValue, final int width) {
-        return createColumn(modelIndex, headerValue, width, null, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
-     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    public static TableColumn createColumn(final int modelIndex, final Object headerValue,
-                                       final TableCellRenderer cellRenderer) {
-        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     * Defaults to having no cell editor specified - JTable has default editors for simple data types.
-     * If specifying a cell renderer for model index 0, it must be capable of rendering the tree structure.     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param width The width of the column.
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @return a TableColumn with the values provided and defaults for the others.
-     */
-    public static TableColumn createColumn(final int modelIndex, final Object headerValue, final int width,
-                                       final TableCellRenderer cellRenderer) {
-        return createColumn(modelIndex, headerValue, width, cellRenderer, null);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @param cellEditor The TableCellEditor to use with the data types in that column.
-     * @return a TableColumn with the values provided, and a default width.
-     */
-    public static TableColumn createColumn(final int modelIndex, final Object headerValue,
-                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
-        return createColumn(modelIndex, headerValue, DEFAULT_COLUMN_WIDTH, cellRenderer, cellEditor);
-    }
-
-    /**
-     * Utility method to simplify creating columns for subclasses.
-     *
-     * @param modelIndex The model index of the column.  0 is always the tree rendering column.
-     * @param headerValue The header value
-     * @param width The width of the column.
-     * @param cellRenderer The TableCellRenderer to use with the data types in that column.
-     * @param cellEditor The TableCellEditor to use with the data types in that column.
-     * @return a TableColumn with the values provided.
-     */
-    public static  TableColumn createColumn(final int modelIndex,  final Object headerValue, final int width,
-                                       final TableCellRenderer cellRenderer, final TableCellEditor cellEditor) {
-        final TableColumn column = new TableColumn(modelIndex, width, cellRenderer, cellEditor);
-        column.setHeaderValue(headerValue);
-        return column;
-    }
-
-    /**
-     * Builds a TableColumnModel instance based on the provided list of column headers.
-     *
-     * @param headers the list of headers to be used for creating the columns
-     * @return a TableColumnModel containing columns corresponding to the provided headers
-     */
-    public static TableColumnModel buildTableColumnModel(final List<?> headers) {
-        TableColumnModel columnModel = new DefaultTableColumnModel();
-        int index = 0;
-        for (Object header : headers) {
-            columnModel.addColumn(createColumn(index++, header));
-        }
-        return columnModel;
-    }
-
-    /**
      * Returns a list containing the parent node and all children and sub-children in the
      * tree structure under the parent, using a depth-first tree walking strategy.
      * This gives the same (unsorted) order the nodes would have visually in the tree
@@ -577,38 +476,6 @@ public final class TreeUtils {
     }
 
     /**
-     * Calculates the space taken up by columns to the left of a column in the TableColumnModel.
-     *
-     * @param columnModel The table column model
-     * @param colIndex The column index of the column in the table column model (not the model index of the column).
-     * @return the space taken up by columns to the left of the column with colIndex in the TableColumnModel.
-     */
-    public static int calculateWidthToLeftOfColumn(final TableColumnModel columnModel, final int colIndex) {
-        int width = 0;
-        for (int col = colIndex - 1; col >= 0; col--) {
-            width += columnModel.getColumn(col).getWidth();
-        }
-        return width;
-    }
-
-    /**
-     * Returns the TableColumn in the TableColumnModel with the given model index, or null if no such column exists.
-     * The column index of a column may not match the model index if they have been re-ordered.
-     * @param columnModel The TableColumnModel to search.
-     * @param modelIndex The model index of the TableColumn requested.
-     * @return the TableColumn in the TableColumnModel with the given model index, or null if no such column exists.
-     */
-    public static TableColumn getColumnWithModelIndex(final TableColumnModel columnModel, final int modelIndex) {
-        for (int columnIndex = 0; columnIndex < columnModel.getColumnCount(); columnIndex++) {
-            final TableColumn column = columnModel.getColumn(columnIndex);
-            if (column.getModelIndex() == modelIndex) {
-                return column;
-            }
-        }
-        return null;
-    }
-
-    /**
      * Returns a string which (if printed or viewed in a text editor) is a visual representation of the nodes
      * in the list provided.  The nodes are indented according to their level, with each node on a separate line (\n line endings).
      *
@@ -663,33 +530,6 @@ public final class TreeUtils {
 
     //TODO: do we want a walk with a depth limit?
 
-
-    /**
-     * @param sortKeys The sort keys to check.
-     * @param modelIndex The model index of the column to check.
-     * @return true if a column with the column model index exists in the list of sort keys.
-     */
-    public static boolean columnInSortKeys(final List<? extends RowSorter.SortKey> sortKeys, final int modelIndex) {
-        return findSortKeyIndex(sortKeys, modelIndex) >= 0;
-    }
-
-    /**
-     * Returns the index of the sort key for a column in a table, or -1 if that column doesn't have a sort key for it.
-     * @param sortKeys The list of sort keys to look in.
-     * @param modelIndex The model index of the column to find a sort key for.
-     * @return The index of the sort key for a column, or -1 if that column doesn't have a sort key for it.
-     */
-    public static int findSortKeyIndex(final List<? extends RowSorter.SortKey> sortKeys, final int modelIndex) {
-        if (sortKeys != null) {
-            for (int sortKeyIndex = 0; sortKeyIndex < sortKeys.size(); sortKeyIndex++) {
-                RowSorter.SortKey key = sortKeys.get(sortKeyIndex);
-                if (key.getColumn() == modelIndex) {
-                    return sortKeyIndex;
-                }
-            }
-        }
-        return -1;
-    }
 
     /**
      * Given a sorted array of indices, and a position to start looking in them,
