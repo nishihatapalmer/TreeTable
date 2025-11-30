@@ -1695,7 +1695,6 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
      * Sets whether to show the expand handle if there are no children present in a node.
      * If you are adding nodes dynamically on expand, this should be true.
      * If it is a fixed tree, you should probably set this to false.
-     * @return whether to show the expand handle if there are no children present in a node.
      */
     public void setShowExpandHandleIfNoChildren(boolean showExpandHandleIfNoChildren) {
         this.showExpandHandleIfNoChildren = showExpandHandleIfNoChildren;
