@@ -1188,7 +1188,10 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     protected int removeVisibleNode(final TreeNode removedNode) {
-        final int modelIndex = getModelIndexForTreeNode(removedNode);
+        //NOTE: node parent is already null and unlinked from tree when TreeModel.removeNodeFromParent is called,
+        // which fires the event which results in trying to remove the visible node here.  Therefore, we cannot use tree
+        // walking to determine the visible model index, and have to rely on a linear scan of the visible node list.
+        final int modelIndex = getModelIndexLinearScan(removedNode);
         if (modelIndex >= 0) {
             final int numChildren = getLastKnownSubTreeCount(removedNode);
             final int lastIndex = modelIndex + numChildren;
@@ -1200,7 +1203,11 @@ public abstract class TreeTableModel extends AbstractTableModel implements TreeM
     }
 
     protected int removeVisibleNodes(final int from, final int to, final Object[] removedChildren) {
-        final int modelIndex = getModelIndexForTreeNode((TreeNode) removedChildren[from]);
+        //NOTE: node parents are already null and unlinked from tree when TreeModel.removeNodeFromParent is called,
+        // which fires the event which results in trying to remove the visible nodes here.  Therefore, we cannot use tree
+        // walking to determine the visible model index, and have to rely on a linear scan of the visible node list.
+        final int modelIndex = getModelIndexLinearScan((TreeNode) removedChildren[from]);
+
         if (modelIndex >= 0) {
             int numToRemove = 0;
             for (int index = from; index <= to; index++) {
